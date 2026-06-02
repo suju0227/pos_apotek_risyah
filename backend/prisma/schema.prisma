@@ -37,6 +37,8 @@ model User {
   purchases     Purchase[]
   stockMutations StockMutation[]
   stockAdjustments StockAdjustment[]
+  sales          Sale[]
+  idempotencyKeys IdempotencyKey[]
 
   @@index([roleId], map: "idx_users_role_id")
   @@index([username], map: "idx_users_username")
@@ -124,6 +126,7 @@ model Product {
   batches      ProductBatch[]
   purchaseItems PurchaseItem[]
   stockMutations StockMutation[]
+  saleItems SaleItem[]
 
   @@index([categoryId], map: "idx_products_category_id")
   @@index([baseUnitId], map: "idx_products_base_unit_id")
@@ -148,6 +151,7 @@ model ProductUnit {
   unit    Unit    @relation(fields: [unitId], references: [id])
   batchUnitPrices BatchUnitPrice[]
   purchaseItems PurchaseItem[]
+  saleItems SaleItem[]
 
   @@index([productId], map: "idx_product_units_product_id")
   @@index([unitId], map: "idx_product_units_unit_id")
@@ -174,6 +178,7 @@ model ProductBatch {
   purchaseItems PurchaseItem[]
   stockMutations StockMutation[]
   stockAdjustments StockAdjustment[]
+  saleBatchAllocations SaleBatchAllocation[]
 
   @@index([productId], map: "idx_product_batches_product_id")
   @@index([supplierId], map: "idx_product_batches_supplier_id")
@@ -294,4 +299,97 @@ model StockAdjustment {
   @@index([createdById], map: "idx_stock_adjustments_created_by_id")
   @@index([createdAt], map: "idx_stock_adjustments_created_at")
   @@map("stock_adjustments")
+}
+
+model Sale {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cashierId      String    @map("cashier_id") @db.Uuid
+  saleNumber     String    @unique @map("sale_number") @db.VarChar(100)
+  paymentMethod  String    @map("payment_method") @db.VarChar(50)
+  subtotal       Decimal   @db.Decimal(18, 2)
+  discountTotal  Decimal   @default(0) @map("discount_total") @db.Decimal(18, 2)
+  grandTotal     Decimal   @map("grand_total") @db.Decimal(18, 2)
+  paidAmount     Decimal   @map("paid_amount") @db.Decimal(18, 2)
+  changeAmount   Decimal   @map("change_amount") @db.Decimal(18, 2)
+  totalHpp       Decimal   @default(0) @map("total_hpp") @db.Decimal(18, 4)
+  totalProfit    Decimal   @default(0) @map("total_profit") @db.Decimal(18, 4)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamp(6)
+
+  cashier User @relation(fields: [cashierId], references: [id])
+  items SaleItem[]
+
+  @@index([cashierId], map: "idx_sales_cashier_id")
+  @@index([createdAt], map: "idx_sales_created_at")
+  @@map("sales")
+}
+
+model SaleItem {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  saleId          String   @map("sale_id") @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  productUnitId   String   @map("product_unit_id") @db.Uuid
+  productName     String   @map("product_name") @db.VarChar(200)
+  unitName        String   @map("unit_name") @db.VarChar(100)
+  qtySale         Decimal  @map("qty_sale") @db.Decimal(18, 4)
+  conversionSnapshot Decimal @map("conversion_snapshot") @db.Decimal(18, 4)
+  qtyBase         Decimal  @map("qty_base") @db.Decimal(18, 4)
+  sellingPrice    Decimal  @map("selling_price") @db.Decimal(18, 2)
+  subtotal        Decimal  @db.Decimal(18, 2)
+  discountAmount  Decimal  @default(0) @map("discount_amount") @db.Decimal(18, 2)
+  totalAfterDiscount Decimal @map("total_after_discount") @db.Decimal(18, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  sale Sale @relation(fields: [saleId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  productUnit ProductUnit @relation(fields: [productUnitId], references: [id])
+  allocations SaleBatchAllocation[]
+
+  @@index([saleId], map: "idx_sale_items_sale_id")
+  @@index([productId], map: "idx_sale_items_product_id")
+  @@index([productUnitId], map: "idx_sale_items_product_unit_id")
+  @@map("sale_items")
+}
+
+model SaleBatchAllocation {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  saleItemId       String   @map("sale_item_id") @db.Uuid
+  batchId          String   @map("batch_id") @db.Uuid
+  batchNumber      String   @map("batch_number") @db.VarChar(100)
+  expiredDate      DateTime @map("expired_date") @db.Date
+  qtyBase          Decimal  @map("qty_base") @db.Decimal(18, 4)
+  hppBaseSnapshot  Decimal  @map("hpp_base_snapshot") @db.Decimal(18, 4)
+  subtotal         Decimal  @db.Decimal(18, 2)
+  discountAmount   Decimal  @default(0) @map("discount_amount") @db.Decimal(18, 2)
+  profitAmount     Decimal  @default(0) @map("profit_amount") @db.Decimal(18, 4)
+  returnedQtyBase  Decimal  @default(0) @map("returned_qty_base") @db.Decimal(18, 4)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  saleItem SaleItem @relation(fields: [saleItemId], references: [id])
+  batch ProductBatch @relation(fields: [batchId], references: [id])
+
+  @@index([saleItemId], map: "idx_sale_batch_allocations_sale_item_id")
+  @@index([batchId], map: "idx_sale_batch_allocations_batch_id")
+  @@map("sale_batch_allocations")
+}
+
+model IdempotencyKey {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key              String    @db.VarChar(150)
+  userId           String    @map("user_id") @db.Uuid
+  actionType       String    @map("action_type") @db.VarChar(80)
+  requestHash      String    @map("request_hash") @db.Text
+  responseSnapshot Json?     @map("response_snapshot")
+  status           String    @db.VarChar(30)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamp(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "idx_idempotency_keys_user_id")
+  @@index([actionType], map: "idx_idempotency_keys_action_type")
+  @@index([expiresAt], map: "idx_idempotency_keys_expires_at")
+  @@map("idempotency_keys")
 }

@@ -2758,7 +2758,7 @@ login manager
 ```env
 NODE_ENV=development
 PORT=3000
-DATABASE_URL=postgresql://user:password@localhost:5432/pos_apotek
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pos_apotek_risyah
 JWT_ACCESS_SECRET=change_me
 JWT_REFRESH_SECRET=change_me
 JWT_ACCESS_EXPIRES_IN=15m

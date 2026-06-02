@@ -36,6 +36,7 @@ model User {
   refreshTokens RefreshToken[]
   purchases     Purchase[]
   stockMutations StockMutation[]
+  stockAdjustments StockAdjustment[]
 
   @@index([roleId], map: "idx_users_role_id")
   @@index([username], map: "idx_users_username")
@@ -172,6 +173,7 @@ model ProductBatch {
   prices BatchUnitPrice[]
   purchaseItems PurchaseItem[]
   stockMutations StockMutation[]
+  stockAdjustments StockAdjustment[]
 
   @@index([productId], map: "idx_product_batches_product_id")
   @@index([supplierId], map: "idx_product_batches_supplier_id")
@@ -273,4 +275,23 @@ model StockMutation {
   @@index([referenceType, referenceId], map: "idx_stock_mutations_reference")
   @@index([createdAt], map: "idx_stock_mutations_created_at")
   @@map("stock_mutations")
+}
+
+model StockAdjustment {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  batchId     String   @map("batch_id") @db.Uuid
+  createdById String   @map("created_by_id") @db.Uuid
+  oldQty      Decimal  @map("old_qty") @db.Decimal(18, 4)
+  newQty      Decimal  @map("new_qty") @db.Decimal(18, 4)
+  difference  Decimal  @db.Decimal(18, 4)
+  reason      String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  batch ProductBatch @relation(fields: [batchId], references: [id])
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([batchId], map: "idx_stock_adjustments_batch_id")
+  @@index([createdById], map: "idx_stock_adjustments_created_by_id")
+  @@index([createdAt], map: "idx_stock_adjustments_created_at")
+  @@map("stock_adjustments")
 }

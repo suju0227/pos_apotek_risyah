@@ -4,6 +4,16 @@ import { appConfig } from './config/app.config';
 import { databaseConfig } from './config/database.config';
 import { envSchema } from './config/env.schema';
 import { PrismaModule } from './database/prisma.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { BatchesModule } from './modules/batches/batches.module';
+import { CategoriesModule } from './modules/categories/categories.module';
+import { ProductsModule } from './modules/products/products.module';
+import { PurchasesModule } from './modules/purchases/purchases.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { StockModule } from './modules/stock/stock.module';
+import { SuppliersModule } from './modules/suppliers/suppliers.module';
+import { UnitsModule } from './modules/units/units.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -13,6 +23,16 @@ import { PrismaModule } from './database/prisma.module';
       validationSchema: envSchema,
     }),
     PrismaModule,
+    AuthModule,
+    RolesModule,
+    UsersModule,
+    CategoriesModule,
+    SuppliersModule,
+    UnitsModule,
+    ProductsModule,
+    BatchesModule,
+    PurchasesModule,
+    StockModule,
   ],
 })
 export class AppModule {}

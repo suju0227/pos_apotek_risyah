@@ -1,4 +1,4 @@
----
+﻿---
 document_name: "05_TASK_BREAKDOWN_POS_APOTEK_REVISI_SINKRON"
 document_type: "Task Breakdown / Implementation Plan"
 project_name: "POS Apotek"
@@ -27,6 +27,8 @@ revision_focus:
   - "penambahan task manajemen user dan pengaturan profil apotek"
   - "penegasan APP_TIMEZONE Asia/Makassar dan penyimpanan timestamp UTC"
   - "penguatan testing concurrency, role sanitization, histori transaksi, dan idempotency"
+  - "penegasan Presisi Harga Modal dan HPP"
+  - "penambahan task PO, pembelian dari PO, pelayanan resep dasar, konseling, dan pembatasan satuan jual"
 ---
 
 # Task Breakdown - POS Apotek
@@ -52,18 +54,24 @@ AI coding wajib mengikuti aturan berikut:
 3. Jangan melompati database dan service penting untuk langsung membuat UI.
 4. Jangan menyimpan stok hanya pada level produk.
 5. Jangan membuat transaksi kasir tanpa batch, FEFO, split allocation, dan mutasi stok.
-6. Jangan menampilkan HPP atau laba kepada role kasir.
-7. Jangan menghitung laba dari harga produk terbaru.
-8. Jangan mengubah transaksi lama ketika harga produk berubah.
-9. Jangan menghapus permanen transaksi, batch, pembelian, retur, atau mutasi stok.
-10. Jangan menjadikan frontend sebagai sumber kebenaran final.
-11. Jika task gagal, perbaiki task itu dahulu sebelum melanjutkan task berikutnya.
-12. Gunakan route frontend final berbahasa Indonesia sesuai SDD dan UI/UX Flow.
-13. Gunakan endpoint API backend berbahasa Inggris teknis dengan prefix `/api`.
-14. Gunakan idempotency key untuk checkout, pembelian, retur, dan koreksi stok.
-15. Gunakan waktu backend sebagai waktu transaksi final; jam frontend hanya tampilan.
-16. Simpan timestamp database dalam UTC dan tampilkan waktu operasional dalam `Asia/Makassar`.
-17. Jangan menganggap aplikasi selesai hanya karena halaman sudah muncul. Itu hanya kosmetik digital, bukan sistem yang benar.
+6. Jangan menghitung harga jual pelanggan otomatis dari harga modal atau HPP.
+7. Jangan menampilkan harga modal, HPP, margin, atau laba kepada role kasir.
+8. Jangan menghitung laba dari harga produk terbaru.
+9. Jangan mengubah transaksi lama ketika harga produk berubah.
+10. Jangan menghapus permanen transaksi, batch, pembelian, retur, atau mutasi stok.
+11. Jangan membuat PO/Pemesanan Obat menambah atau mengurangi stok.
+12. Jangan mengurangi stok saat resep dibuat atau ditandai siap bayar.
+13. Jangan mengizinkan kasir memilih satuan jual yang tidak aktif.
+14. Jangan memakai `FLOAT`, `DOUBLE`, atau `REAL` untuk uang, HPP, pajak, diskon, atau laba.
+15. Jangan memasukkan piutang sebagai task inti V1; piutang hanya future enhancement.
+16. Jangan menjadikan frontend sebagai sumber kebenaran final.
+17. Jika task gagal, perbaiki task itu dahulu sebelum melanjutkan task berikutnya.
+18. Gunakan route frontend final berbahasa Indonesia sesuai SDD dan UI/UX Flow.
+19. Gunakan endpoint API backend berbahasa Inggris teknis dengan prefix `/api`.
+20. Gunakan idempotency key untuk checkout, pembelian, retur, dan koreksi stok.
+21. Gunakan waktu backend sebagai waktu transaksi final; jam frontend hanya tampilan.
+22. Simpan timestamp database dalam UTC dan tampilkan waktu operasional dalam `Asia/Makassar`.
+23. Jangan menganggap aplikasi selesai hanya karena halaman sudah muncul. Itu hanya kosmetik digital, bukan sistem yang benar.
 
 ---
 
@@ -132,9 +140,12 @@ Gunakan checklist berikut saat implementasi:
 | Phase 1 | Database Foundation | Migration tabel inti dan seed awal |
 | Phase 2 | Auth, RBAC, User & Security Foundation | Login, token, refresh token, role, proteksi route, user API, audit dasar |
 | Phase 3 | Master Data | Produk, kategori, supplier, satuan |
-| Phase 4 | Batch & Pembelian | Batch, harga jual batch, pembelian supplier |
+| Phase 4 | Batch, PO & Pembelian | Batch, harga jual batch, PO obat, pembelian supplier |
+| Phase 4C | Presisi Harga Modal dan HPP | Migration presisi harga modal, HPP, harga jual bulat, dan laba internal |
+| Phase 4D | Purchase Order dan Pembelian Lanjutan | PO, convert PO ke draft pembelian, faktur supplier, diskon pembelian, dan PPN |
 | Phase 5 | Stok & Mutasi | StockService, mutasi stok, koreksi stok |
 | Phase 6 | Kasir & Transaksi | Halaman kasir, sales service, FEFO, split batch, idempotency checkout |
+| Phase 6C | Pelayanan Resep dan Konseling | Resep dasar, tarik resep ke kasir, dan konseling dasar |
 | Phase 7 | Diskon & Pembayaran | Diskon, alokasi diskon, metode pembayaran |
 | Phase 8 | Retur | Retur penjualan dan retur pembelian |
 | Phase 9 | Dashboard & Laporan | Dashboard, laporan penjualan, laporan laba |
@@ -177,7 +188,11 @@ Route frontend memakai istilah UI berbahasa Indonesia. Endpoint backend tetap me
 | Supplier | `/supplier` | `/api/suppliers` | Manager |
 | Satuan | `/satuan` | `/api/units`, `/api/products/:productId/units` | Manager |
 | Batch | `/batch` | `/api/batches` | Manager |
+| Pemesanan / PO Obat | `/pemesanan` | `/api/purchase-orders` | Apoteker, Manager |
 | Pembelian | `/pembelian` | `/api/purchases` | Manager |
+| Pembelian dari PO | `/pembelian/dari-po/:poId` | `/api/purchases/create-from-po/:poId` | Manager |
+| Pelayanan Resep | `/pelayanan/resep` | `/api/prescriptions` | Apoteker, Manager |
+| Konseling | `/pelayanan/konseling` | `/api/counseling-records` | Apoteker, Manager |
 | Stok | `/stok` | `/api/stock` | Manager, Kasir terbatas |
 | Mutasi Stok | `/mutasi-stok` | `/api/stock/mutations` | Manager |
 | Koreksi Stok | `/koreksi-stok` | `POST /api/stock/adjustments` | Manager |
@@ -389,18 +404,21 @@ Membuat repository proyek dan struktur folder dasar sesuai SDD.
 - [ ] Tambahkan field `initial_stock_base`.
 - [ ] Tambahkan field `current_stock_base`.
 - [ ] Tambahkan field `hpp_base`.
+- [ ] Gunakan `hpp_base NUMERIC(18,8)` untuk HPP per satuan dasar.
 - [ ] Tambahkan constraint stok tidak negatif.
 - [ ] Tambahkan constraint HPP tidak negatif.
 - [ ] Buat tabel `batch_unit_prices`.
 - [ ] Tambahkan FK ke `product_batches`.
 - [ ] Tambahkan FK ke `product_units`.
 - [ ] Tambahkan field `selling_price`.
+- [ ] Gunakan `selling_price NUMERIC(18,0)` untuk harga jual final rupiah bulat yang ditentukan manual oleh Manager.
 - [ ] Tambahkan unique constraint batch dan satuan jual.
 - [ ] Tambahkan index FEFO.
 
 ### Definition of Done
 - Batch menyimpan stok aktual.
 - Harga jual disimpan per batch dan satuan jual.
+- Harga jual batch tidak dihitung otomatis dari harga modal atau HPP.
 - Batch dapat diurutkan untuk FEFO.
 
 ---
@@ -428,7 +446,9 @@ Membuat repository proyek dan struktur folder dasar sesuai SDD.
 - [ ] Tambahkan conversion snapshot.
 - [ ] Tambahkan qty base.
 - [ ] Tambahkan purchase price.
+- [ ] Gunakan `purchase_price NUMERIC(18,6)` untuk harga beli supplier.
 - [ ] Tambahkan hpp base.
+- [ ] Gunakan `hpp_base NUMERIC(18,8)` untuk HPP internal presisi.
 - [ ] Tambahkan total price.
 
 ### Definition of Done
@@ -458,6 +478,7 @@ Membuat repository proyek dan struktur folder dasar sesuai SDD.
 - [ ] Simpan snapshot nama satuan.
 - [ ] Simpan qty satuan jual dan qty base.
 - [ ] Simpan harga jual final.
+- [ ] Simpan snapshot harga jual transaksi sebagai rupiah bulat `NUMERIC(18,0)`.
 - [ ] Buat tabel `sale_batch_allocations`.
 - [ ] Tambahkan FK sale item.
 - [ ] Tambahkan FK batch.
@@ -465,15 +486,18 @@ Membuat repository proyek dan struktur folder dasar sesuai SDD.
 - [ ] Simpan expired snapshot.
 - [ ] Simpan qty base.
 - [ ] Simpan HPP snapshot.
+- [ ] Simpan HPP snapshot presisi tinggi `NUMERIC(18,8)`.
 - [ ] Simpan subtotal allocation.
 - [ ] Simpan diskon allocation.
 - [ ] Simpan profit allocation.
+- [ ] Simpan profit allocation `NUMERIC(18,8)` dan bulatkan hanya saat display laporan.
 - [ ] Tambahkan returned_qty_base.
 
 ### Definition of Done
 - Transaksi dapat menyimpan detail produk.
 - Transaksi dapat menyimpan detail batch.
 - Laporan laba dapat dihitung dari detail transaksi.
+- Perubahan harga jual baru tidak mengubah histori transaksi lama.
 - Retur dapat mengacu ke allocation batch.
 
 ---
@@ -632,6 +656,110 @@ Membuat repository proyek dan struktur folder dasar sesuai SDD.
 - Aktivitas penting dapat diaudit.
 - Perubahan sensitif dapat ditelusuri.
 - Audit log tidak dapat diubah dari UI biasa.
+
+---
+
+# PHASE 4C - Presisi Harga Modal dan HPP
+
+## TASK-DB-013: Migration Presisi Harga Modal dan HPP
+
+**Type:** Database / Backend Adjustment
+**Priority:** P0
+**Complexity:** M
+**Related SRS:** Aturan harga modal, HPP, laba internal
+**Related SDD:** Rekomendasi tipe data harga
+
+### Checklist
+- [ ] Migrasikan `purchase_price` menjadi `NUMERIC(18,6)`.
+- [ ] Migrasikan field `hpp_base` dan snapshot HPP menjadi `NUMERIC(18,8)`.
+- [ ] Migrasikan `selling_price` dan snapshot harga jual transaksi menjadi `NUMERIC(18,0)`.
+- [ ] Migrasikan field laba internal, termasuk `profit_amount`, `total_profit`, dan profit allocation menjadi `NUMERIC(18,8)`.
+- [ ] Pastikan `profit_display` hanya nilai laporan yang dibulatkan/diformat saat ditampilkan.
+- [ ] Pastikan harga jual pelanggan tetap manual dari Manager dan tidak dihitung otomatis dari harga modal.
+- [ ] Pastikan response Kasir tidak memuat harga modal, harga beli supplier, HPP, margin, atau laba.
+- [ ] Jalankan `npm.cmd run db:validate`.
+- [ ] Jalankan `npm.cmd run db:generate`.
+- [ ] Jalankan `npm.cmd run db:deploy`.
+- [ ] Jalankan `npm.cmd run build`.
+- [ ] Jalankan `npm.cmd test`.
+
+### Definition of Done
+- Harga modal/HPP/laba internal memakai presisi tinggi.
+- Harga jual kasir tetap rupiah bulat dari harga jual final yang ditetapkan Manager.
+- Perubahan harga jual baru tidak mengubah histori transaksi lama.
+- Kasir hanya menerima data harga jual final produk.
+
+---
+
+# PHASE 4D - Purchase Order dan Pembelian Lanjutan
+
+## TASK-DB-PO-001: Membuat Tabel Purchase Orders dan Purchase Order Items
+
+**Type:** Database
+**Priority:** P1
+**Complexity:** M
+**Related SRS:** SRS-PO-001, SRS-PO-002
+**Related SDD:** Tabel `purchase_orders`, `purchase_order_items`
+
+### Checklist
+- [ ] Buat tabel `purchase_orders`.
+- [ ] Buat tabel `purchase_order_items`.
+- [ ] Simpan supplier, pembuat otomatis dari user login, tanggal PO, catatan, dan status.
+- [ ] Gunakan status `DRAFT`, `SENT`, `PARTIALLY_RECEIVED`, `RECEIVED`, dan `CANCELLED`.
+- [ ] Simpan item produk, satuan, qty order, catatan, dan qty yang sudah diterima.
+- [ ] Tambahkan relasi PO ke pembelian agar pembelian bisa berasal dari PO.
+- [ ] Pastikan pembuatan PO tidak membuat batch, stok, atau stock mutation.
+
+### Definition of Done
+- PO dan item PO tersimpan sebagai dokumen pemesanan.
+- PO dapat dilacak ke pembelian jika sudah diterima.
+- PO tidak mengubah stok dalam kondisi apa pun.
+
+---
+
+## TASK-DB-PRESC-001: Membuat Tabel Prescriptions dan Prescription Items
+
+**Type:** Database
+**Priority:** P1
+**Complexity:** M
+**Related SRS:** SRS-PRESC-001, SRS-PRESC-002
+**Related SDD:** Tabel `prescriptions`, `prescription_items`
+
+### Checklist
+- [ ] Buat tabel `prescriptions`.
+- [ ] Buat tabel `prescription_items`.
+- [ ] Simpan nomor resep, data pasien minimal, dokter opsional, status resep, dan pembuat resep.
+- [ ] Simpan item produk, satuan jual, qty, aturan pakai, dan catatan.
+- [ ] Tambahkan status agar resep bisa ditandai `READY_FOR_PAYMENT`.
+- [ ] Tambahkan relasi resep ke sales jika sudah ditarik ke kasir dan checkout berhasil.
+- [ ] Pastikan resep tidak membuat stock mutation sebelum checkout kasir.
+
+### Definition of Done
+- Resep dasar dapat disimpan sebelum pembayaran.
+- Resep siap bayar dapat ditarik ke kasir.
+- Stok belum berkurang sampai checkout berhasil.
+
+---
+
+## TASK-DB-COUNS-001: Membuat Tabel Counseling Records
+
+**Type:** Database
+**Priority:** P1
+**Complexity:** S
+**Related SRS:** SRS-COUNS-001
+**Related SDD:** Tabel `counseling_records`
+
+### Checklist
+- [ ] Buat tabel `counseling_records`.
+- [ ] Simpan apoteker pencatat.
+- [ ] Simpan relasi opsional ke resep atau transaksi.
+- [ ] Simpan ringkasan edukasi obat, catatan pasien, dan waktu pencatatan.
+- [ ] Pastikan konseling tidak membuat tagihan dan tidak mengubah stok.
+
+### Definition of Done
+- Konseling dasar terdokumentasi.
+- Konseling bisa terkait resep atau transaksi jika tersedia.
+- Konseling bukan clinical decision support dan bukan transaksi finansial.
 
 ---
 
@@ -1121,6 +1249,196 @@ Membuat repository proyek dan struktur folder dasar sesuai SDD.
 
 ---
 
+## TASK-BE-UNIT-REV-001: Revisi Product Units untuk Pembatasan Satuan Jual
+
+**Type:** Backend
+**Priority:** P1
+**Complexity:** M
+**Related SRS:** SRS-UNIT-003
+
+### Checklist
+- [ ] Tambahkan dukungan `is_sale_unit`.
+- [ ] Tambahkan dukungan `is_active`.
+- [ ] Tambahkan dukungan `min_sale_qty`.
+- [ ] Tambahkan dukungan `sale_unit_note`.
+- [ ] Pastikan endpoint kasir hanya mengembalikan satuan jual aktif.
+- [ ] Pastikan checkout menolak product unit tidak aktif atau bukan satuan jual.
+- [ ] Pastikan `min_sale_qty` divalidasi saat kasir menjual produk.
+
+### Definition of Done
+- Tidak semua satuan dasar otomatis bisa dijual.
+- Kasir hanya melihat satuan jual aktif.
+- Backend tetap menjadi penjaga final walaupun UI salah kirim payload.
+
+---
+
+## TASK-FE-UNIT-REV-001: Revisi UI Satuan Jual Aktif
+
+**Type:** Frontend
+**Priority:** P1
+**Complexity:** M
+**Related UI:** Halaman Satuan dan Produk
+
+### Checklist
+- [ ] Tambahkan kontrol aktif/nonaktif satuan jual.
+- [ ] Tambahkan kontrol apakah satuan boleh dijual di kasir.
+- [ ] Tambahkan input minimum qty jual.
+- [ ] Tambahkan catatan satuan jual.
+- [ ] Pastikan halaman kasir hanya menampilkan satuan jual dari API kasir.
+- [ ] Tampilkan validasi jika satuan jual tidak memenuhi aturan backend.
+
+### Definition of Done
+- Manager dapat membatasi satuan jual produk.
+- Kasir tidak dapat memilih satuan yang tidak aktif.
+- UI tidak menyiratkan semua satuan konversi boleh dijual.
+
+---
+
+## TASK-BE-PO-001: Membuat PurchaseOrderService dan API Purchase Orders
+
+**Type:** Backend
+**Priority:** P1
+**Complexity:** L
+**Related SRS:** SRS-PO-001
+
+### Checklist
+- [ ] Buat modul `purchase-orders`.
+- [ ] Buat endpoint list, detail, create, update, cancel, dan print preview.
+- [ ] Batasi akses ke Apoteker dan Manager sesuai RBAC.
+- [ ] Isi pembuat PO otomatis dari user login.
+- [ ] Validasi supplier aktif, produk aktif, satuan valid, dan qty order > 0.
+- [ ] Pastikan PO tidak membuat batch, stok, pembelian final, atau stock mutation.
+- [ ] Tambahkan audit log untuk perubahan status penting.
+
+### Definition of Done
+- Apoteker/Manager dapat membuat PO obat.
+- PO dapat dicetak sebagai dokumen pemesanan.
+- PO tidak mengubah stok.
+
+---
+
+## TASK-BE-PO-002: Convert PO ke Draft Pembelian
+
+**Type:** Backend
+**Priority:** P1
+**Complexity:** L
+**Related SRS:** SRS-PO-002, SRS-PUR-002
+
+### Checklist
+- [ ] Buat endpoint convert PO ke draft pembelian.
+- [ ] Buat endpoint atau service `create-from-po`.
+- [ ] Tarik item PO ke draft pembelian tanpa mengunci qty final.
+- [ ] Izinkan Manager mengubah qty, harga, diskon, PPN, batch, expired, dan harga jual final.
+- [ ] Dukung penerimaan sebagian.
+- [ ] Update status PO menjadi `PARTIALLY_RECEIVED` atau `RECEIVED` setelah pembelian final.
+- [ ] Pastikan stok hanya bertambah setelah pembelian final, bukan saat draft dibuat.
+
+### Definition of Done
+- PO dapat menjadi draft pembelian.
+- Draft pembelian masih bisa disesuaikan Manager.
+- Status PO berubah sesuai qty diterima setelah pembelian final.
+
+---
+
+## TASK-BE-PUR-REV-001: Revisi PurchaseService untuk PO, Diskon, PPN, dan Validasi Faktur
+
+**Type:** Backend
+**Priority:** P1
+**Complexity:** XL
+**Related SRS:** SRS-PUR-001, SRS-PUR-002
+
+### Checklist
+- [ ] Dukung pembelian manual dan pembelian dari PO.
+- [ ] Tambahkan `purchase_order_id`, `invoice_number`, dan `invoice_date`.
+- [ ] Tambahkan mode pajak `NON_PPN`, `PPN_INCLUDED`, dan `PPN_EXCLUDED`.
+- [ ] Tambahkan diskon pembelian `NONE`, `NOMINAL`, dan `PERCENT`.
+- [ ] Hitung `gross_total`, `discount_amount`, `net_total`, `tax_amount`, dan `hpp_base` di backend.
+- [ ] Gunakan presisi tinggi untuk harga modal, diskon, PPN, HPP, dan total faktur.
+- [ ] Larang `FLOAT`, `DOUBLE`, dan `REAL` untuk nilai uang.
+- [ ] Validasi `invoice_total_input`, `calculated_total`, `rounding_adjustment`, dan `difference_note`.
+- [ ] Tolak finalisasi pembelian jika selisih faktur signifikan tanpa alasan koreksi.
+- [ ] Wajibkan batch number dan expired date untuk setiap item diterima.
+- [ ] Izinkan satu item PO diterima menjadi beberapa batch.
+- [ ] Jalankan finalisasi pembelian dalam database transaction.
+
+### Definition of Done
+- Pembelian manual dan dari PO berjalan.
+- Diskon pembelian, PPN pembelian, dan validasi faktur dihitung server-side.
+- Pembelian final menambah stok batch, mencatat mutasi stok masuk, dan memperbarui status PO jika ada.
+
+---
+
+## TASK-FE-PO-001: Membuat UI Daftar, Form, Detail, dan Cetak PO
+
+**Type:** Frontend
+**Priority:** P1
+**Complexity:** L
+**Related UI:** Flow Pemesanan / PO Obat
+
+### Checklist
+- [ ] Buat halaman `/pemesanan`.
+- [ ] Buat halaman `/pemesanan/tambah`.
+- [ ] Buat halaman `/pemesanan/:id`.
+- [ ] Buat halaman `/pemesanan/:id/cetak`.
+- [ ] Tampilkan status PO.
+- [ ] Tampilkan pembuat PO dari data backend.
+- [ ] Tambahkan aksi kirim, batal, dan print preview.
+- [ ] Jangan tampilkan PO sebagai stok masuk.
+
+### Definition of Done
+- Apoteker/Manager dapat membuat dan melihat PO.
+- PO dapat dicetak.
+- UI tidak menyiratkan stok bertambah saat PO dibuat.
+
+---
+
+## TASK-FE-PO-002: Membuat UI Convert PO ke Pembelian
+
+**Type:** Frontend
+**Priority:** P1
+**Complexity:** L
+**Related UI:** Flow PO ke Pembelian
+
+### Checklist
+- [ ] Tambahkan aksi convert PO dari detail PO.
+- [ ] Buat halaman `/pembelian/dari-po/:poId`.
+- [ ] Isi draft pembelian dari item PO.
+- [ ] Izinkan Manager mengubah qty, harga, diskon, PPN, batch, expired, dan harga jual final.
+- [ ] Tampilkan status penerimaan sebagian.
+- [ ] Tampilkan peringatan bahwa stok hanya bertambah setelah pembelian final.
+
+### Definition of Done
+- Manager dapat membuat draft pembelian dari PO.
+- Manager tetap bisa menyesuaikan data faktur supplier.
+- Pembelian final mengikuti validasi backend.
+
+---
+
+## TASK-FE-PUR-REV-001: Revisi UI Pembelian untuk Faktur, Diskon, PPN, dan Presisi HPP
+
+**Type:** Frontend
+**Priority:** P1
+**Complexity:** L
+**Related UI:** Flow Pembelian Supplier
+
+### Checklist
+- [ ] Tambahkan input nomor faktur dan tanggal faktur.
+- [ ] Tambahkan pilihan sumber pembelian manual atau dari PO.
+- [ ] Tambahkan diskon pembelian per item.
+- [ ] Tambahkan mode pajak `NON_PPN`, `PPN_INCLUDED`, dan `PPN_EXCLUDED`.
+- [ ] Tambahkan input total faktur supplier.
+- [ ] Tampilkan calculated total dan selisih pembulatan.
+- [ ] Wajibkan alasan koreksi jika selisih faktur signifikan.
+- [ ] Izinkan harga modal presisi tinggi.
+- [ ] Tetapkan harga jual pelanggan sebagai rupiah bulat manual Manager.
+
+### Definition of Done
+- UI pembelian dapat menangani faktur supplier realistis.
+- UI tidak menghitung harga jual otomatis dari harga modal.
+- Manager dapat melihat selisih faktur sebelum finalisasi.
+
+---
+
 # PHASE 5 - Stok dan Mutasi
 
 ## TASK-BE-010: Membuat StockService
@@ -1470,6 +1788,148 @@ Membuat repository proyek dan struktur folder dasar sesuai SDD.
 
 ---
 
+# PHASE 6C - Pelayanan Resep dan Konseling
+
+## TASK-BE-PRESC-001: Membuat PrescriptionService dan API Resep Dasar
+
+**Type:** Backend
+**Priority:** P1
+**Complexity:** L
+**Related SRS:** SRS-PRESC-001
+
+### Checklist
+- [ ] Buat modul `prescriptions`.
+- [ ] Buat endpoint list, detail, create, update, cancel, dan ready for payment.
+- [ ] Batasi pengelolaan resep ke Apoteker dan Manager.
+- [ ] Validasi produk aktif dan satuan jual aktif.
+- [ ] Simpan data pasien minimal, dokter opsional, item resep, qty, aturan pakai, dan catatan.
+- [ ] Tandai resep `READY_FOR_PAYMENT` jika siap ditarik kasir.
+- [ ] Pastikan pembuatan resep tidak mengurangi stok.
+- [ ] Pastikan ready for payment tidak mengurangi stok.
+
+### Definition of Done
+- Apoteker/Manager dapat membuat resep dasar.
+- Resep bisa ditandai siap bayar.
+- Tidak ada stok atau mutasi stok yang berubah sebelum checkout.
+
+---
+
+## TASK-BE-PRESC-002: Tarik Resep ke Checkout Kasir
+
+**Type:** Backend
+**Priority:** P1
+**Complexity:** L
+**Related SRS:** SRS-PRESC-002
+
+### Checklist
+- [ ] Buat endpoint `GET /api/prescriptions/ready-for-payment`.
+- [ ] Buat endpoint `POST /api/sales/from-prescription/:prescriptionId`.
+- [ ] Izinkan Kasir dan Manager menarik resep siap bayar.
+- [ ] Konversi item resep menjadi payload checkout yang tetap divalidasi SalesService.
+- [ ] Jalankan FEFO, split batch, diskon, pembayaran, pengurangan stok, dan mutasi stok hanya saat checkout berhasil.
+- [ ] Simpan relasi sales ke prescription.
+- [ ] Tolak resep yang belum ready, sudah dibayar, dibatalkan, atau tidak valid.
+
+### Definition of Done
+- Kasir dapat menarik resep siap bayar ke transaksi.
+- Stok berkurang hanya setelah checkout berhasil.
+- Histori sales tetap menyimpan snapshot transaksi final.
+
+---
+
+## TASK-BE-COUNS-001: Membuat CounselingService dan API Konseling Dasar
+
+**Type:** Backend
+**Priority:** P1
+**Complexity:** M
+**Related SRS:** SRS-COUNS-001
+
+### Checklist
+- [ ] Buat modul `counseling-records`.
+- [ ] Buat endpoint list, detail, create, dan update.
+- [ ] Batasi akses ke Apoteker dan Manager.
+- [ ] Izinkan relasi opsional ke resep atau transaksi.
+- [ ] Simpan catatan edukasi obat dan ringkasan konseling.
+- [ ] Pastikan konseling tidak membuat tagihan.
+- [ ] Pastikan konseling tidak mengubah stok.
+- [ ] Pastikan fitur ini tidak menjadi clinical decision support otomatis.
+
+### Definition of Done
+- Konseling dasar dapat dicatat.
+- Konseling dapat ditelusuri dari resep/transaksi terkait.
+- Tidak ada efek stok atau finansial dari pencatatan konseling.
+
+---
+
+## TASK-FE-PRESC-001: Membuat UI Pelayanan Resep Dasar
+
+**Type:** Frontend
+**Priority:** P1
+**Complexity:** L
+**Related UI:** Flow Pelayanan Resep
+
+### Checklist
+- [ ] Buat halaman `/pelayanan/resep`.
+- [ ] Buat halaman `/pelayanan/resep/tambah`.
+- [ ] Buat halaman `/pelayanan/resep/:id`.
+- [ ] Buat form data pasien minimal.
+- [ ] Buat input item resep, satuan jual aktif, qty, aturan pakai, dan catatan.
+- [ ] Tambahkan aksi ready for payment.
+- [ ] Tampilkan status resep.
+- [ ] Jangan tampilkan resep sebagai transaksi final.
+- [ ] Jangan tampilkan stok berkurang saat resep dibuat.
+
+### Definition of Done
+- Apoteker/Manager dapat mengelola resep dasar dari UI.
+- Resep dapat ditandai siap bayar.
+- UI jelas membedakan resep dari checkout final.
+
+---
+
+## TASK-FE-PRESC-002: Integrasi Resep Siap Bayar ke Kasir
+
+**Type:** Frontend
+**Priority:** P1
+**Complexity:** L
+**Related UI:** Flow Resep ke Kasir
+
+### Checklist
+- [ ] Tambahkan daftar resep siap bayar di halaman kasir.
+- [ ] Izinkan Kasir menarik resep ke keranjang.
+- [ ] Tampilkan data jual aman tanpa HPP, modal, margin, atau laba.
+- [ ] Jalankan checkout melalui endpoint sales dari resep.
+- [ ] Tampilkan error jika resep sudah dibayar, dibatalkan, atau stok tidak cukup.
+
+### Definition of Done
+- Kasir dapat menyelesaikan pembayaran resep.
+- Checkout resep tetap memakai FEFO dan idempotency.
+- Kasir tidak menerima data sensitif.
+
+---
+
+## TASK-FE-COUNS-001: Membuat UI Konseling Dasar
+
+**Type:** Frontend
+**Priority:** P1
+**Complexity:** M
+**Related UI:** Flow Konseling Dasar
+
+### Checklist
+- [ ] Buat halaman `/pelayanan/konseling`.
+- [ ] Buat halaman `/pelayanan/riwayat`.
+- [ ] Buat form catatan konseling.
+- [ ] Izinkan relasi opsional ke resep atau transaksi.
+- [ ] Tampilkan riwayat konseling untuk Apoteker/Manager.
+- [ ] Jangan membuat tagihan dari konseling.
+- [ ] Jangan menampilkan konseling sebagai mutasi stok.
+
+### Definition of Done
+- Apoteker/Manager dapat mencatat konseling.
+- Konseling dapat ditelusuri tanpa mengubah stok atau tagihan.
+- UI tidak menyiratkan decision support otomatis.
+
+---
+
 # PHASE 7 - Diskon dan Pembayaran
 
 ## TASK-BE-016: Membuat DiscountService
@@ -1752,6 +2212,7 @@ Membuat repository proyek dan struktur folder dasar sesuai SDD.
 - [ ] Hitung return profit.
 - [ ] Hitung net revenue.
 - [ ] Hitung net profit.
+- [ ] Bulatkan `profit_display` saat laporan ditampilkan tanpa mengubah nilai internal presisi.
 - [ ] Buat filter periode.
 - [ ] Proteksi hanya manager/pemilik.
 - [ ] Pastikan perubahan harga baru tidak mengubah laporan lama.
@@ -2077,6 +2538,116 @@ Membuat repository proyek dan struktur folder dasar sesuai SDD.
 
 ---
 
+## TASK-TEST-PO-001: Test Purchase Order Tidak Mengubah Stok
+
+**Type:** Testing
+**Priority:** P1
+**Complexity:** M
+**Related SRS:** SRS-PO-001, SRS-PO-002
+
+### Checklist
+- [ ] Test Apoteker/Manager dapat membuat PO.
+- [ ] Test Kasir ditolak dari endpoint PO management.
+- [ ] Test pembuatan PO tidak membuat batch.
+- [ ] Test pembuatan PO tidak membuat stock mutation.
+- [ ] Test convert PO hanya membuat draft pembelian.
+- [ ] Test status PO berubah setelah pembelian final.
+
+### Definition of Done
+- PO terbukti bukan transaksi stok.
+- Convert PO tidak menambah stok sebelum pembelian final.
+
+---
+
+## TASK-TEST-PUR-001: Test Pembelian dari PO, Diskon, PPN, dan Validasi Faktur
+
+**Type:** Testing
+**Priority:** P1
+**Complexity:** L
+**Related SRS:** SRS-PUR-001, SRS-PUR-002
+
+### Checklist
+- [ ] Test pembelian manual valid.
+- [ ] Test pembelian dari PO valid.
+- [ ] Test pembelian final menambah stok batch.
+- [ ] Test satu item PO dapat diterima ke beberapa batch.
+- [ ] Test batch number dan expired date wajib.
+- [ ] Test diskon pembelian nominal dan persen.
+- [ ] Test `NON_PPN`, `PPN_INCLUDED`, dan `PPN_EXCLUDED`.
+- [ ] Test pembelian gagal jika selisih faktur signifikan tanpa `difference_note`.
+- [ ] Test rollback total jika salah satu item invalid.
+
+### Definition of Done
+- Pembelian dari PO dan manual aman secara transaksi.
+- Diskon, PPN, faktur, batch, dan stok terverifikasi.
+
+---
+
+## TASK-TEST-PRECISION-001: Test Presisi Harga Modal, HPP, dan Laba Internal
+
+**Type:** Testing
+**Priority:** P1
+**Complexity:** M
+**Related SRS:** Presisi Harga Modal dan HPP
+
+### Checklist
+- [ ] Test `purchase_price` memakai presisi tinggi.
+- [ ] Test `hpp_base` memakai presisi tinggi.
+- [ ] Test `selling_price` tetap rupiah bulat.
+- [ ] Test laba dihitung dari harga jual snapshot dikurangi HPP presisi.
+- [ ] Test perubahan harga jual baru tidak mengubah transaksi lama.
+- [ ] Test schema tidak memakai `FLOAT`, `DOUBLE`, atau `REAL` untuk uang, HPP, pajak, diskon, atau laba.
+- [ ] Test response Kasir tidak memuat modal, HPP, margin, atau laba.
+
+### Definition of Done
+- Presisi internal terjaga tanpa mengubah aturan harga jual pelanggan.
+- Histori transaksi tetap benar.
+
+---
+
+## TASK-TEST-PRESC-001: Test Pelayanan Resep Dasar
+
+**Type:** Testing
+**Priority:** P1
+**Complexity:** L
+**Related SRS:** SRS-PRESC-001, SRS-PRESC-002
+
+### Checklist
+- [ ] Test Apoteker/Manager dapat membuat resep.
+- [ ] Test Kasir tidak dapat mengelola resep.
+- [ ] Test pembuatan resep tidak mengurangi stok.
+- [ ] Test ready for payment tidak mengurangi stok.
+- [ ] Test Kasir dapat menarik resep siap bayar ke checkout.
+- [ ] Test checkout resep menjalankan FEFO dan mengurangi stok setelah sukses.
+- [ ] Test resep yang sudah dibayar tidak dapat dibayar ulang.
+- [ ] Test stok tidak cukup menolak checkout dan rollback.
+
+### Definition of Done
+- Resep dasar terbukti bukan transaksi final.
+- Stok berubah hanya melalui checkout sales.
+
+---
+
+## TASK-TEST-UNIT-001: Test Pembatasan Satuan Jual Aktif
+
+**Type:** Testing
+**Priority:** P1
+**Complexity:** M
+**Related SRS:** SRS-UNIT-003
+
+### Checklist
+- [ ] Test cashier products hanya menampilkan satuan jual aktif.
+- [ ] Test checkout menolak product unit tidak aktif.
+- [ ] Test checkout menolak product unit yang bukan satuan jual.
+- [ ] Test checkout menolak qty di bawah `min_sale_qty`.
+- [ ] Test Manager dapat mengaktifkan/nonaktifkan satuan jual.
+
+### Definition of Done
+- Backend mencegah penjualan dengan satuan yang tidak boleh dijual.
+- UI kasir hanya menerima data satuan jual aman.
+
+---
+
 # PHASE 13 - Deployment
 
 ## TASK-DEPLOY-001: Setup Environment Deployment
@@ -2134,8 +2705,15 @@ Membuat repository proyek dan struktur folder dasar sesuai SDD.
 - [ ] Semua seed berhasil.
 - [ ] Login admin berhasil.
 - [ ] Role kasir berhasil.
+- [ ] Role apoteker berhasil jika diaktifkan untuk V1.
+- [ ] PO obat berhasil dibuat tanpa mengubah stok.
+- [ ] Convert PO ke pembelian berhasil.
 - [ ] Transaksi kasir berhasil.
 - [ ] Pembelian berhasil.
+- [ ] Pembelian dari PO dengan faktur, diskon, dan PPN berhasil.
+- [ ] Pelayanan resep dasar berhasil dibuat tanpa mengubah stok.
+- [ ] Resep siap bayar berhasil ditarik ke kasir.
+- [ ] Konseling dasar berhasil dicatat tanpa tagihan dan tanpa mutasi stok.
 - [ ] Retur berhasil.
 - [ ] Dashboard tampil.
 - [ ] Laporan laba tampil.
@@ -2210,12 +2788,17 @@ flowchart TD
     C --> C1[Refresh Token & User Management]
     B --> D[Master Data API]
     D --> E[Product Units]
-    E --> F[Batch API]
-    F --> G[PurchaseService]
-    G --> H[StockService]
+    E --> E1[Active Sale Unit Rules]
+    E1 --> F[Batch API]
+    F --> F1[Purchase Order Service]
+    F1 --> G[PurchaseService]
+    G --> G1[Purchase Invoice, Discount, Tax]
+    G1 --> H[StockService]
     H --> I[FefoService]
     I --> J[SalesService]
     J --> J1[IdempotencyService]
+    J --> J2[Prescription Checkout]
+    J2 --> J3[Counseling Records]
     J --> K[DiscountService]
     J --> L[ReturnService]
     L --> M[ReportService]
@@ -2229,9 +2812,13 @@ flowchart TD
     A[Login UI] --> B[AppShell]
     B --> C[Master Data UI]
     C --> D[Batch UI]
-    D --> E[Purchase UI]
-    E --> F[Stock UI]
-    F --> G[Cashier UI]
+    D --> D1[Purchase Order UI]
+    D1 --> E[Purchase UI]
+    E --> E1[Purchase From PO UI]
+    E1 --> F[Stock UI]
+    F --> F1[Prescription UI]
+    F1 --> F2[Counseling UI]
+    F2 --> G[Cashier UI]
     G --> H[Sales Return UI]
     H --> I[Dashboard UI]
     I --> J[Reports UI]
@@ -2263,17 +2850,28 @@ Task berikut wajib selesai agar aplikasi layak disebut V1:
 | TASK-DB-010 | Refresh tokens |
 | TASK-DB-011 | Idempotency keys |
 | TASK-DB-012 | Audit logs |
+| TASK-DB-013 | Presisi harga modal dan HPP |
+| TASK-DB-PO-001 | Purchase orders dan items |
+| TASK-DB-PRESC-001 | Prescriptions dan items |
+| TASK-DB-COUNS-001 | Counseling records |
 | TASK-BE-001 | AuthService |
 | TASK-BE-002 | Middleware RBAC |
 | TASK-BE-025 | User Management API |
 | TASK-BE-026 | AuditLogService |
 | TASK-BE-006 | API Products |
+| TASK-BE-UNIT-REV-001 | Revisi satuan jual aktif |
+| TASK-BE-PO-001 | PurchaseOrderService |
+| TASK-BE-PO-002 | Convert PO ke pembelian |
 | TASK-BE-008 | PurchaseService |
+| TASK-BE-PUR-REV-001 | Revisi PurchaseService untuk PO, diskon, PPN, dan faktur |
 | TASK-BE-010 | StockService |
 | TASK-BE-013 | FefoService |
 | TASK-BE-014 | SalesService |
 | TASK-BE-015 | API Sales |
 | TASK-BE-027 | IdempotencyService |
+| TASK-BE-PRESC-001 | PrescriptionService |
+| TASK-BE-PRESC-002 | Tarik resep ke checkout |
+| TASK-BE-COUNS-001 | CounselingService |
 | TASK-BE-016 | DiscountService |
 | TASK-BE-018 | Sales Return Service |
 | TASK-BE-021 | Dashboard API |
@@ -2282,11 +2880,18 @@ Task berikut wajib selesai agar aplikasi layak disebut V1:
 | TASK-FE-001 | Login UI |
 | TASK-FE-002 | AppShell |
 | TASK-FE-006 | Produk UI |
+| TASK-FE-UNIT-REV-001 | UI satuan jual aktif |
+| TASK-FE-PO-001 | UI PO obat |
+| TASK-FE-PO-002 | UI convert PO ke pembelian |
 | TASK-FE-008 | Pembelian UI |
+| TASK-FE-PUR-REV-001 | UI pembelian faktur, diskon, PPN |
 | TASK-FE-011 | Kasir layout |
 | TASK-FE-012 | Keranjang kasir |
 | TASK-FE-013 | Pembayaran kasir |
 | TASK-FE-014 | Submit transaksi |
+| TASK-FE-PRESC-001 | UI pelayanan resep |
+| TASK-FE-PRESC-002 | Integrasi resep ke kasir |
+| TASK-FE-COUNS-001 | UI konseling dasar |
 | TASK-FE-015 | Retur penjualan UI |
 | TASK-FE-017 | Dashboard UI |
 | TASK-FE-018 | Laporan penjualan UI |
@@ -2300,6 +2905,11 @@ Task berikut wajib selesai agar aplikasi layak disebut V1:
 | TASK-TEST-008 | Test idempotency checkout |
 | TASK-TEST-009 | Test role sanitization |
 | TASK-TEST-010 | Test histori dan retur sebagian |
+| TASK-TEST-PO-001 | Test PO tidak mengubah stok |
+| TASK-TEST-PUR-001 | Test pembelian dari PO, diskon, PPN, dan faktur |
+| TASK-TEST-PRECISION-001 | Test presisi harga modal dan HPP |
+| TASK-TEST-PRESC-001 | Test pelayanan resep dasar |
+| TASK-TEST-UNIT-001 | Test pembatasan satuan jual aktif |
 
 ## 6.2 Task Bisa Menyusul Setelah MVP
 
@@ -2329,10 +2939,29 @@ Aplikasi POS Apotek V1 dianggap selesai jika:
 - [ ] Manager dapat membuat satuan.
 - [ ] Manager dapat membuat produk.
 - [ ] Manager dapat mengatur satuan jual produk.
+- [ ] Manager dapat membatasi satuan jual aktif, minimum qty jual, dan catatan satuan jual.
+- [ ] Kasir hanya dapat memakai satuan jual aktif.
+- [ ] Apoteker/Manager dapat membuat PO obat.
+- [ ] PO obat tidak menambah atau mengurangi stok.
+- [ ] PO dapat dicetak dan dikonversi menjadi draft pembelian.
 - [ ] Manager dapat mencatat pembelian.
+- [ ] Manager dapat mencatat pembelian manual atau dari PO.
+- [ ] Pembelian dari PO tetap dapat disesuaikan qty, harga, diskon, PPN, batch, expired, dan harga jual final.
+- [ ] Pembelian mendukung validasi faktur supplier.
 - [ ] Pembelian membuat batch.
 - [ ] Pembelian menambah stok batch.
 - [ ] Pembelian mencatat mutasi stok masuk.
+- [ ] Harga modal/HPP/laba internal memakai presisi tinggi.
+- [ ] Diskon pembelian dan PPN pembelian memakai presisi tinggi.
+- [ ] Uang, HPP, pajak, diskon, dan laba tidak memakai `FLOAT`, `DOUBLE`, atau `REAL`.
+- [ ] Harga jual kasir tetap rupiah bulat final dari Manager.
+- [ ] Kasir tidak menerima harga modal, HPP, margin, atau laba.
+- [ ] Apoteker tidak menerima HPP/laba/margin kecuali ada izin khusus di masa depan.
+- [ ] Apoteker/Manager dapat membuat resep dasar.
+- [ ] Resep dasar tidak mengurangi stok sebelum checkout kasir berhasil.
+- [ ] Resep siap bayar dapat ditarik ke kasir.
+- [ ] Apoteker/Manager dapat mencatat konseling dasar.
+- [ ] Konseling tidak membuat tagihan dan tidak mengubah stok.
 - [ ] Kasir dapat mencari produk.
 - [ ] Kasir dapat memilih satuan jual.
 - [ ] Kasir dapat menambahkan item ke keranjang.
@@ -2377,24 +3006,35 @@ AI coding tidak boleh:
 3. Menyimpan stok hanya pada tabel produk.
 4. Mengabaikan batch expired.
 5. Mengabaikan FEFO.
-6. Menghitung laba dari harga produk terbaru.
-7. Mengirim HPP/laba ke role kasir.
-8. Menyimpan password plaintext.
-9. Membuat fitur payment gateway otomatis.
-10. Membuat fitur BPJS.
-11. Membuat fitur multi-cabang.
-12. Menghapus transaksi final secara permanen.
-13. Menghapus batch historis secara permanen.
-14. Mengizinkan stok negatif.
-15. Mengizinkan retur tanpa transaksi asal.
-16. Mengizinkan retur melebihi qty yang belum diretur.
-17. Membuat UI tanpa empty/loading/error state.
-18. Membuat halaman kasir yang memaksa kasir berpindah-pindah halaman untuk transaksi normal.
-19. Menggunakan waktu browser sebagai waktu final transaksi.
-20. Membuat checkout tanpa idempotency key.
-21. Menyimpan refresh token plaintext.
-22. Mengirim field sensitif ke kasir hanya karena UI tidak menampilkannya.
-23. Menganggap test tidak perlu karena aplikasi “sudah jalan”. Frasa itu biasanya berarti bug sedang menunggu giliran tampil.
+6. Menghitung harga jual pelanggan otomatis dari harga modal atau HPP.
+7. Menghitung laba dari harga produk terbaru.
+8. Mengirim harga modal, HPP, margin, atau laba ke role kasir.
+9. Membulatkan harga modal, HPP, atau laba internal sebelum disimpan.
+10. Menggunakan `FLOAT`, `DOUBLE`, atau `REAL` untuk uang, HPP, pajak, diskon, atau laba.
+11. Membuat PO/Pemesanan Obat menambah atau mengurangi stok.
+12. Membuat convert PO ke draft pembelian sebagai transaksi stok.
+13. Mengurangi stok saat resep dibuat atau ditandai siap bayar.
+14. Membuat konseling menjadi tagihan atau mutasi stok.
+15. Mengizinkan kasir memilih satuan jual tidak aktif.
+16. Menganggap semua satuan dasar otomatis boleh dijual.
+17. Memasukkan e-faktur, clinical decision support, atau validasi interaksi obat otomatis ke V1.
+18. Memasukkan piutang sebagai scope inti V1.
+19. Menyimpan password plaintext.
+20. Membuat fitur payment gateway otomatis.
+21. Membuat fitur BPJS.
+22. Membuat fitur multi-cabang.
+23. Menghapus transaksi final secara permanen.
+24. Menghapus batch historis secara permanen.
+25. Mengizinkan stok negatif.
+26. Mengizinkan retur tanpa transaksi asal.
+27. Mengizinkan retur melebihi qty yang belum diretur.
+28. Membuat UI tanpa empty/loading/error state.
+29. Membuat halaman kasir yang memaksa kasir berpindah-pindah halaman untuk transaksi normal.
+30. Menggunakan waktu browser sebagai waktu final transaksi.
+31. Membuat checkout tanpa idempotency key.
+32. Menyimpan refresh token plaintext.
+33. Mengirim field sensitif ke kasir hanya karena UI tidak menampilkannya.
+34. Menganggap test tidak perlu karena aplikasi â€œsudah jalanâ€. Frasa itu biasanya berarti bug sedang menunggu giliran tampil.
 
 ---
 

@@ -45,6 +45,7 @@ Pembaruan utama pada versi 1.1.0 meliputi:
 - penegasan status role Pemilik sebagai opsional pada V1;
 - penegasan bahwa jam realtime frontend hanya informasi visual;
 - penambahan mapping error backend ke tampilan UI;
+- penambahan flow PO obat, pembelian dari PO, pelayanan resep dasar, dan konseling dasar;
 - penyesuaian traceability agar sesuai dengan dokumen sinkron terbaru.
 
 Dokumen ini tetap berfokus pada alur antarmuka dan interaksi pengguna, bukan desain database atau service backend. Kalau UI/UX mulai mengatur transaksi database, itu bukan desain, itu percobaan kecil menuju kekacauan.
@@ -83,7 +84,11 @@ AI coding wajib mematuhi hal berikut:
 9. Jangan menjadikan jam realtime frontend sebagai waktu final transaksi. Waktu final transaksi wajib berasal dari backend.
 10. Gunakan idempotency key pada transaksi penting untuk mencegah transaksi ganda akibat double click, retry, timeout, atau koneksi tidak stabil.
 11. Role Pemilik bersifat opsional pada V1. Jika belum diimplementasikan, akses monitoring dapat memakai role Manager terbatas.
-12. Response untuk role Kasir harus disanitasi agar tidak memuat HPP, laba, margin, harga beli, atau informasi sensitif lain.
+12. Response untuk role Kasir harus disanitasi agar tidak memuat harga modal, HPP, laba, margin, harga beli, atau informasi sensitif lain.
+13. Harga jual yang tampil di kasir adalah harga jual final rupiah bulat yang ditetapkan Manager.
+14. PO tidak boleh divisualkan sebagai stok masuk.
+15. Resep tidak boleh divisualkan sebagai stok keluar sebelum checkout berhasil.
+16. Kasir hanya boleh melihat satuan jual aktif.
 
 ---
 
@@ -92,6 +97,7 @@ AI coding wajib mematuhi hal berikut:
 Tujuan dokumen ini adalah memastikan aplikasi POS Apotek memiliki alur penggunaan yang jelas, efisien, dan konsisten bagi:
 - kasir;
 - manager;
+- apoteker;
 - pemilik.
 
 Dokumen ini menjadi acuan untuk:
@@ -112,6 +118,10 @@ Dokumen ini menjadi acuan untuk:
 | UX-PRIN-002 | Satu aksi utama per halaman | Setiap halaman harus memiliki fokus aksi utama yang jelas |
 | UX-PRIN-003 | Server sebagai sumber final | UI hanya menampilkan estimasi sebelum submit |
 | UX-PRIN-004 | Informasi sensitif disembunyikan dari kasir | HPP dan laba tidak tampil pada role kasir |
+| UX-PRIN-014 | Harga jual kasir final | Kasir melihat harga jual final rupiah bulat, bukan harga modal atau margin |
+| UX-PRIN-015 | PO bukan stok | PO adalah rencana pemesanan, bukan stok masuk |
+| UX-PRIN-016 | Resep bukan transaksi final | Resep tidak mengurangi stok sebelum checkout berhasil |
+| UX-PRIN-017 | Satuan jual aktif | Kasir hanya melihat satuan jual aktif |
 | UX-PRIN-005 | Error harus bisa dipahami | Pesan error harus menjelaskan masalah secara jelas |
 | UX-PRIN-006 | Empty state harus membantu | Jika data kosong, tampilkan arahan tindakan berikutnya |
 | UX-PRIN-007 | Loading state wajib ada | Setiap proses async harus memiliki indikator |
@@ -129,6 +139,7 @@ Dokumen ini menjadi acuan untuk:
 | Role | Status V1 | Fokus UI | Akses Utama |
 |---|---|---|---|
 | Kasir | Wajib | Transaksi cepat dan retur penjualan | Login, kasir, riwayat transaksi terbatas, retur penjualan |
+| Apoteker | Wajib masuk rancangan | Pelayanan obat | PO obat, resep dokter, konseling, stok terbatas |
 | Manager | Wajib | Pengelolaan operasional | Dashboard, produk, kategori, supplier, satuan, batch, pembelian, stok, retur, laporan, manajemen user, pengaturan |
 | Pemilik | Opsional | Monitoring performa | Dashboard, laporan penjualan, laporan laba, stok, expired alert |
 
@@ -142,11 +153,14 @@ flowchart TD
     Login --> RoleCheck{Role}
 
     RoleCheck -->|Kasir| KasirHome[Halaman Kasir]
+    RoleCheck -->|Apoteker| ServiceHome[Pelayanan]
     RoleCheck -->|Manager| Dashboard[Dashboard]
     RoleCheck -->|Pemilik| OwnerDashboard[Dashboard Pemilik]
 
     Dashboard --> MasterData[Master Data]
+    Dashboard --> PurchaseOrder[Pemesanan / PO]
     Dashboard --> Purchase[Pembelian]
+    Dashboard --> Service[Pelayanan]
     Dashboard --> Stock[Stok]
     Dashboard --> Returns[Retur]
     Dashboard --> Reports[Laporan]
@@ -161,6 +175,16 @@ flowchart TD
 
     Purchase --> PurchaseList[Daftar Pembelian]
     Purchase --> PurchaseCreate[Buat Pembelian]
+    PurchaseOrder --> POList[Daftar PO]
+    PurchaseOrder --> POCreate[Buat PO]
+    PurchaseOrder --> POPrint[Cetak PO]
+    Purchase --> PurchaseFromPO[Pembelian dari PO]
+
+    Service --> Prescription[Resep Dokter]
+    Service --> Counseling[Konseling]
+    Service --> ServiceHistory[Riwayat Pelayanan]
+    ServiceHome --> Prescription
+    ServiceHome --> Counseling
 
     Stock --> StockList[Daftar Stok]
     Stock --> StockMutations[Mutasi Stok]
@@ -189,6 +213,10 @@ Sidebar untuk role Manager:
 ```text
 Dashboard
 Kasir
+Pelayanan
+  - Resep Dokter
+  - Konseling
+  - Riwayat Pelayanan
 Master Data
   - Produk
   - Kategori
@@ -196,6 +224,7 @@ Master Data
   - Satuan
   - Batch
 Pembelian
+Pemesanan / PO
 Stok
   - Daftar Stok
   - Mutasi Stok
@@ -230,6 +259,27 @@ Catatan:
 - Kasir tidak melihat menu supplier.
 - Kasir tidak melihat menu koreksi stok.
 - Kasir tidak melihat HPP dan laba dalam bentuk apa pun.
+- Kasir tidak melihat harga modal atau margin dalam bentuk apa pun.
+- Kasir hanya dapat menarik resep siap bayar dari halaman kasir atau aksi khusus, bukan mengelola resep.
+
+## 5.2A Sidebar Apoteker
+
+Sidebar untuk role Apoteker:
+
+```text
+Pelayanan
+  - Resep Dokter
+  - Konseling
+  - Riwayat Pelayanan
+Pemesanan / PO
+Stok
+Logout
+```
+
+Catatan:
+- Apoteker tidak melihat laporan laba.
+- Apoteker tidak melihat harga modal, HPP, margin, atau laba kecuali izin khusus ditambahkan eksplisit.
+- Apoteker dapat membuat PO dan resep dasar, tetapi pembelian final tetap Manager.
 
 ## 5.3 Sidebar Pemilik
 
@@ -271,8 +321,18 @@ Route frontend final menggunakan istilah UI berbahasa Indonesia. Endpoint API ba
 | Satuan | `/satuan` | `/api/units` | Manager |
 | Batch | `/batch` | `/api/batches` | Manager |
 | Detail Batch | `/batch/:id` | `GET /api/batches/:id` | Manager |
+| Pemesanan / PO | `/pemesanan` | `/api/purchase-orders` | Apoteker, Manager |
+| Tambah PO | `/pemesanan/tambah` | `POST /api/purchase-orders` | Apoteker, Manager |
+| Detail PO | `/pemesanan/:id` | `GET /api/purchase-orders/:id` | Apoteker, Manager |
+| Cetak PO | `/pemesanan/:id/cetak` | `POST /api/purchase-orders/:id/print-preview` | Apoteker, Manager |
 | Pembelian | `/pembelian` | `/api/purchases` | Manager |
 | Tambah Pembelian | `/pembelian/tambah` | `POST /api/purchases` | Manager |
+| Pembelian dari PO | `/pembelian/dari-po/:poId` | `GET /api/purchases/create-from-po/:poId`, `POST /api/purchases` | Manager |
+| Resep Dokter | `/pelayanan/resep` | `/api/prescriptions` | Apoteker, Manager |
+| Tambah Resep | `/pelayanan/resep/tambah` | `POST /api/prescriptions` | Apoteker, Manager |
+| Detail Resep | `/pelayanan/resep/:id` | `GET /api/prescriptions/:id` | Apoteker, Manager |
+| Konseling | `/pelayanan/konseling` | `/api/counseling-records` | Apoteker, Manager |
+| Riwayat Pelayanan | `/pelayanan/riwayat` | `/api/prescriptions`, `/api/counseling-records` | Apoteker, Manager |
 | Retur Pembelian | `/retur-pembelian` | `/api/purchase-returns` | Manager |
 | Stok | `/stok` | `/api/stock` | Manager, Kasir terbatas |
 | Mutasi Stok | `/mutasi-stok` | `/api/stock/mutations` | Manager |
@@ -1084,6 +1144,8 @@ Konversi satuan dapat ditempatkan pada:
 
 ### Catatan Role
 - Manager dapat melihat HPP.
+- Manager mengisi harga jual per satuan sebagai rupiah bulat manual.
+- Harga modal/HPP Manager dapat berpresisi tinggi sesuai aturan backend.
 - Kasir tidak boleh melihat halaman batch penuh.
 - Kasir hanya boleh melihat stok tersedia yang relevan untuk transaksi.
 
@@ -1194,6 +1256,8 @@ flowchart TD
     J -->|Berhasil| L[Simpan pembelian]
     L --> M[Batch dibuat dan stok bertambah]
 ```
+
+Harga beli/harga modal pada form Manager boleh menerima presisi desimal tinggi. Harga jual per satuan tetap diinput sebagai Rupiah bulat karena menjadi harga final pelanggan.
 
 ### Error Field
 | Kondisi | Pesan |
@@ -1948,6 +2012,8 @@ Rp12.500
 Rp1.250.000
 ```
 
+Harga jual yang terlihat kasir, subtotal, total, dan kembalian selalu tampil sebagai nilai Rupiah bulat dari harga jual final yang sudah ditetapkan Manager. Nilai laporan laba boleh berasal dari perhitungan internal presisi tinggi, tetapi UI hanya menampilkan `profit_display` yang sudah diformat/dibulatkan.
+
 ## 32.2 Format Tanggal
 
 ```text
@@ -2084,6 +2150,71 @@ Catatan:
 
 ---
 
+## 38A. Flow PO ke Pembelian
+
+```mermaid
+flowchart TD
+    A[Apoteker atau Manager buka Pemesanan] --> B[Tambah PO]
+    B --> C[Pilih supplier dan tanggal PO]
+    C --> D[Data pembuat otomatis dari login]
+    D --> E[Tambah item obat, satuan, qty, estimasi harga, dan catatan]
+    E --> F[Simpan PO]
+    F --> G[Cetak PO bila diperlukan]
+    G --> H[Barang datang]
+    H --> I[Manager buka Pembelian]
+    I --> J[Pilih supplier dan No. PO]
+    J --> K[Item PO masuk draft pembelian]
+    K --> L[Sesuaikan qty, harga, diskon, PPN, batch, dan expired]
+    L --> M[Cocokkan faktur supplier]
+    M --> N[Simpan pembelian final]
+    N --> O[Stok batch bertambah]
+```
+
+Catatan:
+- PO tidak menambah atau mengurangi stok.
+- Pembelian dari PO tetap boleh berbeda qty, harga, batch, dan expired date dari PO.
+- Satu item PO dapat diterima sebagai beberapa batch.
+
+---
+
+## 38B. Flow Resep ke Kasir
+
+```mermaid
+flowchart TD
+    A[Apoteker input resep] --> B[Cek produk dan satuan jual aktif]
+    B --> C[Isi aturan pakai dan catatan etiket]
+    C --> D[Simpan resep tanpa mengurangi stok]
+    D --> E[Tandai siap bayar]
+    E --> F[Kasir tarik resep READY_FOR_PAYMENT]
+    F --> G[Item resep masuk keranjang]
+    G --> H[Kasir proses pembayaran]
+    H --> I[Backend checkout FEFO dan stok keluar]
+    I --> J[Status resep menjadi PAID atau COMPLETED]
+```
+
+Catatan:
+- Resep bukan transaksi final.
+- Stok tidak berkurang saat resep dibuat.
+- Kasir tidak melihat HPP, modal, margin, atau laba saat menarik resep.
+
+---
+
+## 38C. Flow Konseling Dasar
+
+```mermaid
+flowchart TD
+    A[Apoteker buka Konseling] --> B[Pilih resep atau transaksi jika terkait]
+    B --> C[Isi topik dan catatan konseling]
+    C --> D[Simpan catatan]
+```
+
+Catatan:
+- Konseling tidak membuat tagihan.
+- Konseling tidak menambah atau mengurangi stok.
+- Konseling bukan clinical decision support otomatis.
+
+---
+
 ## 39. Flow Batch FEFO dalam UI
 
 Frontend boleh menampilkan estimasi batch, tetapi backend tetap menentukan hasil final.
@@ -2131,7 +2262,7 @@ AI coding tidak boleh membuat UI seperti berikut:
 3. Error hanya muncul di console.
 4. Produk nonaktif tetap bisa dipilih di kasir.
 5. Batch expired tetap muncul sebagai stok normal.
-6. HPP dan laba muncul pada role kasir.
+6. Harga modal, HPP, margin, atau laba muncul pada role kasir.
 7. Tabel besar tanpa pagination.
 8. Form panjang tanpa grouping.
 9. Filter laporan tanpa tombol reset.
@@ -2146,6 +2277,10 @@ AI coding tidak boleh membuat UI seperti berikut:
 18. Modal tanpa tombol tutup.
 19. Menu sidebar sama untuk semua role.
 20. Jam realtime frontend dijadikan waktu final transaksi.
+21. PO ditampilkan seolah-olah stok sudah bertambah.
+22. Resep mengurangi stok sebelum checkout berhasil.
+23. Kasir dapat memilih satuan jual yang tidak aktif.
+24. Konseling membuat tagihan atau mengubah stok.
 
 ---
 
@@ -2161,8 +2296,11 @@ AI coding tidak boleh membuat UI seperti berikut:
 | Supplier | SRS-SUP-001 | Manajemen supplier |
 | Satuan | SRS-UNIT-* | Satuan dan konversi |
 | Batch | SRS-BATCH-* | Batch dan expired alert |
+| Pemesanan / PO | SRS-PO-* | PO obat dan convert ke pembelian |
 | Pembelian | SRS-PUR-* | Pembelian supplier |
 | Kasir | SRS-SALE-* | Transaksi kasir |
+| Pelayanan Resep | SRS-PRESC-* | Resep dasar dan tarik ke kasir |
+| Konseling | SRS-COUNS-* | Dokumentasi konseling dasar |
 | FEFO UI | SRS-FEFO-001 | FEFO server-side |
 | Split Batch UI | SRS-SPLIT-001 | Detail batch manager |
 | Diskon | SRS-DISC-* | Diskon dan alokasi |
@@ -2211,7 +2349,9 @@ Dokumen UI/UX Flow dianggap selesai jika:
 - alur dashboard sudah tersedia;
 - alur kasir lengkap dari pencarian sampai transaksi berhasil;
 - alur produk, kategori, supplier, satuan, batch sudah tersedia;
+- alur PO obat dan pembelian dari PO sudah tersedia;
 - alur pembelian supplier sudah tersedia;
+- alur resep dasar ke kasir dan konseling sudah tersedia;
 - alur retur penjualan dan retur pembelian sudah tersedia;
 - alur stok dan mutasi stok sudah tersedia;
 - alur manajemen user sudah tersedia;

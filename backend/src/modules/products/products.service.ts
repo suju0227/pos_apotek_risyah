@@ -145,6 +145,7 @@ export class ProductsService {
   async createUnit(productId: string, dto: CreateProductUnitDto) {
     await this.ensureProductExists(productId);
     await this.ensureUnitActive(dto.unitId);
+    this.ensureDefaultSaleUnitIsSellable(dto);
 
     try {
       const productUnit = await this.prisma.$transaction(async (tx) => {
@@ -161,6 +162,9 @@ export class ProductsService {
             unitId: dto.unitId,
             conversionToBase: dto.conversionToBase,
             isDefaultSaleUnit: dto.isDefaultSaleUnit ?? false,
+            isSaleUnit: dto.isSaleUnit ?? true,
+            minSaleQty: dto.minSaleQty ?? 1,
+            saleUnitNote: dto.saleUnitNote,
           },
           include: { unit: true },
         });
@@ -183,6 +187,7 @@ export class ProductsService {
     await this.ensureProductExists(productId);
     await this.ensureProductUnitExists(productId, productUnitId);
     if (dto.unitId) await this.ensureUnitActive(dto.unitId);
+    this.ensureDefaultSaleUnitIsSellable(dto);
     if (dto.isDefaultSaleUnit && dto.isActive === false) {
       throw new BadRequestException('Satuan default harus aktif');
     }
@@ -204,7 +209,9 @@ export class ProductsService {
           where: { id: productUnitId },
           data: {
             ...dto,
-            ...(dto.isActive === false ? { isDefaultSaleUnit: false } : {}),
+            ...(dto.isActive === false || dto.isSaleUnit === false
+              ? { isDefaultSaleUnit: false }
+              : {}),
           },
           include: { unit: true },
         });
@@ -231,6 +238,7 @@ export class ProductsService {
         where: { id: productUnitId },
         data: {
           isActive: false,
+          isSaleUnit: false,
           isDefaultSaleUnit: false,
           deletedAt: new Date(),
         },
@@ -290,6 +298,14 @@ export class ProductsService {
     }
   }
 
+  private ensureDefaultSaleUnitIsSellable(
+    dto: CreateProductUnitDto | UpdateProductUnitDto,
+  ) {
+    if (dto.isDefaultSaleUnit && dto.isSaleUnit === false) {
+      throw new BadRequestException('Satuan default harus boleh dijual');
+    }
+  }
+
   private toProductResponse(product: ProductWithRelations) {
     return {
       ...product,
@@ -304,6 +320,7 @@ export class ProductsService {
     return {
       ...productUnit,
       conversionToBase: Number(productUnit.conversionToBase),
+      minSaleQty: Number(productUnit.minSaleQty),
     };
   }
 

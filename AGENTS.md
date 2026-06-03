@@ -3,7 +3,7 @@
 ## 1. Project Identity
 Nama proyek: POS Apotek V2  
 Jenis aplikasi: Web-based Point of Sale untuk apotek  
-Target utama: transaksi kasir, stok batch, pembelian, retur, dashboard, laporan penjualan, dan laporan laba.
+Target utama: transaksi kasir, stok batch, PO/pemesanan obat, pembelian supplier, pelayanan resep dasar, retur, dashboard, laporan penjualan, dan laporan laba.
 
 ## 2. Required Reading Order
 Sebelum mengubah kode, baca dokumen berikut secara berurutan:
@@ -61,14 +61,21 @@ Deployment:
 - FEFO wajib dilakukan di backend.
 - Split batch wajib disimpan pada detail transaksi.
 - Laporan laba wajib berdasarkan detail transaksi historis, bukan harga produk terbaru.
+- Fitur harga wajib disebut **Presisi Harga Modal dan HPP**: harga modal/HPP/laba internal memakai presisi tinggi, sedangkan harga jual pelanggan adalah rupiah bulat yang ditentukan manual oleh Manager.
+- Harga jual kasir tidak boleh dihitung otomatis dari harga modal. Kasir hanya menerima harga jual final; backend menghitung laba dari harga jual snapshot dikurangi HPP internal presisi.
+- PO/pemesanan obat tidak boleh menambah atau mengurangi stok; stok hanya bertambah setelah pembelian final disimpan.
+- Resep dasar bukan transaksi final dan tidak boleh mengurangi stok sebelum ditarik ke kasir lalu checkout berhasil.
+- Satuan dasar stok tidak otomatis menjadi satuan jual; Manager menentukan satuan jual aktif per produk.
 
 ## 5. Role and Security Rules
 
 Role minimum V1:
 - KASIR
+- APOTEKER
 - MANAGER
 
 Kasir tidak boleh:
+- melihat harga modal;
 - melihat HPP;
 - melihat laba;
 - melihat margin;
@@ -86,12 +93,16 @@ Frontend boleh menyembunyikan menu berdasarkan role, tetapi backend tetap wajib 
 - Jangan membuat transaksi tanpa batch.
 - Jangan membuat transaksi tanpa mutasi stok.
 - Jangan mengurangi stok dari frontend.
+- Jangan membuat PO sebagai penambah stok.
+- Jangan mengurangi stok saat resep dibuat.
 - Jangan menghapus permanen transaksi final.
 - Jangan menghapus permanen batch yang memiliki histori.
 - Jangan mengubah histori transaksi lama ketika harga produk berubah.
 - Jangan memakai batch expired untuk transaksi normal.
 - Jangan membuat retur tanpa referensi transaksi atau pembelian asal.
 - Jangan membuat fitur BPJS, payment gateway otomatis, multi-cabang, loyalty program, atau akuntansi penuh pada V1.
+- Jangan memakai FLOAT, DOUBLE, atau REAL untuk uang, HPP, pajak, diskon, atau laba.
+- Piutang pelanggan hanya future enhancement sampai ada keputusan eksplisit.
 
 ## 7. Timezone Rules
 
@@ -114,7 +125,12 @@ Frontend route menggunakan Bahasa Indonesia:
 - /supplier
 - /satuan
 - /batch
+- /pemesanan
 - /pembelian
+- /pembelian/dari-po/:poId
+- /pelayanan/resep
+- /pelayanan/konseling
+- /pelayanan/riwayat
 - /stok
 - /mutasi-stok
 - /laporan/penjualan
@@ -127,6 +143,12 @@ Backend endpoint menggunakan Bahasa Inggris teknis dengan prefix /api:
 - POST /api/sales
 - GET /api/sales
 - GET /api/products
+- GET /api/purchase-orders
+- POST /api/purchase-orders
+- POST /api/purchase-orders/:id/convert-to-purchase
+- GET /api/prescriptions/ready-for-payment
+- POST /api/sales/from-prescription/:prescriptionId
+- GET /api/counseling-records
 - GET /api/reports/sales
 - GET /api/reports/profit
 
@@ -139,9 +161,9 @@ Ikuti urutan implementasi dari Task Breakdown:
 2. Database foundation
 3. Auth, RBAC, user, security
 4. Master data
-5. Batch dan pembelian
+5. Batch, PO, dan pembelian
 6. Stok dan mutasi
-7. Kasir dan transaksi
+7. Pelayanan resep dasar, kasir, dan transaksi
 8. Diskon dan pembayaran
 9. Retur
 10. Dashboard dan laporan

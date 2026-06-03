@@ -35,13 +35,16 @@ AI coding wajib mengikuti ketentuan berikut:
 6. Backend wajib menggunakan database transaction untuk proses penjualan, pembelian, retur, koreksi stok, dan mutasi stok.
 7. Backend wajib mencegah stok batch menjadi negatif.
 8. Backend wajib menyimpan harga jual final, HPP final, diskon alokasi, dan laba pada detail transaksi.
-9. Backend wajib menerapkan FEFO saat penjualan normal.
-10. Backend wajib melakukan split detail transaksi jika satu item penjualan mengambil stok dari lebih dari satu batch.
-11. Backend wajib mencatat mutasi stok untuk setiap perubahan stok.
-12. Backend wajib menjaga histori transaksi, batch, pembelian, retur, dan mutasi stok agar tidak dihapus permanen sembarangan.
-13. Backend wajib menerapkan role-based access control untuk Kasir dan Manager.
-14. Backend wajib menolak akses HPP, laba, laporan laba, koreksi stok, dan pengaturan harga dari role Kasir.
-15. Backend tidak boleh menambahkan fitur di luar scope V1 seperti BPJS, payment gateway otomatis, multi-cabang, loyalty program, dan akuntansi lengkap.
+9. Backend wajib mendukung Presisi Harga Modal dan HPP: harga modal/HPP/laba internal presisi tinggi, harga jual pelanggan rupiah bulat manual dari Manager.
+10. Backend wajib menerapkan FEFO saat penjualan normal.
+11. Backend wajib melakukan split detail transaksi jika satu item penjualan mengambil stok dari lebih dari satu batch.
+12. Backend wajib mencatat mutasi stok untuk setiap perubahan stok.
+13. Backend wajib menjaga histori transaksi, batch, pembelian, retur, dan mutasi stok agar tidak dihapus permanen sembarangan.
+14. Backend wajib menerapkan role-based access control untuk Kasir, Apoteker, dan Manager.
+15. Backend wajib menolak akses harga modal, HPP, margin, laba, laporan laba, koreksi stok, dan pengaturan harga dari role Kasir.
+16. Backend wajib memastikan PO tidak menambah/mengurangi stok dan resep tidak mengurangi stok sebelum checkout berhasil.
+17. Backend wajib menolak checkout dengan satuan jual yang tidak aktif.
+18. Backend tidak boleh menambahkan fitur di luar scope V1 seperti BPJS, payment gateway otomatis, multi-cabang, loyalty program, clinical decision support otomatis, piutang inti V1, dan akuntansi lengkap.
 
 Jika ada konflik antara dokumen ini dan SRS, aturan SRS harus diutamakan. Jika ada konflik antara dokumen ini dan PRD, kebutuhan produk pada PRD harus dijadikan dasar koreksi.
 
@@ -88,6 +91,9 @@ Karakteristik utama backend:
 | Retur | Retur harus mengacu pada transaksi atau pembelian asal |
 | Auditability | Semua perubahan stok harus memiliki mutasi stok dan referensi |
 | Role-based access | Kasir dan Manager memiliki hak akses berbeda |
+| PO obat | PO adalah rencana pemesanan dan tidak mengubah stok |
+| Resep dasar | Resep ditarik ke kasir dan stok hanya keluar saat checkout |
+| Satuan jual aktif | Checkout hanya boleh memakai product unit aktif yang boleh dijual |
 | Laporan | Laporan laba harus dihitung dari detail transaksi, bukan harga terbaru |
 
 Backend yang hanya membuat endpoint `create`, `read`, `update`, dan `delete` tanpa service transaksi akan berbahaya untuk POS Apotek. Sistem seperti itu mungkin terlihat selesai, tetapi diam-diam menyiapkan bencana stok. Sebuah tradisi manusia yang aneh: menyebut CRUD sebagai sistem bisnis, lalu kaget ketika bisnisnya ikut kacau.
@@ -204,7 +210,10 @@ products
 units
 suppliers
 batches
+purchase-orders
 purchases
+prescriptions
+counseling-records
 sales
 sales-returns
 purchase-returns
@@ -231,7 +240,10 @@ common
 | units | Satuan dasar dan konversi satuan jual |
 | suppliers | Manajemen supplier |
 | batches | Manajemen batch, stok batch, harga batch, expired date |
-| purchases | Pembelian supplier dan penambahan stok batch |
+| purchase-orders | PO obat, print preview, dan convert ke draft pembelian |
+| purchases | Pembelian supplier manual/dari PO, faktur, diskon pembelian, PPN, dan penambahan stok batch |
+| prescriptions | Pelayanan resep dasar dan tarik resep ke kasir |
+| counseling-records | Dokumentasi konseling dasar |
 | sales | Transaksi penjualan, FEFO, split batch, stok keluar |
 | sales-returns | Retur penjualan dan stok kembali ke batch asal |
 | purchase-returns | Retur pembelian dan stok keluar ke supplier |
@@ -296,7 +308,10 @@ src/
 │   ├── units/
 │   ├── suppliers/
 │   ├── batches/
+│   ├── purchase-orders/
 │   ├── purchases/
+│   ├── prescriptions/
+│   ├── counseling-records/
 │   ├── sales/
 │   ├── sales-returns/
 │   ├── purchase-returns/
@@ -357,8 +372,13 @@ product_unit_conversions
 suppliers
 batches
 batch_prices
+purchase_orders
+purchase_order_items
 purchases
 purchase_items
+prescriptions
+prescription_items
+counseling_records
 sales
 sale_items
 sale_batch_allocations
@@ -381,8 +401,14 @@ refresh_tokens
 | Product -> ProductUnitConversion | Satu produk memiliki banyak satuan jual |
 | Product -> Batch | Satu produk memiliki banyak batch |
 | Supplier -> Purchase | Satu supplier dapat memiliki banyak pembelian |
+| Supplier -> PurchaseOrder | Satu supplier dapat memiliki banyak PO |
+| PurchaseOrder -> PurchaseOrderItem | Satu PO memiliki banyak item |
+| PurchaseOrder -> Purchase | PO dapat dikonversi menjadi pembelian |
 | Purchase -> PurchaseItem | Satu pembelian memiliki banyak item |
 | Batch -> PurchaseItem | Batch dapat berasal dari pembelian |
+| Prescription -> PrescriptionItem | Satu resep memiliki banyak item obat |
+| Prescription -> Sale | Resep dapat ditarik menjadi transaksi kasir |
+| Prescription/Sale -> CounselingRecord | Konseling dapat terkait resep atau transaksi |
 | Sale -> SaleItem | Satu transaksi memiliki banyak item utama |
 | SaleItem -> SaleBatchAllocation | Satu item dapat terbagi ke beberapa batch |
 | Batch -> SaleBatchAllocation | Batch yang dipakai pada transaksi |
@@ -442,6 +468,30 @@ Constraint database wajib dipakai untuk mencegah data rusak.
 | sale_batch_allocations | qty > 0 |
 | stock_mutations | qty perubahan tidak boleh 0 |
 | returns | qty retur > 0 |
+
+Rekomendasi tipe data untuk Presisi Harga Modal dan HPP:
+
+| Field | Tipe |
+|---|---|
+| purchase_price | NUMERIC(18,6) |
+| purchase_discount_value | NUMERIC(18,6) |
+| purchase_discount_amount | NUMERIC(18,6) |
+| purchase_gross_total | NUMERIC(18,6) |
+| purchase_net_total | NUMERIC(18,6) |
+| tax_amount | NUMERIC(18,6) |
+| invoice_total_input | NUMERIC(18,6) |
+| calculated_total | NUMERIC(18,6) |
+| rounding_adjustment | NUMERIC(18,6) |
+| hpp_base | NUMERIC(18,8) |
+| selling_price | NUMERIC(18,0) |
+| sale_unit_price atau snapshot harga jual transaksi | NUMERIC(18,0) |
+| sale_total | NUMERIC(18,0) |
+| paid_amount | NUMERIC(18,0) |
+| change_amount | NUMERIC(18,0) |
+| profit_amount | NUMERIC(18,8) |
+| profit_display | nilai laporan yang dibulatkan saat ditampilkan |
+
+Jangan gunakan `FLOAT`, `DOUBLE`, atau `REAL` untuk uang, HPP, pajak, diskon, dan laba.
 
 ### 8.4 Soft Delete untuk Data Historis
 
@@ -950,6 +1000,8 @@ Formula:
 hpp_detail = qty_satuan_dasar * hpp_satuan_dasar
 ```
 
+`hpp_satuan_dasar` disimpan dengan presisi tinggi. Backend tidak boleh membulatkan HPP internal hanya karena tampilan laporan memakai rupiah bulat.
+
 ### 14.4 Laba Detail
 
 Formula:
@@ -957,6 +1009,8 @@ Formula:
 ```text
 laba_detail = subtotal_detail - hpp_detail - diskon_alokasi_detail
 ```
+
+`subtotal_detail` berasal dari snapshot harga jual final rupiah bulat yang ditetapkan Manager. `hpp_detail` berasal dari HPP internal presisi tinggi. Laba internal disimpan presisi tinggi; pembulatan hanya dilakukan saat display laporan.
 
 ### 14.5 Aturan Historis
 
@@ -1196,6 +1250,8 @@ Kasir tidak boleh:
 9. mengelola user;
 10. mengakses endpoint Manager melalui URL langsung.
 
+Apoteker dapat mengakses PO, resep dasar, konseling, dan stok terbatas. Apoteker tidak boleh melihat HPP, laba, margin, atau harga beli supplier kecuali izin khusus ditetapkan eksplisit.
+
 ---
 
 ## 20. Rancangan API Backend
@@ -1274,11 +1330,46 @@ GET    /api/batches/expired-alert
 
 ```text
 GET    /api/purchases
+GET    /api/purchases/create-from-po/:poId
 POST   /api/purchases
 GET    /api/purchases/:id
 ```
 
-### 20.9 Sale API
+### 20.9 Purchase Order API
+
+```text
+GET    /api/purchase-orders
+POST   /api/purchase-orders
+GET    /api/purchase-orders/:id
+PATCH  /api/purchase-orders/:id
+POST   /api/purchase-orders/:id/print-preview
+POST   /api/purchase-orders/:id/convert-to-purchase
+PATCH  /api/purchase-orders/:id/cancel
+```
+
+### 20.10 Prescription API
+
+```text
+GET    /api/prescriptions
+POST   /api/prescriptions
+GET    /api/prescriptions/:id
+PATCH  /api/prescriptions/:id
+POST   /api/prescriptions/:id/mark-ready-for-payment
+POST   /api/prescriptions/:id/cancel
+GET    /api/prescriptions/ready-for-payment
+POST   /api/sales/from-prescription/:prescriptionId
+```
+
+### 20.11 Counseling API
+
+```text
+GET    /api/counseling-records
+POST   /api/counseling-records
+GET    /api/counseling-records/:id
+PATCH  /api/counseling-records/:id
+```
+
+### 20.12 Sale API
 
 ```text
 GET    /api/sales
@@ -1287,7 +1378,7 @@ GET    /api/sales/:id
 GET    /api/sales/:id/returnable-items
 ```
 
-### 20.10 Sales Return API
+### 20.13 Sales Return API
 
 ```text
 GET    /api/sales-returns
@@ -1295,7 +1386,7 @@ POST   /api/sales-returns
 GET    /api/sales-returns/:id
 ```
 
-### 20.11 Purchase Return API
+### 20.14 Purchase Return API
 
 ```text
 GET    /api/purchase-returns
@@ -1303,7 +1394,7 @@ POST   /api/purchase-returns
 GET    /api/purchase-returns/:id
 ```
 
-### 20.12 Stock API
+### 20.15 Stock API
 
 ```text
 GET    /api/stock
@@ -1312,7 +1403,7 @@ GET    /api/stock/mutations
 POST   /api/stock/adjustments
 ```
 
-### 20.13 Dashboard API
+### 20.16 Dashboard API
 
 ```text
 GET    /api/dashboard/summary
@@ -1321,7 +1412,7 @@ GET    /api/dashboard/expired-batches
 GET    /api/dashboard/recent-transactions
 ```
 
-### 20.14 Report API
+### 20.17 Report API
 
 ```text
 GET    /api/reports/sales
@@ -1330,7 +1421,7 @@ GET    /api/reports/stock
 GET    /api/reports/expired-batches
 ```
 
-### 20.15 Export API
+### 20.18 Export API
 
 ```text
 GET    /api/exports/reports/sales.xlsx
@@ -1339,7 +1430,7 @@ GET    /api/exports/reports/sales.pdf
 GET    /api/exports/reports/profit.pdf
 ```
 
-### 20.16 Settings API
+### 20.19 Settings API
 
 ```text
 GET    /api/settings
@@ -1577,6 +1668,8 @@ Data berikut tidak boleh dikirim ke Kasir:
 ```text
 hpp_base_unit
 hpp_detail
+harga_modal
+purchase_price
 profit_detail
 profit_report
 batch purchase cost
@@ -1606,6 +1699,12 @@ retur wajib memiliki referensi asal
 koreksi stok wajib memiliki alasan
 transaksi final wajib dihitung server-side
 histori lama tidak boleh berubah akibat harga baru
+PO tidak boleh mengubah stok
+resep tidak boleh mengurangi stok sebelum checkout
+checkout wajib menolak satuan jual yang tidak aktif
+diskon pembelian tidak boleh negatif atau melebihi subtotal item
+tax_mode pembelian wajib NON_PPN, PPN_INCLUDED, atau PPN_EXCLUDED
+total faktur supplier wajib divalidasi terhadap total sistem
 ```
 
 ### 26.2 Validasi yang Tidak Boleh Hanya di Frontend
@@ -1622,6 +1721,11 @@ Backend tetap wajib memvalidasi:
 8. qty retur valid;
 9. stok koreksi valid;
 10. HPP dan harga tidak negatif.
+11. satuan jual aktif;
+12. status PO;
+13. status resep;
+14. validasi faktur supplier;
+15. batch dan expired date barang masuk.
 
 ---
 
@@ -1647,6 +1751,9 @@ Integration test wajib atau sangat disarankan untuk:
 
 ```text
 membuat pembelian supplier
+membuat PO tanpa mengubah stok
+membuat pembelian dari PO dan memperbarui status PO
+menolak pembelian dengan faktur tidak valid tanpa catatan selisih
 menyimpan penjualan single batch
 menyimpan penjualan multi-batch
 menolak stok tidak cukup
@@ -1655,6 +1762,9 @@ menghitung diskon alokasi
 menghitung laba detail
 membuat retur penjualan sebagian
 membuat retur pembelian
+menarik resep siap bayar ke kasir
+memastikan resep tidak mengurangi stok sebelum checkout
+menyimpan konseling tanpa tagihan dan tanpa mutasi stok
 melakukan koreksi stok
 menghasilkan laporan laba
 ```
@@ -1697,6 +1807,12 @@ login manager
 | BE-TC-013 | Mutasi stok tercatat untuk semua perubahan stok |
 | BE-TC-014 | Export laporan mengikuti filter |
 | BE-TC-015 | User nonaktif tidak dapat login |
+| BE-TC-016 | PO tidak menambah atau mengurangi stok |
+| BE-TC-017 | Pembelian dari PO menambah stok batch dan memperbarui status PO |
+| BE-TC-018 | Presisi harga modal, diskon pembelian, PPN, HPP, dan laba tersimpan dengan NUMERIC/DECIMAL |
+| BE-TC-019 | Resep tidak mengurangi stok sebelum checkout |
+| BE-TC-020 | Checkout menolak satuan jual tidak aktif |
+| BE-TC-021 | Konseling tidak membuat tagihan dan tidak mengubah stok |
 
 ---
 
@@ -1832,7 +1948,17 @@ AI coding wajib mematuhi guardrail berikut:
 22. Jangan membuat query laporan dari harga terbaru.
 23. Jangan mengabaikan audit mutasi stok.
 24. Jangan melakukan migration destruktif tanpa backup.
-25. Jangan mengubah istilah inti tanpa memperbarui dokumen terkait.
+25. Jangan menghitung harga jual pelanggan otomatis dari harga modal.
+26. Jangan membulatkan harga modal, HPP, atau laba internal sebelum disimpan.
+27. Jangan menamai requirement ini sebagai harga jual fleksibel; gunakan Presisi Harga Modal dan HPP.
+28. Jangan mengubah istilah inti tanpa memperbarui dokumen terkait.
+29. Jangan menjadikan PO sebagai penambah atau pengurang stok.
+30. Jangan mengurangi stok saat resep dibuat atau ditandai siap bayar.
+31. Jangan mengizinkan checkout dengan satuan jual tidak aktif.
+32. Jangan memakai FLOAT, DOUBLE, atau REAL untuk uang, HPP, pajak, diskon, atau laba.
+33. Jangan membuat PPN pembelian menjadi e-faktur atau modul perpajakan lengkap.
+34. Jangan membuat clinical decision support otomatis.
+35. Jangan memasukkan piutang sebagai fitur inti V1 tanpa keputusan eksplisit.
 
 ---
 
@@ -1861,6 +1987,9 @@ Ikuti seluruh guardrail berikut:
 - Detail transaksi wajib menyimpan harga jual final, HPP final, diskon alokasi, dan laba.
 - Retur penjualan wajib mengacu ke transaksi dan batch asal.
 - Kasir tidak boleh mengakses HPP, laba, laporan laba, pengaturan harga, pembelian, dan koreksi stok.
+- PO tidak boleh menambah stok; stok masuk hanya lewat pembelian final.
+- Resep tidak boleh mengurangi stok sebelum checkout kasir berhasil.
+- Checkout wajib menolak satuan jual tidak aktif.
 - Jangan menambahkan fitur out of scope V1 seperti BPJS, payment gateway otomatis, multi-cabang, loyalty program, atau akuntansi lengkap.
 
 Mulai dari setup project backend, konfigurasi environment, Prisma, database module, auth module, user/role module, RBAC guard, dan struktur modul. Setelah itu lanjutkan ke master data produk, satuan, supplier, batch, pembelian, mutasi stok, lalu transaksi penjualan FEFO sebagai prioritas utama.

@@ -239,7 +239,7 @@ Backend adalah pusat logika bisnis. Seluruh transaksi penjualan, pembelian, retu
 |---|---|
 | Database utama | PostgreSQL |
 | Primary key | UUID |
-| Money | `NUMERIC(14,2)` |
+| Money | `NUMERIC/DECIMAL` sesuai jenis nilai: harga modal `18,6`, HPP/laba internal `18,8`, harga jual pelanggan `18,0` |
 | Quantity | `NUMERIC(14,3)` |
 | Timestamp storage | UTC |
 | Timezone tampilan | Asia/Makassar |
@@ -726,7 +726,7 @@ Aturan implementasi:
 | Timestamp | `created_at`, `updated_at`, `deleted_at` jika diperlukan |
 | Soft delete | Gunakan `deleted_at` untuk master data historis |
 | Status aktif | Gunakan `is_active` |
-| Money | `NUMERIC(14,2)` |
+| Money | `NUMERIC/DECIMAL`; harga modal dan total pembelian `NUMERIC(18,6)`, HPP/laba internal `NUMERIC(18,8)`, harga jual pelanggan `NUMERIC(18,0)` |
 | Quantity | `NUMERIC(14,3)` |
 | Timezone storage | UTC |
 | Foreign key | Wajib untuk relasi utama |
@@ -743,6 +743,9 @@ erDiagram
     users ||--o{ refresh_tokens : owns
     users ||--o{ sales : creates
     users ||--o{ purchases : creates
+    users ||--o{ purchase_orders : creates
+    users ||--o{ prescriptions : pharmacist
+    users ||--o{ counseling_records : pharmacist
     users ||--o{ stock_mutations : performs
     users ||--o{ audit_logs : generates
 
@@ -751,12 +754,18 @@ erDiagram
     units ||--o{ product_units : sale_unit
     products ||--o{ product_units : has
     products ||--o{ product_batches : has
+    products ||--o{ purchase_order_items : ordered
     products ||--o{ purchase_items : purchased
+    products ||--o{ prescription_items : prescribed
     products ||--o{ sale_items : sold
 
+    suppliers ||--o{ purchase_orders : receives
     suppliers ||--o{ purchases : supplies
     suppliers ||--o{ product_batches : source
+    purchase_orders ||--o{ purchase_order_items : contains
+    purchase_orders ||--o{ purchases : converted_to
     purchases ||--o{ purchase_items : contains
+    purchase_order_items ||--o{ purchase_items : received_as
     purchase_items ||--o| product_batches : creates
 
     product_batches ||--o{ batch_unit_prices : has
@@ -767,8 +776,13 @@ erDiagram
     sales ||--o{ sale_items : contains
     sale_items ||--o{ sale_batch_allocations : split_into
     sales ||--o{ sales_returns : has
+    sales ||--o{ counseling_records : related
     sales_returns ||--o{ sales_return_items : contains
     sale_batch_allocations ||--o{ sales_return_items : returned_from
+
+    prescriptions ||--o{ prescription_items : contains
+    prescriptions ||--o| sales : checkout
+    prescriptions ||--o{ counseling_records : related
 
     purchases ||--o{ purchase_returns : has
     purchase_returns ||--o{ purchase_return_items : contains
@@ -785,7 +799,7 @@ Bagian ini mendefinisikan tabel utama. Detail migration final dapat disesuaikan 
 | Field | Type | Required | Constraint | Description |
 |---|---|---:|---|---|
 | id | UUID | Yes | PK | ID role |
-| name | VARCHAR(50) | Yes | UNIQUE | `KASIR`, `MANAGER`, `PEMILIK` opsional |
+| name | VARCHAR(50) | Yes | UNIQUE | `KASIR`, `APOTEKER`, `MANAGER`, `PEMILIK` opsional |
 | description | TEXT | No | - | Deskripsi role |
 | created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
 | updated_at | TIMESTAMP | Yes | DEFAULT now | Waktu diubah |
@@ -794,6 +808,7 @@ Seed minimal:
 
 ```text
 KASIR
+APOTEKER
 MANAGER
 ```
 
@@ -960,7 +975,10 @@ Tabel ini menyimpan satuan jual produk dan faktor konversinya ke satuan dasar.
 | unit_id | UUID | Yes | FK units.id | Satuan jual |
 | conversion_to_base | NUMERIC(14,3) | Yes | CHECK > 0 | Jumlah satuan dasar dalam 1 satuan jual |
 | is_default_sale_unit | BOOLEAN | Yes | DEFAULT false | Satuan jual default |
+| is_sale_unit | BOOLEAN | Yes | DEFAULT true | Boleh dipilih sebagai satuan jual kasir |
 | is_active | BOOLEAN | Yes | DEFAULT true | Status aktif |
+| min_sale_qty | NUMERIC(14,3) | Yes | DEFAULT 1 | Minimum qty jual untuk satuan ini |
+| sale_unit_note | TEXT | No | - | Catatan batasan satuan jual |
 | created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
 | updated_at | TIMESTAMP | Yes | DEFAULT now | Waktu diubah |
 | deleted_at | TIMESTAMP | No | - | Soft delete |
@@ -971,6 +989,10 @@ Constraint:
 ALTER TABLE product_units
 ADD CONSTRAINT chk_product_units_conversion_positive
 CHECK (conversion_to_base > 0);
+
+ALTER TABLE product_units
+ADD CONSTRAINT chk_product_units_min_sale_qty_positive
+CHECK (min_sale_qty > 0);
 
 CREATE UNIQUE INDEX uq_product_units_active
 ON product_units(product_id, unit_id)
@@ -988,6 +1010,13 @@ base_unit: tablet
 1 box = 100 tablet
 ```
 
+Aturan:
+
+1. Stok tetap disimpan pada satuan dasar.
+2. Satuan dasar tidak otomatis boleh dijual.
+3. Kasir hanya boleh melihat `product_units` dengan `is_active = true` dan `is_sale_unit = true`.
+4. Backend checkout wajib menolak product unit yang tidak aktif atau bukan satuan jual.
+
 ### 15.9 Tabel `product_batches`
 
 Tabel ini adalah pusat stok produk. Stok tidak boleh hanya disimpan pada tabel `products`.
@@ -1002,7 +1031,7 @@ Tabel ini adalah pusat stok produk. Stok tidak boleh hanya disimpan pada tabel `
 | expired_date | DATE | Yes | - | Tanggal kedaluwarsa |
 | initial_stock_base | NUMERIC(14,3) | Yes | CHECK >= 0 | Stok awal satuan dasar |
 | current_stock_base | NUMERIC(14,3) | Yes | CHECK >= 0 | Stok saat ini satuan dasar |
-| hpp_base | NUMERIC(14,2) | Yes | CHECK >= 0 | HPP per satuan dasar |
+| hpp_base | NUMERIC(18,8) | Yes | CHECK >= 0 | HPP per satuan dasar presisi tinggi |
 | received_at | TIMESTAMP | Yes | DEFAULT now | Waktu batch masuk |
 | is_active | BOOLEAN | Yes | DEFAULT true | Status aktif |
 | created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
@@ -1036,17 +1065,18 @@ Catatan desain:
 1. `current_stock_base` disimpan sebagai denormalisasi untuk performa transaksi.
 2. Semua perubahan `current_stock_base` wajib disertai `stock_mutations`.
 3. Konsistensi stok batch dan mutasi dijaga oleh service layer dalam satu database transaction.
+4. Rekomendasi final untuk implementasi berikutnya: `hpp_base NUMERIC(18,8)` agar HPP per satuan dasar tidak kehilangan presisi.
 
 ### 15.10 Tabel `batch_unit_prices`
 
-Harga jual disimpan per batch dan satuan jual.
+Harga jual disimpan per batch dan satuan jual. Harga jual ini ditentukan manual oleh Manager dan digunakan sebagai harga jual final kasir; backend tidak menghitung harga jual otomatis dari harga modal.
 
 | Field | Type | Required | Constraint | Description |
 |---|---|---:|---|---|
 | id | UUID | Yes | PK | ID harga |
 | batch_id | UUID | Yes | FK product_batches.id | Batch |
 | product_unit_id | UUID | Yes | FK product_units.id | Satuan jual produk |
-| selling_price | NUMERIC(14,2) | Yes | CHECK >= 0 | Harga jual per satuan jual |
+| selling_price | NUMERIC(18,0) | Yes | CHECK >= 0 | Harga jual manual per satuan jual dalam rupiah bulat |
 | is_active | BOOLEAN | Yes | DEFAULT true | Status aktif |
 | created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
 | updated_at | TIMESTAMP | Yes | DEFAULT now | Waktu diubah |
@@ -1066,6 +1096,44 @@ Aturan:
 
 1. Harga jual transaksi harus disalin ke detail transaksi.
 2. Perubahan harga di tabel ini tidak boleh mengubah transaksi lama.
+3. Harga jual pelanggan tetap rupiah bulat, walaupun harga modal dan HPP internal memakai presisi tinggi.
+
+### 15.10A Tabel `purchase_orders`
+
+Tabel ini menyimpan rencana pemesanan obat ke supplier. PO tidak menambah stok dan tidak mengurangi stok.
+
+| Field | Type | Required | Constraint | Description |
+|---|---|---:|---|---|
+| id | UUID | Yes | PK | ID PO |
+| po_number | VARCHAR(100) | Yes | UNIQUE | Nomor PO, contoh `PO-20260603-0001` |
+| po_date | DATE | Yes | - | Tanggal pemesanan |
+| supplier_id | UUID | Yes | FK suppliers.id | Supplier tujuan |
+| created_by | UUID | Yes | FK users.id | User pembuat PO dari login |
+| pharmacist_id | UUID | No | FK users.id | Apoteker penanggung jawab jika berbeda |
+| status | VARCHAR(50) | Yes | - | DRAFT/SENT/PARTIALLY_RECEIVED/RECEIVED/CANCELLED |
+| notes | TEXT | No | - | Catatan PO |
+| paper_size | VARCHAR(50) | No | - | A4/A5/CUSTOM |
+| created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
+| updated_at | TIMESTAMP | Yes | DEFAULT now | Waktu diubah |
+| deleted_at | TIMESTAMP | No | - | Soft delete |
+
+### 15.10B Tabel `purchase_order_items`
+
+| Field | Type | Required | Constraint | Description |
+|---|---|---:|---|---|
+| id | UUID | Yes | PK | ID item PO |
+| purchase_order_id | UUID | Yes | FK purchase_orders.id | PO |
+| product_id | UUID | Yes | FK products.id | Produk yang dipesan |
+| product_name_snapshot | VARCHAR(200) | Yes | - | Nama produk saat PO dibuat |
+| unit_id | UUID | Yes | FK units.id | Satuan pemesanan |
+| qty_ordered | NUMERIC(14,3) | Yes | CHECK > 0 | Jumlah dipesan |
+| estimated_purchase_price | NUMERIC(18,6) | No | CHECK >= 0 | Estimasi harga beli presisi tinggi |
+| notes | TEXT | No | - | Catatan item |
+| qty_received | NUMERIC(14,3) | Yes | DEFAULT 0 | Qty yang sudah diterima lewat pembelian |
+| created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
+| updated_at | TIMESTAMP | Yes | DEFAULT now | Waktu diubah |
+
+Nilai `remaining_qty` dihitung dari `qty_ordered - qty_received`. PO dapat diterima sebagian dan status PO diperbarui setelah pembelian final.
 
 ### 15.11 Tabel `purchases`
 
@@ -1073,10 +1141,20 @@ Aturan:
 |---|---|---:|---|---|
 | id | UUID | Yes | PK | ID pembelian |
 | supplier_id | UUID | Yes | FK suppliers.id | Supplier |
+| purchase_order_id | UUID | No | FK purchase_orders.id | PO asal jika pembelian dari PO |
 | purchase_number | VARCHAR(100) | Yes | UNIQUE | Nomor pembelian internal |
 | invoice_number | VARCHAR(150) | No | - | Nomor invoice supplier |
+| invoice_date | DATE | No | - | Tanggal faktur supplier |
 | purchase_date | TIMESTAMP | Yes | - | Tanggal pembelian |
-| subtotal | NUMERIC(14,2) | Yes | CHECK >= 0 | Subtotal pembelian |
+| tax_mode | VARCHAR(50) | Yes | DEFAULT NON_PPN | NON_PPN/PPN_INCLUDED/PPN_EXCLUDED |
+| tax_rate_percent | NUMERIC(5,2) | No | CHECK >= 0 | Tarif PPN jika digunakan |
+| subtotal | NUMERIC(18,6) | Yes | CHECK >= 0 | Subtotal pembelian |
+| purchase_discount_amount | NUMERIC(18,6) | Yes | DEFAULT 0 | Total diskon pembelian |
+| tax_amount | NUMERIC(18,6) | Yes | DEFAULT 0 | Nilai PPN pembelian |
+| invoice_total_input | NUMERIC(18,6) | Yes | CHECK >= 0 | Total faktur input Manager |
+| calculated_total | NUMERIC(18,6) | Yes | CHECK >= 0 | Total hasil hitung sistem |
+| rounding_adjustment | NUMERIC(18,6) | Yes | DEFAULT 0 | Selisih pembulatan |
+| difference_note | TEXT | No | - | Alasan selisih signifikan |
 | note | TEXT | No | - | Catatan |
 | status | VARCHAR(50) | Yes | DEFAULT FINAL | DRAFT/FINAL/CANCELLED |
 | created_by | UUID | Yes | FK users.id | User pembuat |
@@ -1103,22 +1181,33 @@ Untuk V1, pembelian boleh langsung `FINAL`.
 | product_id | UUID | Yes | FK products.id | Produk |
 | product_unit_id | UUID | Yes | FK product_units.id | Satuan pembelian |
 | batch_id | UUID | No | FK product_batches.id | Batch yang dibuat/diperbarui |
+| purchase_order_item_id | UUID | No | FK purchase_order_items.id | Item PO asal jika ada |
 | batch_number | VARCHAR(150) | Yes | - | Nomor batch |
 | expired_date | DATE | Yes | - | Tanggal kedaluwarsa |
+| qty_ordered | NUMERIC(14,3) | No | CHECK >= 0 | Qty dari PO jika ada |
 | qty_purchase_unit | NUMERIC(14,3) | Yes | CHECK > 0 | Qty satuan pembelian |
+| qty_received | NUMERIC(14,3) | Yes | CHECK > 0 | Qty barang yang benar-benar datang |
 | conversion_to_base | NUMERIC(14,3) | Yes | CHECK > 0 | Konversi saat pembelian |
 | qty_base | NUMERIC(14,3) | Yes | CHECK > 0 | Qty satuan dasar |
-| purchase_price | NUMERIC(14,2) | Yes | CHECK >= 0 | Harga beli per satuan pembelian |
-| hpp_base | NUMERIC(14,2) | Yes | CHECK >= 0 | HPP satuan dasar |
-| total_price | NUMERIC(14,2) | Yes | CHECK >= 0 | Total harga item |
+| purchase_price | NUMERIC(18,6) | Yes | CHECK >= 0 | Harga beli supplier presisi tinggi per satuan pembelian |
+| discount_type | VARCHAR(30) | Yes | DEFAULT NONE | NONE/NOMINAL/PERCENT |
+| discount_value | NUMERIC(18,6) | Yes | DEFAULT 0 | Nilai diskon input |
+| discount_amount | NUMERIC(18,6) | Yes | DEFAULT 0 | Hasil hitung diskon item |
+| gross_total | NUMERIC(18,6) | Yes | CHECK >= 0 | Total sebelum diskon |
+| net_total | NUMERIC(18,6) | Yes | CHECK >= 0 | Total setelah diskon |
+| hpp_base | NUMERIC(18,8) | Yes | CHECK >= 0 | HPP satuan dasar presisi tinggi |
+| selling_price | NUMERIC(18,0) | Yes | CHECK >= 0 | Harga jual manual Manager rupiah bulat |
+| total_price | NUMERIC(18,6) | Yes | CHECK >= 0 | Total harga item |
 | created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
 
 Formula:
 
 ```text
-qty_base = qty_purchase_unit * conversion_to_base
-hpp_base = purchase_price / conversion_to_base
-total_price = qty_purchase_unit * purchase_price
+qty_base = qty_received * conversion_to_base
+gross_total = qty_received * purchase_price
+discount_amount = diskon item nominal atau hasil persen dari gross_total
+net_total = gross_total - discount_amount
+hpp_base = net_total / qty_base
 ```
 
 Jika UI memakai input total harga item, formula HPP menjadi:
@@ -1128,6 +1217,16 @@ hpp_base = total_price / qty_base
 ```
 
 Pilih satu pendekatan input di UI agar tidak ambigu. Aplikasi tidak perlu menguji kesabaran manusia dengan dua jenis harga yang kelihatannya sama tetapi maknanya berbeda.
+
+Aturan pembelian:
+
+1. Pembelian dapat dibuat manual atau dari PO.
+2. Pembelian dari PO hanya menarik item sebagai draft; qty diterima, harga beli final, diskon, PPN, batch, expired date, dan harga jual tetap dapat disesuaikan Manager.
+3. Setiap item pembelian final wajib memiliki `batch_number` dan `expired_date`.
+4. Jika satu item PO datang dalam batch atau expired date berbeda, item pembelian dapat dipecah menjadi beberapa baris.
+5. `tax_mode` hanya untuk pencocokan faktur supplier, bukan e-faktur atau perpajakan lengkap.
+6. Jika selisih `invoice_total_input` dan `calculated_total` signifikan, pembelian wajib ditolak atau menyimpan `difference_note`.
+7. Pembelian final menambah stok batch dan mencatat `stock_mutations` dalam database transaction.
 
 ### 15.13 Tabel `sales`
 
@@ -1139,15 +1238,15 @@ Pilih satu pendekatan input di UI agar tidak ambigu. Aplikasi tidak perlu menguj
 | cashier_id | UUID | Yes | FK users.id | Kasir |
 | customer_name | VARCHAR(150) | No | - | Nama pelanggan opsional |
 | payment_method | VARCHAR(50) | Yes | - | CASH/TRANSFER/QRIS/DEBIT |
-| subtotal | NUMERIC(14,2) | Yes | CHECK >= 0 | Subtotal sebelum diskon |
+| subtotal | NUMERIC(18,0) | Yes | CHECK >= 0 | Subtotal sebelum diskon, rupiah bulat |
 | discount_type | VARCHAR(30) | No | - | PERCENT/NOMINAL/NONE |
-| discount_value | NUMERIC(14,2) | Yes | DEFAULT 0 | Nilai diskon input |
-| discount_amount | NUMERIC(14,2) | Yes | DEFAULT 0 | Nominal diskon final |
-| total | NUMERIC(14,2) | Yes | CHECK >= 0 | Total setelah diskon |
-| paid_amount | NUMERIC(14,2) | No | - | Uang diterima |
-| change_amount | NUMERIC(14,2) | No | - | Kembalian |
-| total_hpp | NUMERIC(14,2) | Yes | DEFAULT 0 | Total HPP transaksi |
-| total_profit | NUMERIC(14,2) | Yes | DEFAULT 0 | Total laba transaksi |
+| discount_value | NUMERIC(18,6) | Yes | DEFAULT 0 | Nilai diskon input; persen boleh desimal, nominal rupiah |
+| discount_amount | NUMERIC(18,0) | Yes | DEFAULT 0 | Nominal diskon final rupiah bulat |
+| total | NUMERIC(18,0) | Yes | CHECK >= 0 | Total setelah diskon, rupiah bulat |
+| paid_amount | NUMERIC(18,0) | No | - | Uang diterima |
+| change_amount | NUMERIC(18,0) | No | - | Kembalian |
+| total_hpp | NUMERIC(18,8) | Yes | DEFAULT 0 | Total HPP internal presisi |
+| total_profit | NUMERIC(18,8) | Yes | DEFAULT 0 | Total laba internal presisi tinggi |
 | status | VARCHAR(50) | Yes | DEFAULT FINAL | FINAL/VOID |
 | note | TEXT | No | - | Catatan |
 | idempotency_key | VARCHAR(100) | No | - | Proteksi transaksi ganda |
@@ -1185,11 +1284,11 @@ NOMINAL
 | qty_sale_unit | NUMERIC(14,3) | Yes | CHECK > 0 | Qty dalam satuan jual |
 | conversion_to_base | NUMERIC(14,3) | Yes | CHECK > 0 | Konversi saat transaksi |
 | qty_base_total | NUMERIC(14,3) | Yes | CHECK > 0 | Total qty satuan dasar |
-| unit_price | NUMERIC(14,2) | Yes | CHECK >= 0 | Harga jual per satuan jual |
-| subtotal | NUMERIC(14,2) | Yes | CHECK >= 0 | Subtotal item |
-| discount_allocated | NUMERIC(14,2) | Yes | DEFAULT 0 | Diskon alokasi item |
-| hpp_total | NUMERIC(14,2) | Yes | DEFAULT 0 | Total HPP item |
-| profit_total | NUMERIC(14,2) | Yes | DEFAULT 0 | Total laba item |
+| unit_price | NUMERIC(18,0) | Yes | CHECK >= 0 | Snapshot harga jual final rupiah bulat |
+| subtotal | NUMERIC(18,0) | Yes | CHECK >= 0 | Subtotal item rupiah bulat |
+| discount_allocated | NUMERIC(18,0) | Yes | DEFAULT 0 | Diskon alokasi item rupiah bulat |
+| hpp_total | NUMERIC(18,8) | Yes | DEFAULT 0 | Total HPP item presisi |
+| profit_total | NUMERIC(18,8) | Yes | DEFAULT 0 | Total laba internal item |
 | created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
 
 Tabel ini memudahkan riwayat transaksi berdasarkan tampilan kasir. Split teknis per batch tetap disimpan pada `sale_batch_allocations`.
@@ -1207,12 +1306,12 @@ Tabel ini adalah detail teknis alokasi stok batch untuk transaksi penjualan.
 | expired_date_snapshot | DATE | Yes | - | Expired date saat transaksi |
 | qty_base | NUMERIC(14,3) | Yes | CHECK > 0 | Qty satuan dasar dari batch |
 | qty_sale_unit_equivalent | NUMERIC(14,3) | Yes | CHECK > 0 | Qty ekuivalen satuan jual |
-| unit_price_snapshot | NUMERIC(14,2) | Yes | CHECK >= 0 | Harga jual saat transaksi |
-| hpp_base_snapshot | NUMERIC(14,2) | Yes | CHECK >= 0 | HPP dasar saat transaksi |
-| subtotal_allocated | NUMERIC(14,2) | Yes | CHECK >= 0 | Subtotal alokasi |
-| discount_allocated | NUMERIC(14,2) | Yes | DEFAULT 0 | Diskon alokasi |
-| hpp_allocated | NUMERIC(14,2) | Yes | CHECK >= 0 | HPP alokasi |
-| profit_allocated | NUMERIC(14,2) | Yes | - | Laba alokasi |
+| unit_price_snapshot | NUMERIC(18,0) | Yes | CHECK >= 0 | Snapshot harga jual final saat transaksi |
+| hpp_base_snapshot | NUMERIC(18,8) | Yes | CHECK >= 0 | HPP dasar presisi saat transaksi |
+| subtotal_allocated | NUMERIC(18,0) | Yes | CHECK >= 0 | Subtotal alokasi rupiah bulat |
+| discount_allocated | NUMERIC(18,0) | Yes | DEFAULT 0 | Diskon alokasi rupiah bulat |
+| hpp_allocated | NUMERIC(18,8) | Yes | CHECK >= 0 | HPP alokasi internal presisi |
+| profit_allocated | NUMERIC(18,8) | Yes | - | Laba alokasi internal presisi |
 | returned_qty_base | NUMERIC(14,3) | Yes | DEFAULT 0 | Qty yang sudah diretur |
 | created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
 
@@ -1222,6 +1321,8 @@ Formula:
 hpp_allocated = qty_base * hpp_base_snapshot
 profit_allocated = subtotal_allocated - hpp_allocated - discount_allocated
 ```
+
+`profit_display` untuk laporan adalah hasil pembulatan tampilan dari `profit_allocated` atau total laba internal, bukan nilai baru yang menggantikan laba internal.
 
 Aturan:
 
@@ -1239,9 +1340,9 @@ Aturan:
 | return_time | TIMESTAMP | Yes | DEFAULT now UTC | Waktu retur |
 | cashier_id | UUID | Yes | FK users.id | User pembuat |
 | reason | TEXT | Yes | - | Alasan retur |
-| total_refund | NUMERIC(14,2) | Yes | DEFAULT 0 | Nilai pengembalian |
-| total_hpp_reversed | NUMERIC(14,2) | Yes | DEFAULT 0 | HPP yang dikoreksi |
-| total_profit_reversed | NUMERIC(14,2) | Yes | DEFAULT 0 | Laba yang dikoreksi |
+| total_refund | NUMERIC(18,0) | Yes | DEFAULT 0 | Nilai pengembalian rupiah bulat |
+| total_hpp_reversed | NUMERIC(18,8) | Yes | DEFAULT 0 | HPP yang dikoreksi presisi |
+| total_profit_reversed | NUMERIC(18,8) | Yes | DEFAULT 0 | Laba yang dikoreksi presisi |
 | status | VARCHAR(50) | Yes | DEFAULT FINAL | Status retur |
 | idempotency_key | VARCHAR(100) | No | - | Proteksi retur ganda |
 | created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
@@ -1256,9 +1357,9 @@ Aturan:
 | product_id | UUID | Yes | FK products.id | Produk |
 | batch_id | UUID | Yes | FK product_batches.id | Batch asal |
 | qty_base_returned | NUMERIC(14,3) | Yes | CHECK > 0 | Qty retur satuan dasar |
-| refund_amount | NUMERIC(14,2) | Yes | CHECK >= 0 | Nilai refund |
-| hpp_reversed | NUMERIC(14,2) | Yes | CHECK >= 0 | HPP yang dikoreksi |
-| profit_reversed | NUMERIC(14,2) | Yes | - | Laba yang dikoreksi |
+| refund_amount | NUMERIC(18,0) | Yes | CHECK >= 0 | Nilai refund rupiah bulat |
+| hpp_reversed | NUMERIC(18,8) | Yes | CHECK >= 0 | HPP yang dikoreksi presisi |
+| profit_reversed | NUMERIC(18,8) | Yes | - | Laba yang dikoreksi presisi |
 | created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
 
 Rule:
@@ -1287,7 +1388,7 @@ profit_reversed = refund_amount - hpp_reversed
 | return_time | TIMESTAMP | Yes | DEFAULT now UTC | Waktu retur |
 | manager_id | UUID | Yes | FK users.id | User pembuat |
 | reason | TEXT | Yes | - | Alasan retur |
-| total_amount | NUMERIC(14,2) | Yes | DEFAULT 0 | Nilai retur |
+| total_amount | NUMERIC(18,6) | Yes | DEFAULT 0 | Nilai retur pembelian presisi |
 | status | VARCHAR(50) | Yes | DEFAULT FINAL | Status |
 | created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
 
@@ -1300,8 +1401,8 @@ profit_reversed = refund_amount - hpp_reversed
 | batch_id | UUID | Yes | FK product_batches.id | Batch |
 | product_id | UUID | Yes | FK products.id | Produk |
 | qty_base_returned | NUMERIC(14,3) | Yes | CHECK > 0 | Qty retur satuan dasar |
-| hpp_base_snapshot | NUMERIC(14,2) | Yes | CHECK >= 0 | HPP saat retur |
-| total_amount | NUMERIC(14,2) | Yes | CHECK >= 0 | Nilai retur |
+| hpp_base_snapshot | NUMERIC(18,8) | Yes | CHECK >= 0 | HPP saat retur presisi |
+| total_amount | NUMERIC(18,6) | Yes | CHECK >= 0 | Nilai retur pembelian presisi |
 | created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
 
 ### 15.20 Tabel `stock_mutations`
@@ -1442,6 +1543,89 @@ POST /api/purchases
 POST /api/purchase-returns
 POST /api/stock/adjustments
 ```
+
+### 15.24A Tabel `prescriptions`
+
+Tabel ini menyimpan resep dasar yang disiapkan sebelum pembayaran. Resep tidak mengurangi stok sebelum checkout berhasil.
+
+| Field | Type | Required | Constraint | Description |
+|---|---|---:|---|---|
+| id | UUID | Yes | PK | ID resep |
+| prescription_number | VARCHAR(100) | Yes | UNIQUE | Nomor resep internal |
+| received_date | TIMESTAMP | Yes | - | Tanggal resep diterima |
+| patient_name | VARCHAR(150) | Yes | - | Nama pasien |
+| patient_phone | VARCHAR(50) | No | - | Kontak pasien |
+| doctor_name | VARCHAR(150) | No | - | Nama dokter |
+| health_facility | VARCHAR(150) | No | - | Klinik/RS asal resep |
+| pharmacist_id | UUID | Yes | FK users.id | Apoteker pemeriksa dari login |
+| sale_id | UUID | No | FK sales.id | Transaksi jika sudah checkout |
+| status | VARCHAR(50) | Yes | - | DRAFT/REVIEWED/READY_FOR_PAYMENT/PAID/COMPLETED/CANCELLED/NEED_CONFIRMATION |
+| notes | TEXT | No | - | Catatan resep |
+| attachment_url | TEXT | No | - | Foto/scan resep, future enhancement |
+| created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
+| updated_at | TIMESTAMP | Yes | DEFAULT now | Waktu diubah |
+| deleted_at | TIMESTAMP | No | - | Soft delete |
+
+### 15.24B Tabel `prescription_items`
+
+| Field | Type | Required | Constraint | Description |
+|---|---|---:|---|---|
+| id | UUID | Yes | PK | ID item resep |
+| prescription_id | UUID | Yes | FK prescriptions.id | Resep |
+| product_id | UUID | Yes | FK products.id | Obat |
+| product_unit_id | UUID | Yes | FK product_units.id | Satuan jual aktif |
+| qty | NUMERIC(14,3) | Yes | CHECK > 0 | Jumlah obat |
+| usage_instruction | TEXT | Yes | - | Aturan pakai |
+| label_note | TEXT | No | - | Catatan etiket |
+| substitution_note | TEXT | No | - | Catatan substitusi |
+| item_status | VARCHAR(50) | Yes | DEFAULT AVAILABLE | AVAILABLE/OUT_OF_STOCK/SUBSTITUTED/CANCELLED |
+| created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
+
+### 15.24C Tabel `counseling_records`
+
+Tabel ini hanya dokumentasi pelayanan. Konseling tidak membuat tagihan dan tidak mengubah stok.
+
+| Field | Type | Required | Constraint | Description |
+|---|---|---:|---|---|
+| id | UUID | Yes | PK | ID konseling |
+| counseling_date | TIMESTAMP | Yes | - | Tanggal konseling |
+| pharmacist_id | UUID | Yes | FK users.id | Apoteker dari login |
+| patient_name | VARCHAR(150) | No | - | Nama pasien |
+| prescription_id | UUID | No | FK prescriptions.id | Resep terkait |
+| sale_id | UUID | No | FK sales.id | Transaksi terkait |
+| topic | VARCHAR(200) | No | - | Topik konseling |
+| notes | TEXT | Yes | - | Catatan konseling |
+| status | VARCHAR(50) | Yes | DEFAULT COMPLETED | COMPLETED/CANCELLED |
+| created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
+| updated_at | TIMESTAMP | Yes | DEFAULT now | Waktu diubah |
+
+### 15.25 Rekomendasi Final Tipe Data Harga
+
+Requirement ini disebut **Presisi Harga Modal dan HPP**. Presisi tinggi hanya diterapkan pada harga modal, HPP, dan perhitungan laba internal. Harga jual pelanggan tetap ditentukan manual oleh Manager sebagai nilai Rupiah bulat.
+
+| Field | Tipe Rekomendasi | Catatan |
+|---|---|---|
+| `purchase_price` | `NUMERIC(18,6)` | Harga beli supplier |
+| `purchase_discount_value` | `NUMERIC(18,6)` | Nilai diskon pembelian input |
+| `purchase_discount_amount` | `NUMERIC(18,6)` | Hasil hitung diskon pembelian |
+| `purchase_gross_total` | `NUMERIC(18,6)` | Total kotor pembelian |
+| `purchase_net_total` | `NUMERIC(18,6)` | Total bersih pembelian |
+| `tax_amount` | `NUMERIC(18,6)` | Nilai PPN pembelian |
+| `invoice_total_input` | `NUMERIC(18,6)` | Total faktur supplier input |
+| `calculated_total` | `NUMERIC(18,6)` | Total pembelian hasil hitung sistem |
+| `rounding_adjustment` | `NUMERIC(18,6)` | Selisih pembulatan faktur |
+| `hpp_base` | `NUMERIC(18,8)` | HPP per satuan dasar |
+| `selling_price` | `NUMERIC(18,0)` | Harga jual final manual dari Manager |
+| `sale_unit_price` atau snapshot ekuivalen | `NUMERIC(18,0)` | Snapshot harga jual saat transaksi |
+| `sale_total` | `NUMERIC(18,0)` | Total penjualan rupiah bulat |
+| `paid_amount` | `NUMERIC(18,0)` | Uang diterima rupiah bulat |
+| `change_amount` | `NUMERIC(18,0)` | Kembalian rupiah bulat |
+| `profit_amount` atau field profit allocation | `NUMERIC(18,8)` | Laba internal presisi |
+| `profit_display` | Nilai laporan yang dibulatkan saat tampil | Tidak mengubah nilai internal |
+
+Backend wajib menghitung laba dari snapshot harga jual final dikurangi HPP internal presisi. Perubahan harga jual baru tidak boleh mengubah histori transaksi lama, dan response Kasir tidak boleh memuat harga modal, HPP, margin, atau laba.
+
+Jangan gunakan `FLOAT`, `DOUBLE`, atau `REAL` untuk uang, HPP, pajak, diskon, dan laba. Gunakan `NUMERIC` atau `DECIMAL`.
 
 ---
 
@@ -2017,7 +2201,17 @@ Aturan:
 | `/supplier` | `/api/suppliers` | Manager |
 | `/satuan` | `/api/units`, `/api/products/:productId/units` | Manager |
 | `/batch` | `/api/batches` | HPP hanya Manager/Pemilik |
+| `/pemesanan` | `/api/purchase-orders` | Apoteker/Manager |
+| `/pemesanan/tambah` | `POST /api/purchase-orders` | Apoteker/Manager |
+| `/pemesanan/:id` | `GET /api/purchase-orders/:id` | Apoteker/Manager |
+| `/pemesanan/:id/cetak` | `POST /api/purchase-orders/:id/print-preview` | Cetak PO tanpa integrasi printer kompleks |
 | `/pembelian` | `/api/purchases` | Manager |
+| `/pembelian/dari-po/:poId` | `GET /api/purchases/create-from-po/:poId` | Draft pembelian dari PO |
+| `/pelayanan/resep` | `/api/prescriptions` | Apoteker/Manager |
+| `/pelayanan/resep/tambah` | `POST /api/prescriptions` | Apoteker/Manager |
+| `/pelayanan/resep/:id` | `GET /api/prescriptions/:id` | Apoteker/Manager |
+| `/pelayanan/konseling` | `/api/counseling-records` | Apoteker/Manager |
+| `/pelayanan/riwayat` | `/api/prescriptions`, `/api/counseling-records` | Riwayat pelayanan |
 | `/stok` | `/api/stock` | Kasir terbatas, Manager penuh |
 | `/mutasi-stok` | `/api/stock/mutations` | Manager |
 | `/koreksi-stok` | `POST /api/stock/adjustments` | Manager, wajib alasan |
@@ -2108,12 +2302,47 @@ GET    /api/batches/expired-alert
 
 ```text
 GET    /api/purchases
+GET    /api/purchases/create-from-po/:poId
 POST   /api/purchases
 GET    /api/purchases/:id
 POST   /api/purchases/:id/finalize
 ```
 
-### 21.9 Sales API
+### 21.9 Purchase Order API
+
+```text
+GET    /api/purchase-orders
+POST   /api/purchase-orders
+GET    /api/purchase-orders/:id
+PATCH  /api/purchase-orders/:id
+POST   /api/purchase-orders/:id/print-preview
+POST   /api/purchase-orders/:id/convert-to-purchase
+PATCH  /api/purchase-orders/:id/cancel
+```
+
+### 21.10 Prescription API
+
+```text
+GET    /api/prescriptions
+POST   /api/prescriptions
+GET    /api/prescriptions/:id
+PATCH  /api/prescriptions/:id
+POST   /api/prescriptions/:id/mark-ready-for-payment
+POST   /api/prescriptions/:id/cancel
+GET    /api/prescriptions/ready-for-payment
+POST   /api/sales/from-prescription/:prescriptionId
+```
+
+### 21.11 Counseling API
+
+```text
+GET    /api/counseling-records
+POST   /api/counseling-records
+GET    /api/counseling-records/:id
+PATCH  /api/counseling-records/:id
+```
+
+### 21.12 Sales API
 
 ```text
 GET    /api/sales
@@ -2123,7 +2352,7 @@ GET    /api/sales/:id/returnable-items
 POST   /api/sales/preview
 ```
 
-### 21.10 Sales Return API
+### 21.13 Sales Return API
 
 ```text
 GET    /api/sales-returns
@@ -2131,7 +2360,7 @@ POST   /api/sales-returns
 GET    /api/sales-returns/:id
 ```
 
-### 21.11 Purchase Return API
+### 21.14 Purchase Return API
 
 ```text
 GET    /api/purchase-returns
@@ -2520,6 +2749,8 @@ Field berikut tidak boleh muncul di response API untuk role Kasir dan tidak bole
 hpp
 hppBase
 totalHpp
+hargaModal
+purchasePrice
 profit
 totalProfit
 margin

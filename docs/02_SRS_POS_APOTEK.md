@@ -124,9 +124,14 @@ Frontend boleh menampilkan estimasi untuk membantu pengguna, tetapi nilai final 
 | SCOPE-004 | Manajemen kategori | Must Have | Wajib |
 | SCOPE-005 | Manajemen supplier | Must Have | Wajib |
 | SCOPE-006 | Manajemen satuan dan konversi satuan | Must Have | Wajib |
+| SCOPE-006A | Pembatasan satuan jual produk | Must Have | Wajib |
 | SCOPE-007 | Manajemen batch obat | Must Have | Wajib |
+| SCOPE-007A | Pemesanan / Purchase Order Obat | Should Have | Wajib masuk rancangan |
 | SCOPE-008 | Pembelian supplier | Must Have | Wajib |
+| SCOPE-008A | Pembelian dari PO, faktur supplier, diskon pembelian, dan PPN/non-PPN | Should Have | Wajib masuk rancangan |
 | SCOPE-009 | Transaksi penjualan kasir | Must Have | Wajib |
+| SCOPE-009A | Pelayanan Resep Dasar | Should Have | Wajib masuk rancangan |
+| SCOPE-009B | Konseling Dasar | Could Have | Disarankan kuat |
 | SCOPE-010 | FEFO otomatis | Must Have | Wajib |
 | SCOPE-011 | Split transaksi multi-batch | Must Have | Wajib |
 | SCOPE-012 | Diskon transaksi | Must Have | Wajib |
@@ -150,11 +155,13 @@ Frontend boleh menampilkan estimasi untuk membantu pengguna, tetapi nilai final 
 | OOS-004 | Program loyalitas pelanggan | Tidak dikerjakan |
 | OOS-005 | Akuntansi biaya operasional lengkap | Tidak dikerjakan |
 | OOS-006 | Integrasi e-faktur/perpajakan lengkap | Tidak dikerjakan |
-| OOS-007 | Manajemen resep dokter lanjutan | Tidak wajib |
+| OOS-007 | Manajemen resep dokter lanjutan, e-resep, validasi klinis otomatis, interaksi obat otomatis, dan integrasi fasilitas kesehatan | Tidak dikerjakan; Pelayanan Resep Dasar tetap masuk scope P1 |
 | OOS-008 | Integrasi printer thermal khusus | Tidak wajib |
 | OOS-009 | Integrasi barcode scanner hardware khusus | Tidak wajib |
 | OOS-010 | Manajemen shift kasir kompleks | Tidak wajib |
 | OOS-011 | PWA offline penuh | Tidak dikerjakan |
+| OOS-012 | Clinical decision support otomatis | Tidak dikerjakan |
+| OOS-013 | Piutang pelanggan | Future enhancement, bukan fitur inti V1 |
 
 ### 3.3 Prioritas Implementasi V1
 
@@ -162,9 +169,9 @@ Frontend boleh menampilkan estimasi untuk membantu pengguna, tetapi nilai final 
 |---|---|---|
 | Tahap 1 | Auth, user, role, kategori, produk, supplier, satuan | Fondasi master data |
 | Tahap 2 | Batch, pembelian, stok, mutasi stok | Fondasi stok dan HPP |
-| Tahap 3 | Halaman kasir, transaksi penjualan, FEFO, split batch | Inti POS |
+| Tahap 3 | PO, pembelian dari PO, halaman kasir, transaksi penjualan, FEFO, split batch | Inti stok masuk dan POS |
 | Tahap 4 | Diskon, retur penjualan, laporan penjualan, laporan laba | Operasional dan pelaporan |
-| Tahap 5 | Dashboard, retur pembelian, koreksi stok, ekspor | Penguatan sistem |
+| Tahap 5 | Pelayanan resep dasar, konseling, dashboard, retur pembelian, koreksi stok, ekspor | Penguatan sistem |
 | Tahap 6 | Pengaturan profil apotek dan penyempurnaan UI | Pelengkap V1 |
 
 ---
@@ -177,19 +184,30 @@ Frontend boleh menampilkan estimasi untuk membantu pengguna, tetapi nilai final 
 | Produk | Obat atau barang apotek yang dijual |
 | Kategori | Pengelompokan produk |
 | Supplier | Pihak penyedia produk untuk apotek |
+| Purchase Order / PO Obat | Dokumen rencana pemesanan obat ke supplier yang tidak mengubah stok |
+| Faktur Supplier | Dokumen tagihan barang datang yang menjadi dasar pembelian final |
+| Diskon Pembelian | Potongan harga dari supplier pada proses pembelian, berbeda dari diskon penjualan |
+| PPN Pembelian | Pencatatan PPN faktur supplier untuk pencocokan total, bukan modul pajak lengkap |
 | Batch | Kelompok stok berdasarkan produk, nomor batch, expired date, HPP, harga jual, dan stok |
 | Expired Date | Tanggal kedaluwarsa batch |
 | FEFO | First Expired First Out, metode pengeluaran stok berdasarkan tanggal kedaluwarsa terdekat |
 | Satuan Dasar | Satuan terkecil untuk penyimpanan stok |
 | Satuan Jual | Satuan yang dapat dipilih saat transaksi penjualan |
+| Satuan Jual Aktif | Satuan produk yang boleh dipilih Kasir; satuan dasar stok tidak otomatis menjadi satuan jual |
 | Konversi Satuan | Perbandingan jumlah satuan jual terhadap satuan dasar |
 | HPP | Harga Pokok Penjualan |
+| Harga Modal | Harga beli supplier yang disimpan dengan presisi desimal tinggi untuk kebutuhan HPP dan laba internal |
+| Harga Jual Final | Harga jual rupiah bulat yang ditentukan manual oleh Manager dan dipakai pada kasir/transaksi |
+| Presisi Harga Modal dan HPP | Requirement bahwa harga modal, HPP, dan laba internal berpresisi tinggi sementara harga jual pelanggan tetap rupiah bulat |
 | Omzet | Nilai penjualan sebelum dikurangi HPP |
 | Laba | Omzet detail dikurangi HPP detail dan diskon alokasi |
 | Diskon Alokasi | Pembagian diskon transaksi ke detail transaksi secara proporsional |
 | Mutasi Stok | Catatan perubahan stok masuk atau keluar |
 | Retur Penjualan | Pengembalian barang dari pelanggan ke apotek |
 | Retur Pembelian | Pengembalian barang dari apotek ke supplier |
+| Pelayanan Resep Dasar | Pencatatan resep, aturan pakai, dan persiapan pembayaran tanpa mengurangi stok sebelum checkout |
+| Konseling Dasar | Dokumentasi edukasi obat oleh Apoteker tanpa tagihan dan tanpa perubahan stok |
+| Piutang | Future enhancement untuk penjualan belum lunas, bukan fitur inti V1 |
 | Produk Aktif | Produk yang dapat digunakan dalam transaksi baru |
 | Produk Nonaktif | Produk yang tidak dapat digunakan dalam transaksi baru, tetapi histori tetap tersedia |
 | Server-side | Proses yang dihitung di backend |
@@ -208,42 +226,47 @@ Frontend boleh menampilkan estimasi untuk membantu pengguna, tetapi nilai final 
 | ACT-001 | Kasir | Pengguna yang melayani transaksi penjualan dan retur penjualan |
 | ACT-002 | Manager | Pengguna yang mengelola master data, pembelian, stok, laporan, user, dan pengaturan |
 | ACT-003 | Pemilik | Pengguna yang memantau dashboard dan laporan bisnis |
-| ACT-004 | Sistem | Proses otomatis yang menjalankan validasi, FEFO, split batch, kalkulasi, dan mutasi stok |
+| ACT-004 | Apoteker | Pengguna yang membuat PO, memeriksa resep dasar, mencatat konseling, dan melihat stok pelayanan |
+| ACT-005 | Sistem | Proses otomatis yang menjalankan validasi, FEFO, split batch, kalkulasi, dan mutasi stok |
 
 ### 5.2 Role Minimum V1
 
 | Role | Status | Catatan |
 |---|---|---|
 | Kasir | Wajib | Fokus pada transaksi penjualan dan retur penjualan |
+| Apoteker | Wajib masuk rancangan | Fokus pada PO, resep dasar, konseling, dan pelayanan obat |
 | Manager | Wajib | Akses penuh terhadap fitur operasional |
 | Pemilik | Opsional | Dapat dibuat sebagai role laporan, atau sementara memakai akses Manager terbatas |
 
-Keputusan V1: sistem minimal wajib memiliki role **Kasir** dan **Manager**. Role **Pemilik** boleh ditambahkan jika implementasi role tambahan tidak mengganggu prioritas inti.
+Keputusan V1: sistem minimal wajib memiliki role **Kasir**, **Apoteker**, dan **Manager** dalam rancangan. Role **Pemilik** boleh ditambahkan jika implementasi role tambahan tidak mengganggu prioritas inti.
 
 ### 5.3 Matriks Hak Akses
 
-| Modul/Fitur | Kasir | Manager | Pemilik |
-|---|---:|---:|---:|
-| Login/logout | Ya | Ya | Ya |
-| Dashboard | Terbatas | Ya | Ya |
-| Halaman kasir | Ya | Ya | Tidak wajib |
-| Transaksi penjualan | Ya | Ya | Tidak wajib |
-| Retur penjualan | Ya | Ya | Tidak wajib |
-| Produk | Lihat terbatas | Kelola | Lihat |
-| Kategori | Tidak | Kelola | Lihat |
-| Supplier | Tidak | Kelola | Lihat |
-| Satuan dan konversi | Tidak | Kelola | Lihat |
-| Batch | Lihat terbatas | Kelola | Lihat |
-| Pembelian supplier | Tidak | Kelola | Lihat |
-| Retur pembelian | Tidak | Kelola | Lihat |
-| Stok | Lihat terbatas | Kelola/Lihat penuh | Lihat |
-| Mutasi stok | Tidak | Ya | Lihat |
-| Koreksi stok | Tidak | Ya | Tidak wajib |
-| Laporan penjualan | Tidak | Ya | Ya |
-| Laporan laba | Tidak | Ya | Ya |
-| Ekspor laporan | Tidak | Ya | Ya |
-| Pengaturan sistem | Tidak | Ya | Tidak wajib |
-| Manajemen user | Tidak | Ya | Tidak wajib |
+| Modul/Fitur | Kasir | Apoteker | Manager | Pemilik |
+|---|---:|---:|---:|---:|
+| Login/logout | Ya | Ya | Ya | Ya |
+| Dashboard | Terbatas | Terbatas | Ya | Ya |
+| Halaman kasir | Ya | Opsional | Ya | Tidak wajib |
+| Transaksi penjualan | Ya | Opsional | Ya | Tidak wajib |
+| Resep Dokter | Tarik resep siap bayar | Ya | Ya | Lihat |
+| Konseling | Tidak | Ya | Ya | Lihat |
+| PO Obat | Tidak | Ya | Ya | Lihat |
+| Retur penjualan | Ya | Terbatas | Ya | Tidak wajib |
+| Produk | Lihat terbatas | Lihat | Kelola | Lihat |
+| Kategori | Tidak | Lihat | Kelola | Lihat |
+| Supplier | Tidak | Lihat | Kelola | Lihat |
+| Satuan dan konversi | Tidak | Lihat | Kelola | Lihat |
+| Batch | Lihat terbatas | Lihat | Kelola | Lihat |
+| Pembelian supplier | Tidak | Terbatas/Lihat | Kelola | Lihat |
+| Retur pembelian | Tidak | Tidak | Kelola | Lihat |
+| Stok | Lihat terbatas | Lihat | Kelola/Lihat penuh | Lihat |
+| Mutasi stok | Tidak | Lihat | Ya | Lihat |
+| Koreksi stok | Tidak | Tidak | Ya | Tidak wajib |
+| Laporan penjualan | Tidak | Tidak | Ya | Ya |
+| Laporan laba | Tidak | Tidak | Ya | Ya |
+| Ekspor laporan | Tidak | Tidak | Ya | Ya |
+| Pengaturan sistem | Tidak | Tidak | Ya | Tidak wajib |
+| Manajemen user | Tidak | Tidak | Ya | Tidak wajib |
 
 ### 5.4 Larangan Role Kasir
 
@@ -261,6 +284,8 @@ Kasir tidak boleh:
 10. mengelola pembelian;
 11. mengelola user;
 12. mengakses endpoint Manager melalui URL langsung.
+
+Apoteker tidak boleh melihat HPP, laba, margin, atau harga beli supplier kecuali ada izin khusus yang ditetapkan eksplisit pada fase implementasi lanjutan.
 
 ---
 
@@ -297,6 +322,12 @@ Kasir tidak boleh:
 | SYS-PRIN-008 | Role enforced backend | UI role bukan pengamanan tunggal |
 | SYS-PRIN-009 | Error harus jelas | Pengguna tidak boleh melihat error teknis mentah |
 | SYS-PRIN-010 | Tidak membuat fitur liar | Fitur di luar scope V1 tidak boleh dibuat tanpa pembaruan dokumen |
+| SYS-PRIN-011 | Presisi harga modal dan HPP | Presisi tinggi hanya untuk harga modal, HPP, dan laba internal |
+| SYS-PRIN-012 | Harga jual manual | Harga jual pelanggan adalah rupiah bulat yang ditentukan Manager, bukan hasil otomatis dari harga modal |
+| SYS-PRIN-013 | PO bukan stok | PO tidak menambah dan tidak mengurangi stok |
+| SYS-PRIN-014 | Resep bukan transaksi final | Resep tidak mengurangi stok sebelum checkout berhasil |
+| SYS-PRIN-015 | Satuan jual dibatasi | Kasir hanya boleh memilih satuan jual aktif yang ditentukan Manager |
+| SYS-PRIN-016 | Pajak pembelian terbatas | PPN pembelian hanya untuk pencocokan faktur, bukan modul perpajakan lengkap |
 
 ### 7.2 Data yang Boleh Dihitung Frontend
 
@@ -346,7 +377,7 @@ final_report_value
 
 ## SRS-AUTH-001: Login Pengguna
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Kasir, Manager, Pemilik
 
 ### Deskripsi
@@ -387,7 +418,7 @@ Sistem harus menyediakan fitur login agar pengguna dapat masuk sesuai akun, role
 
 ## SRS-AUTH-002: Logout Pengguna
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Kasir, Manager, Pemilik
 
 ### Deskripsi
@@ -401,7 +432,7 @@ Sistem harus menyediakan fitur logout untuk mengakhiri sesi pengguna.
 
 ## SRS-AUTH-003: Proteksi Halaman dan Endpoint Berdasarkan Role
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Sistem
 
 ### Deskripsi
@@ -431,7 +462,7 @@ Sistem harus membatasi akses halaman, menu, dan endpoint berdasarkan role penggu
 
 ## SRS-PROD-001: Membuat Produk
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager
 
 ### Input
@@ -468,7 +499,7 @@ Sistem harus membatasi akses halaman, menu, dan endpoint berdasarkan role penggu
 
 ## SRS-PROD-002: Mengubah Produk
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager
 
 ### Rules
@@ -489,7 +520,7 @@ Sistem harus membatasi akses halaman, menu, dan endpoint berdasarkan role penggu
 
 ## SRS-PROD-003: Menonaktifkan Produk
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager
 
 ### Rules
@@ -508,7 +539,7 @@ Sistem harus membatasi akses halaman, menu, dan endpoint berdasarkan role penggu
 
 ## SRS-PROD-004: Pencarian Produk
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Kasir, Manager
 
 ### Input Pencarian
@@ -537,7 +568,7 @@ Sistem harus membatasi akses halaman, menu, dan endpoint berdasarkan role penggu
 
 ## SRS-CAT-001: Manajemen Kategori
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager
 
 ### Input
@@ -567,7 +598,7 @@ Sistem harus membatasi akses halaman, menu, dan endpoint berdasarkan role penggu
 
 ## SRS-SUP-001: Manajemen Supplier
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager
 
 ### Input
@@ -599,7 +630,7 @@ Sistem harus membatasi akses halaman, menu, dan endpoint berdasarkan role penggu
 
 ## SRS-UNIT-001: Satuan Dasar Produk
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager
 
 ### Rules
@@ -619,7 +650,7 @@ Sistem harus membatasi akses halaman, menu, dan endpoint berdasarkan role penggu
 
 ## SRS-UNIT-002: Konversi Satuan Jual
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager
 
 ### Input
@@ -655,13 +686,35 @@ Satuan dasar: tablet
 - Sistem mengurangi stok berdasarkan faktor konversi.
 - Sistem menolak faktor konversi nol atau negatif.
 
+## SRS-UNIT-003: Pembatasan Satuan Jual Produk
+
+**Prioritas:** Must Have
+**Aktor:** Manager, Kasir
+
+### Rules
+
+| ID | Aturan |
+|---|---|
+| RULE-UNIT-SALE-001 | Stok tetap disimpan dalam satuan dasar |
+| RULE-UNIT-SALE-002 | Satuan dasar tidak otomatis menjadi satuan jual |
+| RULE-UNIT-SALE-003 | Manager menentukan `is_sale_unit`, `is_active`, `min_sale_qty`, dan `sale_unit_note` pada product unit |
+| RULE-UNIT-SALE-004 | Kasir hanya melihat product unit yang aktif dan boleh dijual |
+| RULE-UNIT-SALE-005 | Backend wajib menolak checkout jika product unit bukan satuan jual aktif |
+
+### Acceptance Criteria
+
+- Manager dapat menentukan satuan jual aktif per produk.
+- Kasir hanya melihat satuan jual aktif.
+- Backend menolak transaksi dengan satuan yang tidak aktif.
+- Produk tertentu dapat dikonfigurasi agar tidak dijual per biji/tablet/kaplet.
+
 ---
 
 # 8.5 Modul Batch dan Harga
 
 ## SRS-BATCH-001: Membuat Batch Produk
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager
 
 ### Input
@@ -697,7 +750,7 @@ Satuan dasar: tablet
 
 ## SRS-BATCH-002: Status Batch
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager, Sistem
 
 ### Status Batch
@@ -728,7 +781,7 @@ Satuan dasar: tablet
 
 ## SRS-BATCH-003: Alert Batch Mendekati Kedaluwarsa
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager, Pemilik
 
 ### Rules
@@ -749,7 +802,7 @@ Satuan dasar: tablet
 
 ## SRS-BATCH-004: Aturan Harga Jual Final
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Sistem
 
 ### Deskripsi
@@ -774,38 +827,106 @@ Sistem harus menentukan harga jual final pada saat transaksi disimpan.
 
 ---
 
+# 8.5A Modul Pemesanan / Purchase Order Obat
+
+## SRS-PO-001: Membuat Purchase Order Obat
+
+**Prioritas:** Should Have
+**Aktor:** Apoteker, Manager
+
+### Input
+
+- supplier;
+- tanggal PO;
+- pembuat otomatis dari user login;
+- item produk;
+- satuan pemesanan;
+- qty ordered;
+- estimasi harga beli opsional;
+- catatan.
+
+### Rules
+
+| ID | Aturan |
+|---|---|
+| RULE-PO-001 | PO tidak boleh menambah stok |
+| RULE-PO-002 | PO tidak boleh mengurangi stok |
+| RULE-PO-003 | Nomor PO unik, contoh `PO-20260603-0001` |
+| RULE-PO-004 | Status PO: `DRAFT`, `SENT`, `PARTIALLY_RECEIVED`, `RECEIVED`, `CANCELLED` |
+| RULE-PO-005 | Data pembuat PO otomatis dari user login |
+| RULE-PO-006 | PO dapat diterima sebagian melalui pembelian |
+
+### Acceptance Criteria
+
+- PO dapat dibuat dengan No. PO, tanggal, supplier, pembuat otomatis, dan item obat.
+- PO dapat dicetak.
+- PO tidak menambah stok.
+- PO dapat ditarik ke pembelian.
+- PO dapat diterima sebagian.
+
+## SRS-PO-002: Cetak dan Convert PO ke Pembelian
+
+**Prioritas:** Should Have
+**Aktor:** Apoteker, Manager
+
+### Rules
+
+| ID | Aturan |
+|---|---|
+| RULE-PO-PRINT-001 | Cetak PO memuat identitas apotek, nomor PO, tanggal, supplier, pembuat, item, satuan, qty, catatan, dan area tanda tangan |
+| RULE-PO-PRINT-002 | Ukuran kertas minimal A4, A5, dan custom sederhana |
+| RULE-PO-CONVERT-001 | Convert PO menghasilkan draft pembelian, bukan pembelian final |
+| RULE-PO-CONVERT-002 | Barang datang boleh berbeda qty, harga, batch, atau expired date dari PO |
+
+### Acceptance Criteria
+
+- Print preview PO dapat dibuat tanpa integrasi printer kompleks.
+- PO dapat dikonversi menjadi draft pembelian.
+- Draft pembelian tetap dapat disesuaikan Manager sebelum final.
+
+---
+
 # 8.6 Modul Pembelian Supplier
 
 ## SRS-PUR-001: Membuat Pembelian Supplier
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager
 
 ### Input
 
 - supplier;
+- purchase order asal opsional;
 - tanggal pembelian;
-- nomor invoice opsional;
+- nomor invoice/faktur supplier;
+- tanggal invoice;
+- mode PPN: `NON_PPN`, `PPN_INCLUDED`, atau `PPN_EXCLUDED`;
+- tarif PPN jika digunakan;
+- total faktur input;
 - daftar item pembelian;
 - produk;
 - nomor batch;
 - expired date;
 - satuan pembelian;
-- qty pembelian;
-- harga beli;
+- qty ordered dari PO jika ada;
+- qty received;
+- harga beli/modal presisi tinggi;
+- diskon pembelian: `NONE`, `NOMINAL`, atau `PERCENT`;
 - harga jual per satuan jual.
 
 ### Proses
 
 1. Manager memilih supplier.
-2. Manager mengisi data pembelian.
-3. Manager menambahkan item pembelian.
-4. Sistem memvalidasi produk, satuan, qty, harga beli, dan expired date.
-5. Sistem menghitung jumlah stok satuan dasar.
-6. Sistem menghitung HPP satuan dasar.
-7. Sistem membuat atau menambah batch sesuai aturan.
-8. Sistem mencatat mutasi stok masuk.
-9. Sistem menyimpan riwayat pembelian.
+2. Manager dapat memilih PO milik supplier atau membuat pembelian manual.
+3. Jika memilih PO, sistem menarik item PO sebagai draft pembelian.
+4. Manager menyesuaikan qty diterima, harga beli final, diskon, PPN, batch, expired date, dan harga jual.
+5. Sistem memvalidasi produk, satuan, qty, harga beli, diskon, batch, dan expired date.
+6. Sistem menghitung jumlah stok satuan dasar, modal bersih, PPN, total sistem, dan HPP satuan dasar.
+7. Sistem membandingkan total sistem dengan total faktur input.
+8. Sistem membuat atau menambah batch sesuai aturan.
+9. Sistem mencatat mutasi stok masuk.
+10. Sistem memperbarui status PO jika pembelian berasal dari PO.
+11. Sistem menyimpan riwayat pembelian.
 
 ### Validation Rules
 
@@ -821,19 +942,32 @@ Sistem harus menentukan harga jual final pada saat transaksi disimpan.
 | VAL-PUR-008 | Harga beli tidak boleh negatif |
 | VAL-PUR-009 | Satuan pembelian harus memiliki konversi valid |
 | VAL-PUR-010 | Harga jual per satuan tidak boleh negatif |
+| VAL-PUR-011 | Pembelian dari PO hanya memakai item PO sebagai draft, bukan nilai final yang terkunci |
+| VAL-PUR-012 | Diskon pembelian tidak boleh negatif dan tidak boleh melebihi subtotal item |
+| VAL-PUR-013 | Mode PPN wajib salah satu dari `NON_PPN`, `PPN_INCLUDED`, `PPN_EXCLUDED` |
+| VAL-PUR-014 | Total sistem wajib dibandingkan dengan total faktur input |
+| VAL-PUR-015 | Selisih kecil dapat disimpan sebagai rounding adjustment |
+| VAL-PUR-016 | Selisih besar wajib ditolak atau membutuhkan difference note |
+| VAL-PUR-017 | Satu item PO dapat diterima menjadi beberapa batch berbeda |
 
 ### Acceptance Criteria
 
+- Pembelian dapat dibuat manual atau dari PO.
 - Pembelian valid dapat disimpan.
 - Stok batch bertambah.
 - HPP satuan dasar tersimpan.
+- Diskon pembelian nominal dan persen memengaruhi modal bersih dan HPP.
+- Mode PPN/non-PPN dapat dicatat untuk pencocokan faktur supplier.
+- Total sistem dapat dibandingkan dengan total faktur input.
+- Setiap item barang masuk memiliki batch number dan expired date.
 - Mutasi stok masuk tercatat.
 - Pembelian dapat ditelusuri pada riwayat.
 - Sistem menolak pembelian tanpa item.
+- Pembelian dari PO dapat memperbarui status PO menjadi `PARTIALLY_RECEIVED` atau `RECEIVED`.
 
 ## SRS-PUR-002: Perhitungan HPP Pembelian
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Sistem
 
 ### Formula
@@ -841,6 +975,10 @@ Sistem harus menentukan harga jual final pada saat transaksi disimpan.
 ```text
 hpp_satuan_dasar = harga_beli_satuan_pembelian / jumlah_satuan_dasar_dalam_satuan_pembelian
 ```
+
+Harga beli supplier dan HPP satuan dasar wajib dapat disimpan dengan presisi tinggi. Presisi tinggi tidak berarti harga jual pelanggan ikut menjadi desimal; harga jual tetap ditentukan Manager dalam rupiah bulat.
+
+Diskon pembelian, PPN pembelian, total modal, total faktur input, total sistem, dan rounding adjustment juga memakai presisi tinggi. Sistem tidak boleh memakai `FLOAT`, `DOUBLE`, atau `REAL` untuk uang, HPP, pajak, diskon, dan laba.
 
 ### Rules
 
@@ -863,7 +1001,7 @@ hpp_satuan_dasar = harga_beli_satuan_pembelian / jumlah_satuan_dasar_dalam_satua
 
 ## SRS-SALE-001: Membuka Halaman Kasir
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Kasir, Manager
 
 ### Tampilan Minimal
@@ -891,7 +1029,7 @@ hpp_satuan_dasar = harga_beli_satuan_pembelian / jumlah_satuan_dasar_dalam_satua
 
 ## SRS-SALE-002: Pencarian Produk di Halaman Kasir
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Kasir
 
 ### Rules
@@ -911,7 +1049,7 @@ hpp_satuan_dasar = harga_beli_satuan_pembelian / jumlah_satuan_dasar_dalam_satua
 
 ## SRS-SALE-003: Menambahkan Produk ke Keranjang
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Kasir
 
 ### Input
@@ -941,7 +1079,7 @@ hpp_satuan_dasar = harga_beli_satuan_pembelian / jumlah_satuan_dasar_dalam_satua
 
 ## SRS-SALE-004: Mengubah Item Keranjang
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Kasir
 
 ### Rules
@@ -962,7 +1100,7 @@ hpp_satuan_dasar = harga_beli_satuan_pembelian / jumlah_satuan_dasar_dalam_satua
 
 ## SRS-SALE-005: Menyimpan Transaksi Penjualan
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Kasir, Manager, Sistem
 
 ### Input
@@ -1012,6 +1150,8 @@ hpp_satuan_dasar = harga_beli_satuan_pembelian / jumlah_satuan_dasar_dalam_satua
 | VAL-SALE-007 | Pembayaran cash wajib memiliki uang diterima minimal sebesar total |
 | VAL-SALE-008 | Transaksi final wajib dihitung server-side |
 | VAL-SALE-009 | Transaksi gagal tidak boleh mengurangi stok |
+| VAL-SALE-010 | Harga jual transaksi wajib memakai harga jual final yang ditetapkan Manager |
+| VAL-SALE-011 | Payload frontend tidak boleh mengirim harga modal, HPP, margin, atau laba |
 
 ### Acceptance Criteria
 
@@ -1019,12 +1159,14 @@ hpp_satuan_dasar = harga_beli_satuan_pembelian / jumlah_satuan_dasar_dalam_satua
 - Stok batch berkurang sesuai FEFO dan split batch.
 - Mutasi stok keluar tercatat.
 - Detail transaksi menyimpan batch, qty, harga jual final, HPP final, diskon alokasi, dan laba.
+- Harga jual final transaksi tersimpan sebagai snapshot rupiah bulat.
+- HPP dan laba internal tersimpan dengan presisi tinggi untuk laporan.
 - Transaksi gagal tidak mengurangi stok.
 - Frontend menerima response final dari backend.
 
 ## SRS-SALE-006: Metode Pembayaran
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Kasir
 
 ### Metode Minimal
@@ -1055,11 +1197,106 @@ hpp_satuan_dasar = harga_beli_satuan_pembelian / jumlah_satuan_dasar_dalam_satua
 
 ---
 
+# 8.7A Modul Pelayanan Resep Dasar
+
+## SRS-PRESC-001: Membuat dan Menyiapkan Resep
+
+**Prioritas:** Should Have
+**Aktor:** Apoteker, Manager
+
+### Input
+
+- nomor resep internal;
+- tanggal resep diterima;
+- nama pasien;
+- kontak pasien opsional;
+- nama dokter;
+- fasilitas kesehatan opsional;
+- apoteker otomatis dari user login;
+- item obat, satuan jual aktif, qty, aturan pakai, catatan etiket, dan catatan substitusi.
+
+### Rules
+
+| ID | Aturan |
+|---|---|
+| RULE-PRESC-001 | Resep bukan transaksi final |
+| RULE-PRESC-002 | Resep tidak langsung mengurangi stok |
+| RULE-PRESC-003 | Status resep: `DRAFT`, `REVIEWED`, `READY_FOR_PAYMENT`, `PAID`, `COMPLETED`, `CANCELLED`, `NEED_CONFIRMATION` |
+| RULE-PRESC-004 | Item resep wajib memakai satuan jual aktif |
+| RULE-PRESC-005 | Sistem boleh menampilkan estimasi stok tersedia tetapi FEFO final tetap saat checkout |
+| RULE-PRESC-006 | Tidak boleh ada validasi klinis otomatis, diagnosis otomatis, atau rekomendasi interaksi obat otomatis |
+
+### Acceptance Criteria
+
+- Apoteker dapat membuat resep dokter.
+- Resep memuat data pasien, dokter, obat, qty, satuan, dan aturan pakai.
+- Resep tidak mengurangi stok.
+- Resep dapat ditandai siap bayar.
+
+## SRS-PRESC-002: Tarik Resep ke Kasir
+
+**Prioritas:** Should Have
+**Aktor:** Kasir, Manager
+
+### Rules
+
+| ID | Aturan |
+|---|---|
+| RULE-PRESC-CASHIER-001 | Kasir hanya dapat menarik resep berstatus `READY_FOR_PAYMENT` |
+| RULE-PRESC-CASHIER-002 | Item resep masuk ke keranjang kasir sebagai draft |
+| RULE-PRESC-CASHIER-003 | Stok berkurang setelah checkout berhasil |
+| RULE-PRESC-CASHIER-004 | Checkout resep tetap menjalankan FEFO, split batch, mutasi stok, dan sanitasi role |
+
+### Acceptance Criteria
+
+- Kasir dapat menarik resep siap bayar ke transaksi.
+- Stok berkurang setelah checkout kasir berhasil.
+- Status resep berubah menjadi `PAID` atau `COMPLETED` setelah checkout berhasil.
+
+---
+
+# 8.7B Modul Konseling Dasar
+
+## SRS-COUNS-001: Mencatat Konseling
+
+**Prioritas:** Could Have
+**Aktor:** Apoteker, Manager
+
+### Input
+
+- tanggal konseling;
+- apoteker otomatis dari user login;
+- nama pasien opsional;
+- resep terkait opsional;
+- transaksi terkait opsional;
+- topik;
+- catatan;
+- status `COMPLETED` atau `CANCELLED`.
+
+### Rules
+
+| ID | Aturan |
+|---|---|
+| RULE-COUNS-001 | Konseling tidak menambah stok |
+| RULE-COUNS-002 | Konseling tidak mengurangi stok |
+| RULE-COUNS-003 | Konseling tidak membuat tagihan |
+| RULE-COUNS-004 | Konseling hanya dokumentasi pelayanan |
+| RULE-COUNS-005 | Konseling tidak boleh menjadi clinical decision support otomatis |
+
+### Acceptance Criteria
+
+- Apoteker dapat mencatat konseling.
+- Konseling dapat terkait resep atau transaksi.
+- Konseling tidak mengubah stok.
+- Konseling tidak membuat tagihan.
+
+---
+
 # 8.8 Modul FEFO dan Split Batch
 
 ## SRS-FEFO-001: Pemilihan Batch FEFO
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Sistem
 
 ### Rules
@@ -1084,7 +1321,7 @@ hpp_satuan_dasar = harga_beli_satuan_pembelian / jumlah_satuan_dasar_dalam_satua
 
 ## SRS-SPLIT-001: Split Detail Transaksi Multi-Batch
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Sistem
 
 ### Deskripsi
@@ -1126,7 +1363,7 @@ Sistem menyimpan:
 
 ## SRS-DISC-001: Diskon Persen dan Nominal
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Kasir, Manager
 
 ### Input
@@ -1160,7 +1397,7 @@ total_transaksi = subtotal_transaksi - total_diskon
 
 ## SRS-DISC-002: Alokasi Diskon ke Detail Batch
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Sistem
 
 ### Formula
@@ -1190,7 +1427,7 @@ diskon_alokasi_detail = (subtotal_detail / subtotal_transaksi) * total_diskon
 
 ## SRS-RETSALE-001: Membuat Retur Penjualan
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Kasir, Manager
 
 ### Input
@@ -1240,7 +1477,7 @@ diskon_alokasi_detail = (subtotal_detail / subtotal_transaksi) * total_diskon
 
 ## SRS-RETPUR-001: Membuat Retur Pembelian
 
-**Prioritas:** Should Have  
+**Prioritas:** Should Have
 **Aktor:** Manager
 
 ### Input
@@ -1276,7 +1513,7 @@ diskon_alokasi_detail = (subtotal_detail / subtotal_transaksi) * total_diskon
 
 ## SRS-STOCK-001: Melihat Stok Produk
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager, Kasir
 
 ### Data Minimal
@@ -1309,7 +1546,7 @@ diskon_alokasi_detail = (subtotal_detail / subtotal_transaksi) * total_diskon
 
 ## SRS-STOCK-002: Mutasi Stok Otomatis
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Sistem
 
 ### Tipe Mutasi
@@ -1347,7 +1584,7 @@ diskon_alokasi_detail = (subtotal_detail / subtotal_transaksi) * total_diskon
 
 ## SRS-STOCK-003: Koreksi Stok
 
-**Prioritas:** Should Have  
+**Prioritas:** Should Have
 **Aktor:** Manager
 
 ### Input
@@ -1375,7 +1612,7 @@ diskon_alokasi_detail = (subtotal_detail / subtotal_transaksi) * total_diskon
 
 ## SRS-STOCK-004: Alert Stok Minimum
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager, Pemilik
 
 ### Rules
@@ -1399,7 +1636,7 @@ diskon_alokasi_detail = (subtotal_detail / subtotal_transaksi) * total_diskon
 
 ## SRS-DASH-001: Dashboard Manager/Pemilik
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager, Pemilik
 
 ### Komponen Minimal
@@ -1440,7 +1677,7 @@ diskon_alokasi_detail = (subtotal_detail / subtotal_transaksi) * total_diskon
 
 ## SRS-REPORT-001: Laporan Penjualan
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager, Pemilik
 
 ### Filter
@@ -1475,7 +1712,7 @@ diskon_alokasi_detail = (subtotal_detail / subtotal_transaksi) * total_diskon
 
 ## SRS-REPORT-002: Laporan Laba
 
-**Prioritas:** Must Have  
+**Prioritas:** Must Have
 **Aktor:** Manager, Pemilik
 
 ### Data Minimal
@@ -1515,7 +1752,7 @@ laba_periode = jumlah_laba_detail - koreksi_laba_retur
 
 ## SRS-EXPORT-001: Ekspor Laporan
 
-**Prioritas:** Should Have  
+**Prioritas:** Should Have
 **Aktor:** Manager, Pemilik
 
 ### Format
@@ -1549,7 +1786,7 @@ laba_periode = jumlah_laba_detail - koreksi_laba_retur
 
 ## SRS-SETTING-001: Pengaturan Profil Apotek
 
-**Prioritas:** Could Have  
+**Prioritas:** Could Have
 **Aktor:** Manager
 
 ### Data
@@ -1583,8 +1820,13 @@ Bagian ini mendefinisikan entitas konseptual. Struktur tabel final, tipe data, r
 | Product Unit Conversion | Konversi satuan jual ke satuan dasar |
 | Batch | Stok produk berdasarkan batch |
 | Batch Price | Harga jual batch per satuan jual jika dipisahkan dari batch |
+| Purchase Order | Rencana pemesanan obat ke supplier yang tidak mengubah stok |
+| Purchase Order Item | Detail item PO dan qty yang sudah diterima |
 | Purchase | Transaksi pembelian supplier |
 | Purchase Item | Detail produk yang dibeli |
+| Prescription | Resep dasar yang disiapkan sebelum pembayaran |
+| Prescription Item | Detail obat dan aturan pakai pada resep |
+| Counseling Record | Catatan konseling dasar |
 | Sale | Transaksi penjualan |
 | Sale Item | Detail item utama penjualan |
 | Sale Batch Allocation | Detail alokasi batch pada penjualan |
@@ -1598,6 +1840,8 @@ Bagian ini mendefinisikan entitas konseptual. Struktur tabel final, tipe data, r
 | Setting | Pengaturan dasar sistem |
 | Audit Log | Catatan aktivitas penting |
 | Refresh Token | Token sesi jika menggunakan JWT refresh token |
+| Customer Receivable | Future enhancement untuk piutang pelanggan |
+| Receivable Payment | Future enhancement untuk pembayaran piutang |
 
 ---
 
@@ -1883,6 +2127,11 @@ Catatan:
 | GVAL-014 | Semua kalkulasi final transaksi wajib server-side |
 | GVAL-015 | Data historis tidak boleh berubah akibat perubahan harga baru |
 | GVAL-016 | Waktu transaksi final wajib berasal dari backend |
+| GVAL-017 | PO tidak boleh mengubah stok |
+| GVAL-018 | Resep tidak boleh mengurangi stok sebelum checkout |
+| GVAL-019 | Kasir hanya boleh memakai satuan jual aktif |
+| GVAL-020 | Uang, HPP, pajak, diskon, dan laba wajib memakai NUMERIC/DECIMAL, bukan FLOAT/DOUBLE/REAL |
+| GVAL-021 | Piutang pelanggan bukan fitur inti V1 |
 
 ---
 
@@ -1979,6 +2228,8 @@ diskon_alokasi_detail = (subtotal_detail / subtotal_transaksi) * total_diskon
 laba_detail = subtotal_detail - hpp_detail - diskon_alokasi_detail
 ```
 
+`subtotal_detail` berasal dari harga jual final snapshot yang ditetapkan Manager. `hpp_detail` berasal dari HPP internal presisi tinggi. Laba internal boleh berpresisi tinggi; nilai laporan yang ditampilkan kepada Manager dapat dibulatkan sebagai `profit_display`.
+
 ### 15.10 Laba Periode
 
 ```text
@@ -2006,8 +2257,13 @@ Sistem V1 dianggap memenuhi SRS jika:
 | SAC-005 | Pembelian supplier menambah stok batch |
 | SAC-006 | Pembelian mencatat mutasi stok masuk |
 | SAC-007 | HPP satuan dasar dihitung dari pembelian |
+| SAC-007A | PO dapat dibuat, dicetak, tidak mengubah stok, dan dapat ditarik ke pembelian |
+| SAC-007B | Pembelian dapat dibuat manual atau dari PO |
+| SAC-007C | Pembelian mendukung diskon pembelian, PPN/non-PPN, dan validasi faktur supplier |
+| SAC-007D | Setiap barang masuk wajib memiliki batch number dan expired date |
 | SAC-008 | Kasir dapat mencari produk |
 | SAC-009 | Kasir dapat memilih satuan jual |
+| SAC-009A | Kasir hanya dapat memilih satuan jual aktif dan backend menolak satuan tidak aktif |
 | SAC-010 | Kasir dapat menambahkan, mengubah, dan menghapus item keranjang |
 | SAC-011 | Sistem menghitung estimasi subtotal, diskon, total, uang diterima, dan kembalian di frontend |
 | SAC-012 | Backend menghitung ulang transaksi final |
@@ -2037,6 +2293,10 @@ Sistem V1 dianggap memenuhi SRS jika:
 | SAC-036 | Data histori tetap tersedia |
 | SAC-037 | Waktu transaksi final berasal dari backend dengan zona waktu konsisten |
 | SAC-038 | Frontend menerima dan menampilkan hasil final transaksi dari backend |
+| SAC-039 | Apoteker dapat membuat resep dasar dan resep tidak mengurangi stok sebelum checkout |
+| SAC-040 | Kasir dapat menarik resep siap bayar ke transaksi |
+| SAC-041 | Konseling dasar dapat dicatat tanpa tagihan dan tanpa perubahan stok |
+| SAC-042 | Piutang pelanggan tetap future enhancement |
 
 ---
 
@@ -2055,10 +2315,13 @@ Sistem V1 dianggap memenuhi SRS jika:
 | SRS-SUP-001 | Suppliers | Manajemen supplier |
 | SRS-UNIT-001 | Units | Satuan dasar |
 | SRS-UNIT-002 | Units | Konversi satuan |
+| SRS-UNIT-003 | Product Units | Pembatasan satuan jual aktif |
 | SRS-BATCH-001 | Batches | Membuat batch |
 | SRS-BATCH-002 | Batches | Status batch |
 | SRS-BATCH-003 | Dashboard/Batches | Alert expired |
 | SRS-BATCH-004 | Sales/Batches | Harga jual final |
+| SRS-PO-001 | Purchase Orders | Membuat PO obat |
+| SRS-PO-002 | Purchase Orders/Purchases | Cetak dan convert PO ke pembelian |
 | SRS-PUR-001 | Purchases | Pembelian supplier |
 | SRS-PUR-002 | Purchases/Batches | HPP pembelian |
 | SRS-SALE-001 | Cashier | Halaman kasir |
@@ -2071,6 +2334,9 @@ Sistem V1 dianggap memenuhi SRS jika:
 | SRS-SPLIT-001 | Sales | Split multi-batch |
 | SRS-DISC-001 | Sales | Diskon transaksi |
 | SRS-DISC-002 | Sales | Alokasi diskon |
+| SRS-PRESC-001 | Prescriptions | Membuat dan menyiapkan resep |
+| SRS-PRESC-002 | Prescriptions/Sales | Tarik resep ke kasir |
+| SRS-COUNS-001 | Counseling | Mencatat konseling dasar |
 | SRS-RETSALE-001 | Sales Returns | Retur penjualan |
 | SRS-RETPUR-001 | Purchase Returns | Retur pembelian |
 | SRS-STOCK-001 | Stock | Melihat stok |
@@ -2113,7 +2379,17 @@ AI coding tidak boleh melakukan hal berikut:
 22. Menyimpan HPP, laba, atau batch final dari payload frontend sebagai nilai final.
 23. Mengabaikan zona waktu transaksi dan laporan.
 24. Melakukan migration destruktif tanpa backup.
-25. Membuat laporan laba dari data harga atau HPP terbaru.
+25. Menghitung harga jual otomatis dari harga modal.
+26. Menampilkan harga modal, HPP, margin, atau laba kepada Kasir.
+27. Mengubah histori transaksi lama ketika harga jual final baru diubah.
+28. Membuat laporan laba dari data harga atau HPP terbaru.
+29. Menjadikan PO sebagai penambah atau pengurang stok.
+30. Mengurangi stok saat resep dibuat atau saat resep baru ditandai siap bayar.
+31. Menganggap semua satuan dasar otomatis boleh dijual.
+32. Menggunakan FLOAT, DOUBLE, atau REAL untuk uang, HPP, pajak, diskon, atau laba.
+33. Membuat modul PPN sebagai e-faktur atau perpajakan lengkap.
+34. Membuat clinical decision support otomatis.
+35. Memasukkan piutang sebagai fitur inti V1 tanpa keputusan eksplisit.
 
 ---
 

@@ -1,12 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsNumber, IsUUID, Min } from 'class-validator';
+import { IsInt, IsUUID, Min } from 'class-validator';
 
 export class PurchaseSellingPriceDto {
   @IsUUID()
   productUnitId!: string;
 
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @Min(0)
   sellingPrice!: number;
 }

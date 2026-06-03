@@ -62,12 +62,26 @@ POS Apotek adalah aplikasi web Point of Sale untuk membantu operasional apotek d
 Produk ini dirancang untuk apotek skala kecil sampai menengah dengan kebutuhan utama:
 - transaksi kasir cepat;
 - stok akurat berdasarkan batch;
+- pemesanan/PO obat sebelum barang datang;
+- pembelian supplier manual atau dari PO;
+- pelayanan resep dasar sebelum pembayaran kasir;
 - harga beli dan harga jual yang dapat berbeda pada tiap batch;
 - perhitungan laba berdasarkan transaksi nyata;
 - kontrol stok minimum dan tanggal kedaluwarsa;
 - laporan penjualan dan laba yang mudah dibaca pemilik atau manajer.
 
 Fokus utama versi pertama adalah **akurasi transaksi, stok, batch, HPP, diskon, retur, dan laporan laba**. Fitur yang tidak berhubungan langsung dengan kebutuhan tersebut tidak dimasukkan ke V1 agar pengembangan tidak membesar tanpa kendali. Karena tentu saja, menambah fitur tanpa batas adalah tradisi kuno yang sering membuat aplikasi belum selesai tetapi sudah lelah duluan.
+
+Alur operasional yang harus didukung rancangan V1 adalah:
+
+```text
+Pemesanan / PO Obat
+-> Pembelian Supplier
+-> Batch dan Stok
+-> Pelayanan Resep Dasar
+-> Kasir
+-> Laporan
+```
 
 ---
 
@@ -118,6 +132,8 @@ Membangun sistem POS Apotek yang mampu mengelola transaksi, stok, batch, satuan 
 | GOAL-005 | Mengontrol risiko kedaluwarsa | Dashboard menampilkan batch yang mendekati kedaluwarsa |
 | GOAL-006 | Membatasi akses pengguna | Role kasir dan manajer memiliki hak akses berbeda |
 | GOAL-007 | Mendukung laporan operasional | Sistem menyediakan laporan transaksi, stok, pembelian, retur, dan laba |
+| GOAL-008 | Mendukung PO obat | Apoteker/Manager dapat membuat PO yang tidak mengubah stok dan dapat ditarik ke pembelian |
+| GOAL-009 | Mendukung pelayanan resep dasar | Apoteker dapat menyiapkan resep untuk ditarik kasir tanpa mengurangi stok sebelum checkout |
 
 ---
 
@@ -126,12 +142,12 @@ Membangun sistem POS Apotek yang mampu mengelola transaksi, stok, batch, satuan 
 | Role | Deskripsi | Kebutuhan Utama |
 |---|---|---|
 | Kasir | Pengguna yang melayani transaksi penjualan harian | Transaksi cepat, pencarian obat, keranjang jelas, diskon, pembayaran, retur penjualan |
-| Apoteker | Pengguna yang membantu pelayanan obat dan pengecekan stok | Informasi stok, batch, expired date, dan satuan jual |
+| Apoteker | Pengguna yang membantu pelayanan obat dan pengecekan stok | PO obat, pelayanan resep dasar, konseling, informasi stok, batch, expired date, dan satuan jual |
 | Manager | Pengguna yang mengelola operasional apotek | Master data, pembelian, stok, harga, retur, laporan, dashboard |
 | Pemilik | Pengguna yang memantau performa bisnis | Ringkasan omzet, HPP, diskon, laba, stok kritis, dan produk mendekati kedaluwarsa |
 
 Catatan:
-- Pada V1, role utama yang wajib tersedia adalah `Kasir` dan `Manager`.
+- Pada V1, role utama yang wajib tersedia adalah `Kasir`, `Apoteker`, dan `Manager`.
 - Role `Pemilik` dapat memakai akses `Manager` jika pemisahan role belum diterapkan pada V1.
 
 ---
@@ -149,9 +165,14 @@ Fitur berikut wajib masuk versi pertama:
 | PRD-CAT-001 | Manajemen kategori | Must Have | Kategori dipakai untuk filter produk |
 | PRD-SUP-001 | Manajemen supplier | Must Have | Supplier dipakai pada pembelian |
 | PRD-UNIT-001 | Konversi satuan produk | Must Have | Satuan besar, menengah, dan terkecil |
+| PRD-UNIT-002 | Pembatasan satuan jual produk | Must Have | Manager menentukan satuan apa saja yang boleh dipilih kasir |
 | PRD-BATCH-001 | Manajemen batch obat | Must Have | Nomor batch, expired date, HPP, stok, harga jual |
+| PRD-PO-001 | Pemesanan / Purchase Order Obat | Should Have | PO rencana pemesanan, dapat dicetak dan ditarik ke pembelian |
 | PRD-PUR-001 | Pembelian supplier | Must Have | Pembelian membuat batch baru dan menambah stok |
+| PRD-PUR-002 | Pembelian dari PO dan faktur supplier | Should Have | Pembelian dapat dibuat dari PO, mendukung diskon pembelian, PPN/non-PPN, dan validasi faktur |
 | PRD-SALE-001 | Transaksi penjualan kasir | Must Have | Pencarian obat, pilih satuan, qty, pembayaran |
+| PRD-PRESC-001 | Pelayanan Resep Dasar | Should Have | Resep disiapkan Apoteker dan ditarik ke kasir |
+| PRD-COUNS-001 | Konseling Dasar | Could Have | Dokumentasi edukasi obat tanpa tagihan dan tanpa perubahan stok |
 | PRD-HIST-001 | Riwayat transaksi | Must Have | Menampilkan transaksi tersimpan dan detail transaksi sesuai role |
 | PRD-FEFO-001 | FEFO otomatis | Must Have | Batch expired paling dekat dipakai lebih dulu |
 | PRD-SPLIT-001 | Split transaksi multi-batch | Must Have | Detail transaksi dipisah otomatis per batch |
@@ -180,10 +201,12 @@ Fitur berikut tidak dikerjakan pada versi pertama:
 | OOS-004 | Program loyalitas pelanggan | Tidak berdampak langsung pada akurasi stok dan laba |
 | OOS-005 | Multi-cabang | V1 fokus satu apotek |
 | OOS-006 | Akuntansi biaya operasional lengkap | Laba V1 adalah laba penjualan setelah HPP dan diskon |
-| OOS-007 | Manajemen resep dokter lanjutan | Input dokter atau resep hanya opsional di transaksi |
+| OOS-007 | Manajemen resep dokter lanjutan | Pelayanan Resep Dasar masuk scope P1; e-resep, validasi klinis otomatis, interaksi obat otomatis, dan integrasi fasilitas kesehatan tetap di luar scope |
 | OOS-008 | Cetak struk fisik otomatis | V1 dapat menyimpan transaksi tanpa integrasi printer khusus |
 | OOS-009 | Multi-kasir aktif sebagai modul kompleks | Sesi kasir sederhana dapat dicatat, tetapi bukan sistem shift lengkap |
 | OOS-010 | Integrasi e-faktur atau pajak lengkap | Tidak menjadi kebutuhan utama V1 |
+| OOS-011 | Clinical decision support otomatis | Sistem tidak memberi diagnosis, rekomendasi klinis, atau deteksi interaksi obat otomatis |
+| OOS-012 | Piutang pelanggan | Future enhancement; tidak masuk task P0/P1 V1 tanpa keputusan eksplisit |
 
 ---
 
@@ -194,10 +217,12 @@ Fitur berikut tidak dikerjakan pada versi pertama:
 | PRINCIPLE-001 | Akurasi lebih penting daripada tampilan dekoratif | Sistem harus benar menghitung stok, batch, harga, HPP, diskon, dan laba |
 | PRINCIPLE-002 | Server menjadi sumber kebenaran | Frontend boleh menampilkan estimasi, tetapi perhitungan final dilakukan server |
 | PRINCIPLE-003 | Histori tidak boleh dirusak | Transaksi, batch, pembelian, retur, dan mutasi stok tidak boleh dihapus sembarangan |
-| PRINCIPLE-004 | Stok disimpan dalam satuan terkecil | Semua satuan jual dikonversi ke satuan terkecil |
+| PRINCIPLE-004 | Stok disimpan dalam satuan terkecil | Semua satuan jual aktif dikonversi ke satuan terkecil, tetapi satuan dasar tidak otomatis boleh dijual |
 | PRINCIPLE-005 | Laba dihitung dari detail transaksi | Laporan tidak boleh memakai harga produk terbaru sebagai dasar laba historis |
 | PRINCIPLE-006 | UI kasir harus cepat | Kasir tidak boleh dipaksa berpindah halaman untuk transaksi normal |
 | PRINCIPLE-007 | Fitur V1 harus lean | Fitur yang tidak langsung mendukung transaksi, stok, batch, dan laba ditunda |
+| PRINCIPLE-008 | PO bukan transaksi stok | PO adalah rencana pemesanan dan tidak menambah atau mengurangi stok |
+| PRINCIPLE-009 | Resep bukan transaksi final | Resep tidak mengurangi stok sebelum ditarik ke kasir dan checkout berhasil |
 
 ---
 
@@ -227,6 +252,7 @@ PRD tidak memuat struktur folder final, kontrak API final, schema database final
 | US-KASIR-004 | Sebagai kasir, saya ingin menyimpan transaksi agar stok otomatis berkurang | Must Have | Transaksi tersimpan dan stok batch berkurang |
 | US-KASIR-005 | Sebagai kasir, saya ingin melakukan retur penjualan agar barang kembali tercatat ke stok asal | Must Have | Retur mengacu transaksi asal dan mengembalikan stok |
 | US-KASIR-006 | Sebagai kasir, saya ingin memakai shortcut atau input cepat agar pelayanan antrean lebih efisien | Should Have | Shortcut utama berjalan tanpa mengganggu input normal |
+| US-KASIR-007 | Sebagai kasir, saya ingin menarik resep siap bayar ke keranjang agar pembayaran resep cepat | Should Have | Resep READY_FOR_PAYMENT dapat masuk keranjang tanpa kasir melihat HPP/modal |
 
 ### 7.2 Manager
 
@@ -239,6 +265,16 @@ PRD tidak memuat struktur folder final, kontrak API final, schema database final
 | US-MGR-005 | Sebagai manager, saya ingin melihat stok minimum dan expired date agar risiko operasional terkendali | Must Have | Dashboard menampilkan alert stok dan expired |
 | US-MGR-006 | Sebagai manager, saya ingin melihat laporan laba agar performa apotek dapat dipantau | Must Have | Laporan menampilkan omzet, HPP, diskon, dan laba |
 | US-MGR-007 | Sebagai manager, saya ingin mengekspor laporan agar data dapat disimpan atau dibagikan | Should Have | Laporan dapat diekspor ke Excel dan PDF |
+| US-MGR-008 | Sebagai manager, saya ingin membuat pembelian dari PO agar barang datang dapat dicocokkan dengan rencana pemesanan | Should Have | Item PO menjadi draft pembelian dan stok bertambah hanya saat pembelian final |
+| US-MGR-009 | Sebagai manager, saya ingin memvalidasi faktur supplier agar total sistem cocok dengan faktur | Should Have | Diskon, PPN, total faktur, selisih, dan catatan selisih tercatat |
+
+### 7.3 Apoteker
+
+| ID | User Story | Prioritas | Acceptance Criteria Ringkas |
+|---|---|---|---|
+| US-APT-001 | Sebagai apoteker, saya ingin membuat PO obat agar pemesanan ke supplier terdokumentasi | Should Have | PO tersimpan, dapat dicetak, dan tidak mengubah stok |
+| US-APT-002 | Sebagai apoteker, saya ingin mencatat resep dokter agar obat dapat disiapkan sebelum pembayaran | Should Have | Resep tersimpan, dapat ditandai siap bayar, dan tidak mengurangi stok |
+| US-APT-003 | Sebagai apoteker, saya ingin mencatat konseling agar edukasi obat terdokumentasi | Could Have | Catatan konseling tersimpan tanpa tagihan dan tanpa perubahan stok |
 
 ---
 
@@ -312,12 +348,44 @@ Sistem harus mendukung konversi satuan besar, menengah, dan terkecil.
 - Contoh: 1 box = 10 strip, 1 strip = 10 tablet, sehingga 1 box = 100 tablet.
 - Kasir dapat memilih satuan jual sesuai konfigurasi produk.
 - Stok tetap dihitung dalam satuan terkecil.
+- Manager menentukan satuan jual aktif untuk setiap produk.
+- Satuan dasar stok tidak otomatis menjadi satuan jual.
+- Manager dapat mengatur minimum qty jual dan catatan satuan jual.
 
 **Acceptance Criteria:**
 - Pembelian 1 box dengan isi 100 tablet menambah stok 100 tablet.
 - Penjualan 1 strip dengan isi 10 tablet mengurangi stok 10 tablet.
 - Sistem menolak satuan jual yang belum dikonfigurasi.
+- Sistem menolak satuan jual yang tidak aktif untuk kasir.
+- Produk tertentu dapat dikonfigurasi agar tidak dijual per tablet/biji/kaplet.
 - Stok tidak boleh menjadi negatif setelah konversi.
+
+---
+
+### 8.3A PRD-PO-001: Pemesanan / Purchase Order Obat
+
+**Deskripsi:**
+Pemesanan / Purchase Order Obat adalah fitur untuk mencatat rencana pemesanan obat atau barang apotek kepada supplier sebelum barang datang. PO tidak menambah stok dan tidak mengurangi stok.
+
+**Aktor:**
+- Apoteker
+- Manager
+
+**Prioritas:** Should Have
+
+**Kebutuhan Produk:**
+- Apoteker atau Manager dapat membuat PO dengan nomor PO unik, tanggal, supplier, pembuat otomatis dari login, item obat, qty, satuan, estimasi harga beli, dan catatan.
+- PO memiliki status `DRAFT`, `SENT`, `PARTIALLY_RECEIVED`, `RECEIVED`, atau `CANCELLED`.
+- PO dapat dicetak dengan identitas apotek, nomor PO, tanggal PO, supplier, pembuat PO, daftar obat, satuan, jumlah, catatan, dan area tanda tangan.
+- PO dapat ditarik ke Pembelian saat barang datang.
+- Barang datang boleh berbeda qty, harga, batch, atau expired date dari PO.
+
+**Acceptance Criteria:**
+- PO dapat dibuat dengan No. PO, tanggal, supplier, pembuat otomatis, dan item obat.
+- PO dapat dicetak dalam ukuran A4, A5, atau custom sederhana.
+- PO tidak menambah atau mengurangi stok.
+- PO dapat ditarik ke pembelian.
+- PO dapat diterima sebagian dan statusnya berubah sesuai penerimaan.
 
 ---
 
@@ -352,7 +420,7 @@ Sistem harus mengelola stok obat berdasarkan batch.
 ### 8.5 PRD-PUR-001: Pembelian Supplier
 
 **Deskripsi:**
-Sistem harus mencatat pembelian dari supplier dan membuat batch stok baru.
+Pembelian adalah fitur untuk mencatat barang yang benar-benar datang dari supplier berdasarkan faktur. Pembelian dapat dibuat manual atau ditarik dari PO. Stok hanya bertambah setelah pembelian final disimpan dengan nomor batch, expired date, qty diterima, harga beli final, dan HPP.
 
 **Aktor:**
 - Manager
@@ -361,22 +429,35 @@ Sistem harus mencatat pembelian dari supplier dan membuat batch stok baru.
 
 **Kebutuhan Produk:**
 - Manager memilih supplier dari daftar supplier.
+- Manager dapat membuat pembelian manual atau dari PO.
+- Manager dapat memilih No. PO milik supplier dan menarik item PO sebagai draft pembelian.
+- Manager menginput nomor faktur, tanggal faktur, total faktur supplier, mode PPN, diskon pembelian, dan catatan selisih jika diperlukan.
 - Manager memilih produk yang dibeli.
 - Manager mengisi nomor batch.
 - Manager mengisi tanggal kedaluwarsa.
 - Manager mengisi harga beli.
 - Manager mengisi jumlah pembelian dalam satuan besar.
+- Manager dapat memecah satu item PO menjadi beberapa batch jika barang datang dengan batch atau expired date berbeda.
 - Manager mengisi atau mengonfirmasi harga jual per satuan jual.
 - Sistem menghitung HPP per satuan terkecil.
+- Sistem membandingkan total hitung dengan total faktur supplier.
 - Sistem menambah stok batch.
 - Sistem mencatat mutasi stok masuk.
+- Sistem memperbarui status PO jika pembelian berasal dari PO.
 
 **Acceptance Criteria:**
+- Pembelian dapat dibuat manual atau dari PO.
+- Pembelian dari PO hanya mengambil item sebagai draft, bukan nilai final yang terkunci.
 - Pembelian berhasil membuat batch baru.
 - Stok batch bertambah sesuai hasil konversi satuan.
 - HPP per satuan terkecil tersimpan.
+- Diskon pembelian nominal atau persen dapat memengaruhi modal bersih dan HPP.
+- Mode pembelian `NON_PPN`, `PPN_INCLUDED`, dan `PPN_EXCLUDED` dapat dicatat untuk pencocokan faktur.
+- Sistem membandingkan total sistem dengan total faktur input.
+- Setiap barang masuk wajib memiliki batch number dan expired date.
 - Mutasi stok masuk tercatat.
 - Pembelian dapat ditelusuri kembali dari riwayat pembelian.
+- Pembelian final berjalan atomic dan rollback jika salah satu item invalid.
 
 ---
 
@@ -408,6 +489,59 @@ Sistem harus menyediakan halaman kasir untuk transaksi penjualan obat.
 - Untuk QRIS atau transfer, uang diterima tidak wajib menjadi syarat submit.
 - Setelah transaksi tersimpan, stok batch berkurang.
 - Detail transaksi menyimpan harga jual, HPP, diskon alokasi, dan laba.
+
+---
+
+### 8.6A PRD-PRESC-001: Pelayanan Resep Dasar
+
+**Deskripsi:**
+Pelayanan Resep Dasar adalah fitur untuk mencatat resep dokter yang diterima apotek, memeriksa item obat, mencatat aturan pakai, dan menyiapkan resep agar dapat ditarik ke kasir untuk pembayaran.
+
+**Aktor:**
+- Apoteker
+- Manager
+- Kasir terbatas untuk menarik resep siap bayar
+
+**Prioritas:** Should Have
+
+**Kebutuhan Produk:**
+- Apoteker dapat mencatat nomor resep, tanggal diterima, pasien, dokter, fasilitas kesehatan, obat, satuan jual aktif, qty, aturan pakai, catatan etiket, dan catatan substitusi jika ada.
+- Resep memiliki status `DRAFT`, `REVIEWED`, `READY_FOR_PAYMENT`, `PAID`, `COMPLETED`, `CANCELLED`, atau `NEED_CONFIRMATION`.
+- Resep bukan transaksi final dan tidak langsung mengurangi stok.
+- Kasir dapat menarik resep berstatus `READY_FOR_PAYMENT` ke keranjang.
+- Stok berkurang hanya setelah checkout kasir berhasil dan backend menjalankan FEFO.
+
+**Acceptance Criteria:**
+- Apoteker dapat membuat resep dokter.
+- Resep memuat data pasien, dokter, obat, qty, satuan, dan aturan pakai.
+- Resep tidak mengurangi stok saat dibuat atau ditandai siap bayar.
+- Resep dapat ditandai siap bayar.
+- Kasir dapat menarik resep ke transaksi.
+- Stok berkurang setelah checkout kasir berhasil.
+
+---
+
+### 8.6B PRD-COUNS-001: Konseling Dasar
+
+**Deskripsi:**
+Konseling Dasar adalah fitur dokumentasi edukasi obat yang diberikan oleh apoteker kepada pasien. Konseling dapat terkait dengan resep atau transaksi, tetapi tidak membuat tagihan dan tidak mengubah stok.
+
+**Aktor:**
+- Apoteker
+- Manager
+
+**Prioritas:** Could Have
+
+**Kebutuhan Produk:**
+- Apoteker dapat mencatat tanggal konseling, pasien, resep atau transaksi terkait jika ada, topik, catatan, dan status.
+- Konseling tidak menambah stok, tidak mengurangi stok, dan tidak membuat tagihan.
+- Konseling tidak boleh menjadi clinical decision support otomatis.
+
+**Acceptance Criteria:**
+- Apoteker dapat mencatat konseling.
+- Konseling dapat terkait resep atau transaksi.
+- Konseling tidak mengubah stok.
+- Konseling tidak membuat tagihan.
 
 ---
 
@@ -780,6 +914,34 @@ Sistem sebaiknya menyediakan pengaturan profil apotek untuk menampilkan identita
 | BR-PRICE-003 | HPP transaksi disimpan permanen pada detail transaksi |
 | BR-PRICE-004 | Perubahan harga setelah transaksi tidak boleh mengubah histori transaksi lama |
 | BR-PRICE-005 | Laba tidak boleh dihitung dari harga terbaru produk |
+| BR-PRICE-006 | Fitur ini disebut Presisi Harga Modal dan HPP, bukan harga jual fleksibel |
+| BR-PRICE-007 | Harga modal, HPP, dan laba internal memakai presisi desimal tinggi |
+| BR-PRICE-008 | Harga jual pelanggan ditentukan manual oleh Manager dalam nilai rupiah bulat |
+| BR-PRICE-009 | Harga jual kasir tidak dihitung otomatis dari harga modal |
+| BR-PRICE-010 | Kasir hanya melihat harga jual final, bukan harga modal, HPP, margin, atau laba |
+
+Sistem harus mendukung penyimpanan harga modal atau harga beli supplier dengan presisi desimal tinggi. Presisi tinggi hanya diterapkan pada harga modal, HPP, dan perhitungan laba internal. Harga jual ke pelanggan tidak dihitung otomatis dari harga modal, melainkan ditentukan secara manual oleh Manager. Harga jual yang tampil pada halaman kasir menggunakan harga jual final yang sudah ditetapkan Manager dalam nilai rupiah bulat.
+
+Presisi tinggi juga berlaku untuk diskon pembelian, PPN pembelian, total modal, dan pencocokan faktur supplier. Uang, HPP, pajak, diskon, dan laba tidak boleh dirancang memakai `FLOAT`, `DOUBLE`, atau `REAL`; gunakan `NUMERIC` atau `DECIMAL`.
+
+### 9.4A Aturan PO, Pembelian Supplier, Resep, dan Konseling
+
+| ID | Aturan |
+|---|---|
+| BR-PO-001 | PO tidak boleh menambah stok |
+| BR-PO-002 | PO tidak boleh mengurangi stok |
+| BR-PO-003 | PO dapat dibuat Apoteker atau Manager dan pembuat diambil dari user login |
+| BR-PO-004 | PO dapat ditarik ke Pembelian dan dapat diterima sebagian |
+| BR-PUR-006 | Pembelian dapat dibuat manual atau dari PO |
+| BR-PUR-007 | Pembelian final wajib mencatat batch, expired date, HPP, harga jual final, stok masuk, dan mutasi stok |
+| BR-PUR-008 | Diskon pembelian dapat berupa `NONE`, `NOMINAL`, atau `PERCENT` |
+| BR-PUR-009 | Mode PPN pembelian adalah `NON_PPN`, `PPN_INCLUDED`, atau `PPN_EXCLUDED` |
+| BR-PUR-010 | Total pembelian sistem wajib dibandingkan dengan total faktur supplier |
+| BR-UNIT-001 | Kasir hanya dapat memilih satuan jual aktif |
+| BR-PRESC-001 | Resep dasar tidak mengurangi stok sebelum checkout berhasil |
+| BR-PRESC-002 | Resep siap bayar dapat ditarik ke kasir |
+| BR-COUNS-001 | Konseling dasar hanya dokumentasi, tidak membuat tagihan dan tidak mengubah stok |
+| BR-FUTURE-001 | Piutang pelanggan dicatat sebagai future enhancement, bukan fitur inti V1 |
 
 ### 9.5 Aturan Diskon
 
@@ -824,6 +986,8 @@ stok_satuan_terkecil = 1 * 10 * 10 = 100 tablet
 hpp_satuan_terkecil = harga_beli_satuan_besar / jumlah_satuan_terkecil_dalam_satuan_besar
 ```
 
+Harga beli supplier dapat disimpan dengan presisi tinggi agar pembagian ke satuan dasar tidak kehilangan akurasi.
+
 ### 10.3 Subtotal Detail
 
 ```text
@@ -841,6 +1005,8 @@ hpp_detail = hpp_satuan_terkecil * konversi_satuan_jual_ke_terkecil * qty
 ```text
 laba_detail = subtotal_detail - hpp_detail - diskon_alokasi_detail
 ```
+
+Backend wajib menghitung laba berdasarkan harga jual final yang ditetapkan Manager dikurangi HPP internal yang disimpan secara presisi. Nilai tampilan laporan boleh dibulatkan, tetapi nilai internal tidak boleh diubah hanya untuk kebutuhan display.
 
 ### 10.6 Diskon Proporsional
 
@@ -889,16 +1055,44 @@ Pengguna membuka aplikasi
 ```text
 Manager membuka menu pembelian
 -> Memilih supplier
--> Memilih produk
--> Mengisi nomor batch
--> Mengisi expired date
--> Mengisi harga beli
--> Mengisi jumlah pembelian
--> Mengisi harga jual per satuan
--> Sistem menghitung HPP
+-> Opsional memilih No. PO milik supplier
+-> Sistem menarik item PO sebagai draft pembelian
+-> Manager menyesuaikan produk, qty diterima, harga beli final, diskon, PPN, batch, expired date, dan harga jual
+-> Manager mengisi total faktur supplier
+-> Sistem menghitung HPP dan total sistem
+-> Sistem mencocokkan total sistem dengan faktur supplier
 -> Sistem membuat batch
 -> Sistem menambah stok
 -> Sistem mencatat mutasi stok masuk
+-> Sistem memperbarui status PO jika berasal dari PO
+```
+
+### 12.2A Alur Pemesanan / PO Obat
+
+```text
+Apoteker atau Manager membuka Pemesanan
+-> Tambah PO
+-> Pilih supplier
+-> Input tanggal PO
+-> Data pembuat otomatis dari login
+-> Tambah item obat, satuan, qty, estimasi harga, dan catatan
+-> Simpan PO
+-> Cetak PO jika diperlukan
+-> Kirim ke supplier
+```
+
+### 12.2B Alur PO ke Pembelian
+
+```text
+Barang datang
+-> Manager membuka Pembelian
+-> Memilih supplier
+-> Memilih No. PO
+-> Item PO ditarik sebagai draft
+-> Manager menyesuaikan qty, harga, diskon, PPN, batch, dan expired date
+-> Manager mencocokkan faktur
+-> Pembelian final disimpan
+-> Stok batch bertambah
 ```
 
 ### 12.3 Alur Penjualan Kasir
@@ -919,6 +1113,30 @@ Kasir membuka halaman kasir
 -> Server menghitung FEFO, split batch, harga final, HPP, diskon alokasi, dan laba
 -> Sistem mengurangi stok batch
 -> Sistem menyimpan transaksi dan detail transaksi
+```
+
+### 12.3A Alur Resep ke Kasir
+
+```text
+Apoteker input resep
+-> Sistem mengecek produk dan satuan jual aktif
+-> Apoteker isi aturan pakai dan catatan etiket
+-> Resep disimpan tanpa mengurangi stok
+-> Apoteker menandai resep siap bayar
+-> Kasir menarik resep READY_FOR_PAYMENT
+-> Item resep masuk keranjang
+-> Kasir memproses pembayaran
+-> Backend checkout menjalankan FEFO dan mengurangi stok
+-> Status resep berubah menjadi PAID/COMPLETED
+```
+
+### 12.3B Alur Konseling Dasar
+
+```text
+Apoteker membuka Konseling
+-> Pilih resep/transaksi jika terkait
+-> Isi topik dan catatan konseling
+-> Simpan catatan
 ```
 
 ### 12.4 Alur Retur Penjualan
@@ -959,8 +1177,13 @@ Produk V1 dianggap layak jika seluruh kriteria berikut terpenuhi:
 | AC-003 | Manager dapat membuat produk, kategori, supplier, satuan, dan batch |
 | AC-004 | Pembelian supplier dapat membuat batch baru |
 | AC-005 | Stok pembelian dikonversi ke satuan terkecil |
+| AC-005A | PO dapat dibuat, dicetak, tidak mengubah stok, dan dapat ditarik ke pembelian |
+| AC-005B | Pembelian dapat dibuat manual atau dari PO |
+| AC-005C | Pembelian mendukung diskon pembelian nominal/persen, PPN/non-PPN, dan validasi faktur supplier |
+| AC-005D | Setiap barang masuk wajib memiliki nomor batch dan expired date |
 | AC-006 | Kasir dapat mencari produk dari halaman kasir |
 | AC-007 | Kasir dapat memilih satuan jual |
+| AC-007A | Kasir hanya dapat memilih satuan jual aktif |
 | AC-008 | Kasir dapat menambahkan item ke keranjang |
 | AC-009 | Sistem menolak transaksi jika stok tidak cukup |
 | AC-010 | Sistem menerapkan FEFO server-side |
@@ -990,6 +1213,10 @@ Produk V1 dianggap layak jika seluruh kriteria berikut terpenuhi:
 | AC-034 | Manager dapat mengelola user jika fitur manajemen user diaktifkan |
 | AC-035 | User nonaktif tidak dapat login |
 | AC-036 | Manager dapat mengatur profil apotek jika fitur settings diaktifkan |
+| AC-037 | Apoteker dapat membuat resep dasar dan resep tidak mengurangi stok sebelum checkout |
+| AC-038 | Kasir dapat menarik resep siap bayar ke transaksi |
+| AC-039 | Apoteker dapat mencatat konseling tanpa tagihan dan tanpa perubahan stok |
+| AC-040 | Piutang pelanggan tetap future enhancement dan tidak masuk task P0/P1 V1 |
 
 ---
 
@@ -1008,10 +1235,18 @@ AI coding wajib mengikuti batasan berikut:
 9. Jangan menjadikan frontend sebagai sumber kebenaran harga final, HPP, FEFO, split batch, diskon alokasi, atau laba.
 10. Jangan memberi akses laporan laba dan pengaturan harga kepada kasir.
 11. Jangan menambahkan fitur payment gateway, BPJS, multi-cabang, atau loyalty program pada V1.
-12. Jangan mencampur detail SRS, SDD, UI flow, dan task teknis terlalu dalam ke PRD ini.
-13. Jangan membuat nama field database final hanya berdasarkan PRD; finalisasi database harus dilakukan di SDD.
-14. Jangan membuat endpoint API final hanya berdasarkan PRD; finalisasi API harus dilakukan di SDD.
-15. Jangan mengubah aturan bisnis utama tanpa memperbarui PRD, SRS, SDD, UI/UX Flow, dan Task Breakdown secara konsisten.
+12. Jangan menamai requirement ini sebagai harga jual fleksibel; gunakan Presisi Harga Modal dan HPP.
+13. Jangan menghitung harga jual pelanggan otomatis dari harga modal.
+14. Jangan menjadikan PO sebagai penambah stok.
+15. Jangan mengurangi stok saat resep dibuat.
+16. Jangan menganggap semua satuan dasar otomatis boleh dijual.
+17. Jangan memakai FLOAT, DOUBLE, atau REAL untuk uang, HPP, pajak, diskon, atau laba.
+18. Jangan membuat clinical decision support otomatis.
+19. Jangan memasukkan piutang sebagai fitur inti V1 tanpa keputusan eksplisit.
+20. Jangan mencampur detail SRS, SDD, UI flow, dan task teknis terlalu dalam ke PRD ini.
+21. Jangan membuat nama field database final hanya berdasarkan PRD; finalisasi database harus dilakukan di SDD.
+22. Jangan membuat endpoint API final hanya berdasarkan PRD; finalisasi API harus dilakukan di SDD.
+23. Jangan mengubah aturan bisnis utama tanpa memperbarui PRD, SRS, SDD, UI/UX Flow, dan Task Breakdown secara konsisten.
 
 ---
 

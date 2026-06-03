@@ -1,5 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 export class CreateProductUnitDto {
   @IsUUID()
@@ -13,4 +20,18 @@ export class CreateProductUnitDto {
   @IsBoolean()
   @IsOptional()
   isDefaultSaleUnit?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isSaleUnit?: boolean;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.001)
+  @IsOptional()
+  minSaleQty?: number;
+
+  @IsString()
+  @IsOptional()
+  saleUnitNote?: string;
 }

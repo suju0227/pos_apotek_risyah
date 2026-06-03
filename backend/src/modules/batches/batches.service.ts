@@ -248,6 +248,7 @@ export class BatchesService {
         id: { in: productUnitIds },
         productId,
         isActive: true,
+        isSaleUnit: true,
         deletedAt: null,
       },
       select: { id: true },

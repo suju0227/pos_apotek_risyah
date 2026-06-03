@@ -47,6 +47,22 @@ export class IdempotencyService {
     });
   }
 
+  findActiveKey(input: {
+    key: string;
+    userId: string;
+    actionType: string;
+  }) {
+    return this.prisma.idempotencyKey.findFirst({
+      where: {
+        key: input.key,
+        userId: input.userId,
+        actionType: input.actionType,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async markSuccess(id: string, responseSnapshot: unknown) {
     return this.prisma.idempotencyKey.update({
       where: { id },

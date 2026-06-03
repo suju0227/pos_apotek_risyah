@@ -71,7 +71,10 @@ export class PurchasesService {
 
     const items = await this.resolveItems(dto.items);
     const purchaseNumber = this.generatePurchaseNumber();
-    const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+    const subtotal = this.roundPrecision(
+      items.reduce((sum, item) => sum + item.totalPrice, 0),
+      6,
+    );
 
     try {
       const purchase = await this.prisma.$transaction(async (tx) => {
@@ -171,9 +174,17 @@ export class PurchasesService {
     for (const item of items) {
       const purchaseUnit = await this.findProductUnit(item.productId, item.productUnitId);
       const conversionSnapshot = Number(purchaseUnit.conversionToBase);
-      const qtyBase = item.qtyPurchase * conversionSnapshot;
-      const hppBase = qtyBase === 0 ? 0 : item.purchasePrice / qtyBase;
-      const totalPrice = item.qtyPurchase * item.purchasePrice;
+      const qtyBase = this.roundPrecision(
+        item.qtyPurchase * conversionSnapshot,
+        4,
+      );
+      const totalPrice = this.roundPrecision(
+        item.qtyPurchase * item.purchasePrice,
+        6,
+      );
+      const hppBase = qtyBase === 0
+        ? 0
+        : this.roundPrecision(item.purchasePrice / qtyBase, 8);
 
       await this.ensureSellingPricesBelongToProduct(
         item.productId,
@@ -237,6 +248,7 @@ export class PurchasesService {
         id: { in: productUnitIds },
         productId,
         isActive: true,
+        isSaleUnit: true,
         deletedAt: null,
       },
       select: { id: true },
@@ -376,5 +388,10 @@ export class PurchasesService {
 
   private toDate(value: string) {
     return new Date(`${value}T00:00:00.000Z`);
+  }
+
+  private roundPrecision(value: number, decimals: number) {
+    const factor = 10 ** decimals;
+    return Math.round((value + Number.EPSILON) * factor) / factor;
   }
 }

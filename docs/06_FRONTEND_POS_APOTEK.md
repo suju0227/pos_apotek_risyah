@@ -49,8 +49,11 @@ AI coding wajib memahami batas berikut:
 2. Frontend hanya boleh menampilkan **estimasi sementara** untuk subtotal, diskon, total, kembalian, dan ketersediaan stok.
 3. Backend tetap menjadi pihak yang menentukan hasil final transaksi.
 4. Frontend harus mendukung alur kasir yang cepat, jelas, dan minim perpindahan halaman.
-5. Frontend harus mematuhi role pengguna, terutama pembatasan akses kasir terhadap HPP, laba, pembelian, koreksi stok, dan laporan keuangan.
-6. File ini harus dipisahkan dari file backend agar implementasi tidak bercampur seperti proyek yang sudah menyerah pada folder `misc`.
+5. Frontend harus mematuhi role pengguna, terutama pembatasan akses kasir terhadap harga modal, HPP, margin, laba, pembelian, koreksi stok, dan laporan keuangan.
+6. Harga jual yang tampil di kasir adalah harga jual final rupiah bulat dari backend, bukan hasil perhitungan frontend dari harga modal.
+7. Frontend tidak boleh menjadikan PO sebagai penambah stok dan tidak boleh mengurangi stok saat resep dibuat.
+8. Frontend harus menampilkan hanya satuan jual aktif kepada Kasir.
+9. File ini harus dipisahkan dari file backend agar implementasi tidak bercampur seperti proyek yang sudah menyerah pada folder `misc`.
 
 ---
 
@@ -85,6 +88,10 @@ Frontend harus mendukung modul utama POS Apotek tanpa mengambil alih logika bisn
 | FE-PRINCIPLE-008 | Pisahkan server state dan local state | Data API dan state UI lokal tidak boleh dicampur sembarangan |
 | FE-PRINCIPLE-009 | Validasi frontend bukan pengganti backend | Frontend memvalidasi awal, backend tetap validasi final |
 | FE-PRINCIPLE-010 | UI tidak boleh menampilkan HPP/laba kepada kasir | Informasi sensitif hanya untuk Manager/Pemilik |
+| FE-PRINCIPLE-011 | Harga kasir rupiah bulat | Kasir hanya melihat harga jual final yang ditetapkan Manager |
+| FE-PRINCIPLE-012 | PO bukan stok | UI PO tidak boleh menampilkan stok bertambah sebelum pembelian final |
+| FE-PRINCIPLE-013 | Resep bukan checkout | UI resep tidak boleh mengurangi stok sebelum checkout kasir berhasil |
+| FE-PRINCIPLE-014 | Satuan jual aktif | Kasir hanya melihat satuan jual aktif dari backend |
 
 ---
 
@@ -154,9 +161,14 @@ React Hook Form dan Zod dipilih agar validasi form tetap konsisten, mudah diuji,
 | FE-SCOPE-012 | Produk dan kategori | Wajib |
 | FE-SCOPE-013 | Supplier | Wajib |
 | FE-SCOPE-014 | Satuan dan konversi | Wajib |
+| FE-SCOPE-014A | Pembatasan satuan jual aktif | Wajib |
 | FE-SCOPE-015 | Batch obat | Wajib |
 | FE-SCOPE-016 | Pembelian supplier | Wajib |
+| FE-SCOPE-016A | Pemesanan / PO obat | Disarankan |
+| FE-SCOPE-016B | Pembelian dari PO, faktur, diskon pembelian, dan PPN/non-PPN | Disarankan |
 | FE-SCOPE-017 | Stok dan mutasi stok | Wajib |
+| FE-SCOPE-017A | Pelayanan Resep Dasar | Disarankan |
+| FE-SCOPE-017B | Konseling Dasar | Disarankan kuat |
 | FE-SCOPE-018 | Retur pembelian | Disarankan |
 | FE-SCOPE-019 | Laporan penjualan | Wajib |
 | FE-SCOPE-020 | Laporan laba | Wajib untuk Manager |
@@ -177,7 +189,8 @@ React Hook Form dan Zod dipilih agar validasi form tetap konsisten, mudah diuji,
 | FE-OOS-007 | Multi-cabang UI | V1 fokus satu apotek |
 | FE-OOS-008 | Loyalty program UI | Di luar scope V1 |
 | FE-OOS-009 | Integrasi BPJS/asuransi | Di luar scope V1 |
-| FE-OOS-010 | Manajemen resep dokter lanjutan | Tidak menjadi prioritas V1 |
+| FE-OOS-010 | Manajemen resep dokter lanjutan | Pelayanan Resep Dasar masuk scope; e-resep, clinical decision support, interaksi obat otomatis, dan integrasi eksternal tetap out of scope |
+| FE-OOS-011 | Piutang pelanggan | Future enhancement, bukan fitur inti V1 |
 
 ---
 
@@ -197,7 +210,18 @@ Routing harus dipisahkan berdasarkan public route, protected route, dan role rou
 ├── /supplier
 ├── /satuan
 ├── /batch
+├── /pemesanan
+├── /pemesanan/tambah
+├── /pemesanan/:id
+├── /pemesanan/:id/cetak
 ├── /pembelian
+├── /pembelian/tambah
+├── /pembelian/dari-po/:poId
+├── /pelayanan/resep
+├── /pelayanan/resep/tambah
+├── /pelayanan/resep/:id
+├── /pelayanan/konseling
+├── /pelayanan/riwayat
 ├── /stok
 ├── /mutasi-stok
 ├── /retur-pembelian
@@ -210,27 +234,35 @@ Routing harus dipisahkan berdasarkan public route, protected route, dan role rou
 
 ### 5.1 Route Berdasarkan Role
 
-| Route | Kasir | Manager | Catatan |
-|---|---:|---:|---|
-| `/login` | Ya | Ya | Public route |
-| `/dashboard` | Terbatas/Opsional | Ya | Kasir tidak melihat laba/HPP |
-| `/kasir` | Ya | Ya | Halaman utama kasir |
-| `/riwayat-transaksi` | Ya | Ya | Kasir hanya transaksi relevan |
-| `/retur-penjualan` | Ya | Ya | Kasir boleh retur penjualan |
-| `/produk` | Lihat terbatas | Kelola | Kasir tidak mengubah data |
-| `/kategori` | Tidak | Ya | Manager |
-| `/supplier` | Tidak | Ya | Manager |
-| `/satuan` | Tidak | Ya | Manager |
-| `/batch` | Lihat terbatas | Kelola | Kasir tidak melihat HPP |
-| `/pembelian` | Tidak | Ya | Manager |
-| `/stok` | Lihat terbatas | Ya | Kasir tidak melihat HPP |
-| `/mutasi-stok` | Tidak | Ya | Manager |
-| `/retur-pembelian` | Tidak | Ya | Manager |
-| `/laporan/penjualan` | Tidak | Ya | Manager |
-| `/laporan/laba` | Tidak | Ya | Manager/Pemilik |
-| `/export` | Tidak | Ya | Manager |
-| `/users` | Tidak | Ya | Manager |
-| `/settings` | Tidak | Ya | Manager |
+| Route | Kasir | Apoteker | Manager | Catatan |
+|---|---:|---:|---:|---|
+| `/login` | Ya | Ya | Ya | Public route |
+| `/dashboard` | Terbatas/Opsional | Terbatas | Ya | Kasir/Apoteker tidak melihat laba/HPP |
+| `/kasir` | Ya | Opsional | Ya | Halaman utama kasir |
+| `/riwayat-transaksi` | Ya | Terbatas | Ya | Kasir hanya transaksi relevan |
+| `/retur-penjualan` | Ya | Terbatas | Ya | Kasir boleh retur penjualan |
+| `/produk` | Lihat terbatas | Lihat | Kelola | Kasir tidak mengubah data |
+| `/kategori` | Tidak | Lihat | Ya | Manager |
+| `/supplier` | Tidak | Lihat | Ya | Manager |
+| `/satuan` | Tidak | Lihat | Ya | Manager |
+| `/batch` | Lihat terbatas | Lihat | Kelola | Kasir/Apoteker tidak melihat HPP |
+| `/pemesanan` | Tidak | Ya | Ya | PO tidak mengubah stok |
+| `/pemesanan/tambah` | Tidak | Ya | Ya | Apoteker/Manager |
+| `/pemesanan/:id/cetak` | Tidak | Ya | Ya | Print preview PO |
+| `/pembelian` | Tidak | Lihat terbatas | Ya | Manager finalisasi pembelian |
+| `/pembelian/dari-po/:poId` | Tidak | Tidak | Ya | Draft pembelian dari PO |
+| `/pelayanan/resep` | Tarik siap bayar | Ya | Ya | Resep tidak mengurangi stok |
+| `/pelayanan/resep/tambah` | Tidak | Ya | Ya | Apoteker/Manager |
+| `/pelayanan/konseling` | Tidak | Ya | Ya | Tidak membuat tagihan/stok |
+| `/pelayanan/riwayat` | Tidak | Ya | Ya | Riwayat pelayanan |
+| `/stok` | Lihat terbatas | Lihat | Ya | Kasir tidak melihat HPP |
+| `/mutasi-stok` | Tidak | Lihat | Ya | Manager |
+| `/retur-pembelian` | Tidak | Tidak | Ya | Manager |
+| `/laporan/penjualan` | Tidak | Tidak | Ya | Manager |
+| `/laporan/laba` | Tidak | Tidak | Ya | Manager/Pemilik |
+| `/export` | Tidak | Tidak | Ya | Manager |
+| `/users` | Tidak | Tidak | Ya | Manager |
+| `/settings` | Tidak | Tidak | Ya | Manager |
 
 ### 5.2 Protected Route Rules
 
@@ -635,6 +667,7 @@ Setiap item produk di halaman kasir minimal menampilkan:
 | harga jual | Ya | Sesuai satuan jual |
 | HPP | Tidak | Data sensitif |
 | laba/margin | Tidak | Data sensitif |
+| harga modal | Tidak | Data sensitif |
 
 ### 10.7 Keranjang Kasir
 
@@ -970,7 +1003,7 @@ BatchPage
 
 ### 16.1 Tujuan
 
-Mencatat pembelian dari supplier dan membuat/menambah batch.
+Mencatat pembelian dari supplier dan membuat/menambah batch. Pembelian dapat dibuat manual atau dari PO, dengan validasi faktur supplier, diskon pembelian, mode PPN/non-PPN, batch, expired date, dan harga jual final manual.
 
 ### 16.2 Komponen
 
@@ -993,15 +1026,20 @@ PurchasePage
 | Field | Validasi |
 |---|---|
 | supplier | wajib dipilih |
+| PO asal | opsional, hanya untuk draft dari PO |
 | tanggal pembelian | wajib |
-| nomor invoice | opsional |
+| nomor invoice/faktur | disarankan kuat |
+| tanggal invoice | disarankan |
+| mode PPN | `NON_PPN`, `PPN_INCLUDED`, `PPN_EXCLUDED` |
+| total faktur input | wajib |
 | produk | wajib |
 | nomor batch | wajib |
 | expired date | wajib |
 | satuan pembelian | wajib |
-| qty pembelian | lebih besar dari 0 |
-| harga beli | tidak boleh negatif |
-| harga jual per satuan | tidak boleh negatif |
+| qty diterima | lebih besar dari 0 |
+| harga beli/modal | tidak boleh negatif dan boleh presisi desimal |
+| diskon pembelian | `NONE`, `NOMINAL`, `PERCENT`, tidak negatif |
+| harga jual per satuan | rupiah bulat dan tidak boleh negatif |
 
 ### 16.4 HPP Preview
 
@@ -1012,6 +1050,91 @@ hpp_preview = harga_beli / jumlah_satuan_dasar_dalam_satuan_pembelian
 ```
 
 Preview ini hanya bantuan UI. Nilai final tetap dihitung backend.
+
+Harga beli/harga modal pada UI Manager boleh menerima presisi desimal sesuai API backend. Harga jual per satuan yang diisi Manager tetap rupiah bulat karena akan tampil sebagai harga final ke pelanggan.
+
+UI wajib menampilkan ringkasan pembelian:
+
+```text
+Subtotal barang
+Total diskon
+DPP
+PPN
+Total sistem
+Total faktur input
+Selisih
+Catatan selisih
+```
+
+### 16.5 Pembelian dari PO
+
+```text
+Manager membuka Pembelian
+-> pilih supplier
+-> pilih No. PO
+-> item PO ditarik sebagai draft
+-> Manager menyesuaikan qty diterima, harga, diskon, PPN, batch, expired, dan harga jual
+-> Manager mencocokkan total faktur
+-> submit pembelian final ke backend
+```
+
+Frontend tidak boleh menambah stok saat PO dipilih. Stok hanya berubah setelah backend menyimpan pembelian final.
+
+## 16A. Halaman Pemesanan / PO Obat
+
+### 16A.1 Komponen
+
+```text
+PurchaseOrderPage
+├── PurchaseOrderToolbar
+├── PurchaseOrderTable
+├── PurchaseOrderForm
+├── PurchaseOrderItemTable
+├── PrintPreviewButton
+└── ConvertToPurchaseButton
+```
+
+### 16A.2 Field PO
+
+| Field | Validasi |
+|---|---|
+| supplier | wajib |
+| tanggal PO | wajib |
+| pembuat | otomatis dari user login |
+| item obat | minimal satu |
+| satuan pemesanan | wajib |
+| qty ordered | lebih besar dari 0 |
+| estimasi harga beli | opsional, boleh presisi |
+| catatan | opsional |
+
+PO dapat dicetak dalam A4, A5, atau custom sederhana. PO tidak menambah stok dan tidak mengurangi stok.
+
+## 16B. Halaman Pelayanan Resep dan Konseling
+
+### 16B.1 Resep Dokter
+
+```text
+PrescriptionPage
+├── PrescriptionTable
+├── PrescriptionForm
+├── PrescriptionItemEditor
+├── MarkReadyForPaymentButton
+└── PullToCashierAction
+```
+
+Resep memuat pasien, dokter, item obat, satuan jual aktif, qty, aturan pakai, catatan etiket, dan status. Resep tidak mengurangi stok sebelum checkout kasir berhasil.
+
+### 16B.2 Konseling Dasar
+
+```text
+CounselingPage
+├── CounselingTable
+├── CounselingForm
+├── RelatedPrescriptionSelect
+└── RelatedSaleSelect
+```
+
+Konseling hanya dokumentasi edukasi obat. Konseling tidak membuat tagihan dan tidak mengubah stok.
 
 ---
 
@@ -1248,6 +1371,9 @@ Dikelola oleh TanStack Query.
 | transaksi | `["sales", filters]` |
 | detail transaksi | `["sales", saleId]` |
 | pembelian | `["purchases", filters]` |
+| pemesanan/PO | `["purchase-orders", filters]` |
+| resep | `["prescriptions", filters]` |
+| konseling | `["counseling-records", filters]` |
 | retur penjualan | `["sales-returns", filters]` |
 | dashboard | `["dashboard", period]` |
 | laporan penjualan | `["reports", "sales", filters]` |
@@ -1272,6 +1398,11 @@ Dikelola oleh Zustand atau local component state.
 |---|---|
 | simpan transaksi | produk, stok, dashboard, sales, reports |
 | pembelian supplier | batch, stok, purchases, dashboard |
+| PO dibuat/diubah/dibatalkan | purchase-orders |
+| pembelian dari PO | purchase-orders, purchases, batch, stok, dashboard |
+| resep ditandai siap bayar | prescriptions |
+| resep checkout | prescriptions, sales, stock, dashboard |
+| konseling disimpan | counseling-records |
 | retur penjualan | stock, sales, sales-returns, reports, dashboard |
 | retur pembelian | stock, purchase-returns, dashboard |
 | koreksi stok | stock, stock-mutations, dashboard |
@@ -1384,8 +1515,13 @@ type Permission =
   | "MANAGE_BATCHES"
   | "VIEW_STOCK_LIMITED"
   | "VIEW_STOCK_FULL"
+  | "MANAGE_PURCHASE_ORDERS"
+  | "VIEW_PURCHASE_ORDERS"
   | "MANAGE_PURCHASES"
   | "MANAGE_PURCHASE_RETURNS"
+  | "MANAGE_PRESCRIPTIONS"
+  | "PULL_PRESCRIPTION_TO_CASHIER"
+  | "MANAGE_COUNSELING"
   | "VIEW_SALES_REPORT"
   | "VIEW_PROFIT_REPORT"
   | "EXPORT_REPORT"
@@ -1401,8 +1537,17 @@ const ROLE_PERMISSIONS = {
     "VIEW_CASHIER",
     "CREATE_SALE",
     "CREATE_SALES_RETURN",
+    "PULL_PRESCRIPTION_TO_CASHIER",
     "VIEW_PRODUCTS_LIMITED",
     "VIEW_STOCK_LIMITED"
+  ],
+  APOTEKER: [
+    "VIEW_PRODUCTS_LIMITED",
+    "VIEW_STOCK_LIMITED",
+    "VIEW_PURCHASE_ORDERS",
+    "MANAGE_PURCHASE_ORDERS",
+    "MANAGE_PRESCRIPTIONS",
+    "MANAGE_COUNSELING"
   ],
   MANAGER: [
     "VIEW_CASHIER",
@@ -1413,8 +1558,13 @@ const ROLE_PERMISSIONS = {
     "MANAGE_BATCHES",
     "VIEW_STOCK_LIMITED",
     "VIEW_STOCK_FULL",
+    "VIEW_PURCHASE_ORDERS",
+    "MANAGE_PURCHASE_ORDERS",
     "MANAGE_PURCHASES",
     "MANAGE_PURCHASE_RETURNS",
+    "MANAGE_PRESCRIPTIONS",
+    "PULL_PRESCRIPTION_TO_CASHIER",
+    "MANAGE_COUNSELING",
     "VIEW_SALES_REPORT",
     "VIEW_PROFIT_REPORT",
     "EXPORT_REPORT",
@@ -1464,6 +1614,8 @@ Rp10.000
 Rp250.000
 Rp1.500.000
 ```
+
+Harga jual pelanggan, subtotal, total, dan kembalian ditampilkan sebagai Rupiah bulat. HPP/laba pada halaman Manager atau laporan boleh berasal dari nilai internal presisi, tetapi `profit_display` dan angka laporan ditampilkan dalam format Rupiah yang dibulatkan.
 
 ### 27.2 Format Tanggal
 
@@ -1663,19 +1815,24 @@ AI coding wajib mengikuti larangan berikut:
 5. Jangan mengurangi stok final di frontend.
 6. Jangan menampilkan HPP kepada kasir.
 7. Jangan menampilkan laba kepada kasir.
-8. Jangan memberi menu laporan laba kepada kasir.
-9. Jangan mengandalkan role UI sebagai keamanan tunggal.
-10. Jangan menyimpan transaksi final di local storage.
-11. Jangan membuat keranjang langsung mengubah stok.
-12. Jangan membuat UI retur tanpa transaksi asal.
-13. Jangan mengizinkan diskon melebihi subtotal estimasi.
-14. Jangan membuat halaman kasir bergantung pada banyak perpindahan halaman.
-15. Jangan mencampur semua komponen dalam satu file besar.
-16. Jangan menampilkan error teknis mentah kepada user.
-17. Jangan membuat horizontal scroll pada seluruh halaman.
-18. Jangan membuat fitur di luar scope V1 tanpa label Future Enhancement.
-19. Jangan membuat state global besar untuk semua data.
-20. Jangan membuat desain yang menyembunyikan tombol simpan transaksi dari area kasir utama.
+8. Jangan menampilkan harga modal atau margin kepada kasir.
+9. Jangan memberi menu laporan laba kepada kasir.
+10. Jangan mengandalkan role UI sebagai keamanan tunggal.
+11. Jangan menyimpan transaksi final di local storage.
+12. Jangan membuat keranjang langsung mengubah stok.
+13. Jangan membuat UI retur tanpa transaksi asal.
+14. Jangan mengizinkan diskon melebihi subtotal estimasi.
+15. Jangan membuat halaman kasir bergantung pada banyak perpindahan halaman.
+16. Jangan mencampur semua komponen dalam satu file besar.
+17. Jangan menampilkan error teknis mentah kepada user.
+18. Jangan membuat horizontal scroll pada seluruh halaman.
+19. Jangan membuat fitur di luar scope V1 tanpa label Future Enhancement.
+20. Jangan membuat state global besar untuk semua data.
+21. Jangan membuat desain yang menyembunyikan tombol simpan transaksi dari area kasir utama.
+22. Jangan membuat PO menampilkan stok bertambah.
+23. Jangan mengurangi stok saat resep dibuat atau ditandai siap bayar.
+24. Jangan menampilkan satuan jual yang tidak aktif kepada kasir.
+25. Jangan membuat piutang sebagai fitur inti V1.
 
 ---
 
@@ -1701,6 +1858,8 @@ Frontend dianggap selesai untuk V1 jika memenuhi kriteria berikut:
 | FE-DOD-014 | Produk dapat dikelola Manager |
 | FE-DOD-015 | Batch dapat dikelola Manager |
 | FE-DOD-016 | Pembelian supplier dapat diinput |
+| FE-DOD-016A | PO dapat dibuat, dicetak, dan ditarik menjadi draft pembelian |
+| FE-DOD-016B | Pembelian dari PO mendukung faktur, diskon pembelian, PPN/non-PPN, batch, dan expired date |
 | FE-DOD-017 | Retur penjualan dapat dibuat |
 | FE-DOD-018 | Stok dan mutasi stok dapat dilihat Manager |
 | FE-DOD-019 | Dashboard Manager tampil |
@@ -1711,6 +1870,9 @@ Frontend dianggap selesai untuk V1 jika memenuhi kriteria berikut:
 | FE-DOD-024 | Loading, empty, dan error state tersedia |
 | FE-DOD-025 | Struktur folder berbasis feature diterapkan |
 | FE-DOD-026 | Query invalidation berjalan setelah mutation penting |
+| FE-DOD-027 | Kasir hanya melihat satuan jual aktif |
+| FE-DOD-028 | Resep dasar dapat dibuat dan ditarik ke kasir tanpa mengurangi stok sebelum checkout |
+| FE-DOD-029 | Konseling dasar dapat dicatat tanpa tagihan dan tanpa perubahan stok |
 
 ---
 

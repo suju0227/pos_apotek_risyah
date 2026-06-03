@@ -142,6 +142,9 @@ model ProductUnit {
   unitId            String    @map("unit_id") @db.Uuid
   conversionToBase  Decimal   @map("conversion_to_base") @db.Decimal(18, 4)
   isDefaultSaleUnit Boolean   @default(false) @map("is_default_sale_unit")
+  isSaleUnit        Boolean   @default(true) @map("is_sale_unit")
+  minSaleQty        Decimal   @default(1) @map("min_sale_qty") @db.Decimal(14, 3)
+  saleUnitNote      String?   @map("sale_unit_note") @db.Text
   isActive          Boolean   @default(true) @map("is_active")
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
@@ -166,7 +169,7 @@ model ProductBatch {
   expiredDate      DateTime  @map("expired_date") @db.Date
   initialStockBase Decimal   @map("initial_stock_base") @db.Decimal(18, 4)
   currentStockBase Decimal   @map("current_stock_base") @db.Decimal(18, 4)
-  hppBase          Decimal   @map("hpp_base") @db.Decimal(18, 4)
+  hppBase          Decimal   @map("hpp_base") @db.Decimal(18, 8)
   isActive         Boolean   @default(true) @map("is_active")
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
@@ -191,7 +194,7 @@ model BatchUnitPrice {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   batchId       String    @map("batch_id") @db.Uuid
   productUnitId String    @map("product_unit_id") @db.Uuid
-  sellingPrice  Decimal   @map("selling_price") @db.Decimal(18, 2)
+  sellingPrice  Decimal   @map("selling_price") @db.Decimal(18, 0)
   isActive      Boolean   @default(true) @map("is_active")
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
@@ -212,7 +215,7 @@ model Purchase {
   purchaseNumber String    @unique @map("purchase_number") @db.VarChar(100)
   invoiceNumber  String?   @map("invoice_number") @db.VarChar(100)
   purchaseDate   DateTime  @map("purchase_date") @db.Date
-  subtotal       Decimal   @db.Decimal(18, 2)
+  subtotal       Decimal   @db.Decimal(18, 6)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
   deletedAt      DateTime? @map("deleted_at") @db.Timestamp(6)
@@ -238,9 +241,9 @@ model PurchaseItem {
   qtyPurchase        Decimal  @map("qty_purchase") @db.Decimal(18, 4)
   conversionSnapshot Decimal  @map("conversion_snapshot") @db.Decimal(18, 4)
   qtyBase            Decimal  @map("qty_base") @db.Decimal(18, 4)
-  purchasePrice      Decimal  @map("purchase_price") @db.Decimal(18, 2)
-  hppBase            Decimal  @map("hpp_base") @db.Decimal(18, 4)
-  totalPrice         Decimal  @map("total_price") @db.Decimal(18, 2)
+  purchasePrice      Decimal  @map("purchase_price") @db.Decimal(18, 6)
+  hppBase            Decimal  @map("hpp_base") @db.Decimal(18, 8)
+  totalPrice         Decimal  @map("total_price") @db.Decimal(18, 6)
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
   purchase Purchase @relation(fields: [purchaseId], references: [id])
@@ -306,13 +309,13 @@ model Sale {
   cashierId      String    @map("cashier_id") @db.Uuid
   saleNumber     String    @unique @map("sale_number") @db.VarChar(100)
   paymentMethod  String    @map("payment_method") @db.VarChar(50)
-  subtotal       Decimal   @db.Decimal(18, 2)
-  discountTotal  Decimal   @default(0) @map("discount_total") @db.Decimal(18, 2)
-  grandTotal     Decimal   @map("grand_total") @db.Decimal(18, 2)
-  paidAmount     Decimal   @map("paid_amount") @db.Decimal(18, 2)
-  changeAmount   Decimal   @map("change_amount") @db.Decimal(18, 2)
-  totalHpp       Decimal   @default(0) @map("total_hpp") @db.Decimal(18, 4)
-  totalProfit    Decimal   @default(0) @map("total_profit") @db.Decimal(18, 4)
+  subtotal       Decimal   @db.Decimal(18, 0)
+  discountTotal  Decimal   @default(0) @map("discount_total") @db.Decimal(18, 0)
+  grandTotal     Decimal   @map("grand_total") @db.Decimal(18, 0)
+  paidAmount     Decimal   @map("paid_amount") @db.Decimal(18, 0)
+  changeAmount   Decimal   @map("change_amount") @db.Decimal(18, 0)
+  totalHpp       Decimal   @default(0) @map("total_hpp") @db.Decimal(18, 8)
+  totalProfit    Decimal   @default(0) @map("total_profit") @db.Decimal(18, 8)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
   deletedAt      DateTime? @map("deleted_at") @db.Timestamp(6)
@@ -335,10 +338,10 @@ model SaleItem {
   qtySale         Decimal  @map("qty_sale") @db.Decimal(18, 4)
   conversionSnapshot Decimal @map("conversion_snapshot") @db.Decimal(18, 4)
   qtyBase         Decimal  @map("qty_base") @db.Decimal(18, 4)
-  sellingPrice    Decimal  @map("selling_price") @db.Decimal(18, 2)
-  subtotal        Decimal  @db.Decimal(18, 2)
-  discountAmount  Decimal  @default(0) @map("discount_amount") @db.Decimal(18, 2)
-  totalAfterDiscount Decimal @map("total_after_discount") @db.Decimal(18, 2)
+  sellingPrice    Decimal  @map("selling_price") @db.Decimal(18, 0)
+  subtotal        Decimal  @db.Decimal(18, 0)
+  discountAmount  Decimal  @default(0) @map("discount_amount") @db.Decimal(18, 0)
+  totalAfterDiscount Decimal @map("total_after_discount") @db.Decimal(18, 0)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
   sale Sale @relation(fields: [saleId], references: [id])
@@ -359,10 +362,10 @@ model SaleBatchAllocation {
   batchNumber      String   @map("batch_number") @db.VarChar(100)
   expiredDate      DateTime @map("expired_date") @db.Date
   qtyBase          Decimal  @map("qty_base") @db.Decimal(18, 4)
-  hppBaseSnapshot  Decimal  @map("hpp_base_snapshot") @db.Decimal(18, 4)
-  subtotal         Decimal  @db.Decimal(18, 2)
-  discountAmount   Decimal  @default(0) @map("discount_amount") @db.Decimal(18, 2)
-  profitAmount     Decimal  @default(0) @map("profit_amount") @db.Decimal(18, 4)
+  hppBaseSnapshot  Decimal  @map("hpp_base_snapshot") @db.Decimal(18, 8)
+  subtotal         Decimal  @db.Decimal(18, 0)
+  discountAmount   Decimal  @default(0) @map("discount_amount") @db.Decimal(18, 0)
+  profitAmount     Decimal  @default(0) @map("profit_amount") @db.Decimal(18, 8)
   returnedQtyBase  Decimal  @default(0) @map("returned_qty_base") @db.Decimal(18, 4)
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 

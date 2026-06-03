@@ -40,6 +40,8 @@ model User {
   stockAdjustments StockAdjustment[]
   sales          Sale[]
   idempotencyKeys IdempotencyKey[]
+  prescriptions Prescription[] @relation("PrescriptionPharmacist")
+  counselingRecords CounselingRecord[] @relation("CounselingPharmacist")
 
   @@index([roleId], map: "idx_users_role_id")
   @@index([username], map: "idx_users_username")
@@ -130,6 +132,7 @@ model Product {
   purchaseOrderItems PurchaseOrderItem[]
   stockMutations StockMutation[]
   saleItems SaleItem[]
+  prescriptionItems PrescriptionItem[]
 
   @@index([categoryId], map: "idx_products_category_id")
   @@index([baseUnitId], map: "idx_products_base_unit_id")
@@ -159,6 +162,7 @@ model ProductUnit {
   purchaseItems PurchaseItem[]
   purchaseOrderItems PurchaseOrderItem[]
   saleItems SaleItem[]
+  prescriptionItems PrescriptionItem[]
 
   @@index([productId], map: "idx_product_units_product_id")
   @@index([unitId], map: "idx_product_units_unit_id")
@@ -381,6 +385,7 @@ model StockAdjustment {
 model Sale {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   cashierId      String    @map("cashier_id") @db.Uuid
+  prescriptionId String?   @unique @map("prescription_id") @db.Uuid
   saleNumber     String    @unique @map("sale_number") @db.VarChar(100)
   paymentMethod  String    @map("payment_method") @db.VarChar(50)
   subtotal       Decimal   @db.Decimal(18, 0)
@@ -395,9 +400,12 @@ model Sale {
   deletedAt      DateTime? @map("deleted_at") @db.Timestamp(6)
 
   cashier User @relation(fields: [cashierId], references: [id])
+  prescription Prescription? @relation(fields: [prescriptionId], references: [id])
   items SaleItem[]
+  counselingRecords CounselingRecord[]
 
   @@index([cashierId], map: "idx_sales_cashier_id")
+  @@index([prescriptionId], map: "idx_sales_prescription_id")
   @@index([createdAt], map: "idx_sales_created_at")
   @@map("sales")
 }
@@ -469,4 +477,77 @@ model IdempotencyKey {
   @@index([actionType], map: "idx_idempotency_keys_action_type")
   @@index([expiresAt], map: "idx_idempotency_keys_expires_at")
   @@map("idempotency_keys")
+}
+
+model Prescription {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pharmacistId       String    @map("pharmacist_id") @db.Uuid
+  prescriptionNumber String    @unique @map("prescription_number") @db.VarChar(100)
+  patientName        String    @map("patient_name") @db.VarChar(150)
+  patientPhone       String?   @map("patient_phone") @db.VarChar(50)
+  doctorName         String?   @map("doctor_name") @db.VarChar(150)
+  prescriptionDate   DateTime  @map("prescription_date") @db.Date
+  status             String    @default("DRAFT") @db.VarChar(50)
+  note               String?   @db.Text
+  readyAt            DateTime? @map("ready_at") @db.Timestamp(6)
+  paidAt             DateTime? @map("paid_at") @db.Timestamp(6)
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamp(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamp(6)
+
+  pharmacist        User               @relation("PrescriptionPharmacist", fields: [pharmacistId], references: [id])
+  items             PrescriptionItem[]
+  sale              Sale?
+  counselingRecords CounselingRecord[]
+
+  @@index([pharmacistId], map: "idx_prescriptions_pharmacist_id")
+  @@index([status], map: "idx_prescriptions_status")
+  @@index([prescriptionDate], map: "idx_prescriptions_prescription_date")
+  @@map("prescriptions")
+}
+
+model PrescriptionItem {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  prescriptionId String   @map("prescription_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  productUnitId  String   @map("product_unit_id") @db.Uuid
+  qtySaleUnit    Decimal  @map("qty_sale_unit") @db.Decimal(18, 4)
+  instruction    String?  @db.Text
+  note           String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  prescription Prescription @relation(fields: [prescriptionId], references: [id])
+  product      Product      @relation(fields: [productId], references: [id])
+  productUnit  ProductUnit  @relation(fields: [productUnitId], references: [id])
+
+  @@index([prescriptionId], map: "idx_prescription_items_prescription_id")
+  @@index([productId], map: "idx_prescription_items_product_id")
+  @@index([productUnitId], map: "idx_prescription_items_product_unit_id")
+  @@map("prescription_items")
+}
+
+model CounselingRecord {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pharmacistId     String    @map("pharmacist_id") @db.Uuid
+  prescriptionId   String?   @map("prescription_id") @db.Uuid
+  saleId           String?   @map("sale_id") @db.Uuid
+  patientName      String?   @map("patient_name") @db.VarChar(150)
+  counselingDate   DateTime  @default(now()) @map("counseling_date") @db.Timestamp(6)
+  educationSummary String    @map("education_summary") @db.Text
+  note             String?   @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamp(6)
+
+  pharmacist   User          @relation("CounselingPharmacist", fields: [pharmacistId], references: [id])
+  prescription Prescription? @relation(fields: [prescriptionId], references: [id])
+  sale         Sale?         @relation(fields: [saleId], references: [id])
+
+  @@index([pharmacistId], map: "idx_counseling_records_pharmacist_id")
+  @@index([prescriptionId], map: "idx_counseling_records_prescription_id")
+  @@index([saleId], map: "idx_counseling_records_sale_id")
+  @@index([counselingDate], map: "idx_counseling_records_counseling_date")
+  @@map("counseling_records")
 }

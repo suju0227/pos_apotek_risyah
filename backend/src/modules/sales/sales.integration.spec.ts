@@ -352,6 +352,61 @@ describe('Sales API', () => {
     );
   });
 
+  it('accepts non-cash payments without change and rejects invalid payment method', async () => {
+    const fixture = await createProductFixture('non-cash-payment');
+    await createBatchWithPrice(fixture.product.id, fixture.baseProductUnit.id, {
+      batchNumber: `NON-CASH-PAYMENT-${suffix}`,
+      expiredDays: 30,
+      stockBase: 10,
+      hppBase: 500,
+      sellingPrice: 1000,
+    });
+
+    const sale = await postSale(
+      cashierToken,
+      `sale-non-cash-${suffix}`,
+      {
+        paymentMethod: 'QRIS',
+        paidAmount: 0,
+        discountType: 'NONE',
+        discountValue: 0,
+        items: [
+          {
+            productId: fixture.product.id,
+            productUnitId: fixture.baseProductUnit.id,
+            qtySaleUnit: 2,
+          },
+        ],
+      },
+    );
+
+    expect(sale).toMatchObject({
+      paymentMethod: 'QRIS',
+      paidAmount: 0,
+      changeAmount: 0,
+      grandTotal: 2000,
+    });
+
+    await postSale(
+      cashierToken,
+      `sale-invalid-payment-${suffix}`,
+      {
+        paymentMethod: 'GATEWAY',
+        paidAmount: 2000,
+        discountType: 'NONE',
+        discountValue: 0,
+        items: [
+          {
+            productId: fixture.product.id,
+            productUnitId: fixture.baseProductUnit.id,
+            qtySaleUnit: 1,
+          },
+        ],
+      },
+      400,
+    );
+  });
+
   it('rejects checkout with non-sale unit or qty below minimum sale qty', async () => {
     const fixture = await createProductFixture('sale-unit-rules');
     const blockedUnit = await prisma.unit.create({

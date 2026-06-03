@@ -8,6 +8,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { BatchesModule } from './modules/batches/batches.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { ProductsModule } from './modules/products/products.module';
+import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { SalesModule } from './modules/sales/sales.module';
@@ -31,6 +32,7 @@ import { UsersModule } from './modules/users/users.module';
     SuppliersModule,
     UnitsModule,
     ProductsModule,
+    PurchaseOrdersModule,
     BatchesModule,
     PurchasesModule,
     StockModule,

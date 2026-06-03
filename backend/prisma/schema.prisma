@@ -35,6 +35,7 @@ model User {
   role          Role           @relation(fields: [roleId], references: [id])
   refreshTokens RefreshToken[]
   purchases     Purchase[]
+  purchaseOrders PurchaseOrder[]
   stockMutations StockMutation[]
   stockAdjustments StockAdjustment[]
   sales          Sale[]
@@ -88,6 +89,7 @@ model Supplier {
 
   productBatches ProductBatch[]
   purchases      Purchase[]
+  purchaseOrders PurchaseOrder[]
 
   @@map("suppliers")
 }
@@ -125,6 +127,7 @@ model Product {
   productUnits ProductUnit[]
   batches      ProductBatch[]
   purchaseItems PurchaseItem[]
+  purchaseOrderItems PurchaseOrderItem[]
   stockMutations StockMutation[]
   saleItems SaleItem[]
 
@@ -154,6 +157,7 @@ model ProductUnit {
   unit    Unit    @relation(fields: [unitId], references: [id])
   batchUnitPrices BatchUnitPrice[]
   purchaseItems PurchaseItem[]
+  purchaseOrderItems PurchaseOrderItem[]
   saleItems SaleItem[]
 
   @@index([productId], map: "idx_product_units_product_id")
@@ -211,20 +215,32 @@ model BatchUnitPrice {
 model Purchase {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   supplierId     String    @map("supplier_id") @db.Uuid
+  purchaseOrderId String?  @map("purchase_order_id") @db.Uuid
   createdById    String    @map("created_by_id") @db.Uuid
   purchaseNumber String    @unique @map("purchase_number") @db.VarChar(100)
   invoiceNumber  String?   @map("invoice_number") @db.VarChar(100)
+  invoiceDate    DateTime? @map("invoice_date") @db.Date
   purchaseDate   DateTime  @map("purchase_date") @db.Date
+  taxMode        String    @default("NON_PPN") @map("tax_mode") @db.VarChar(50)
+  taxRatePercent Decimal   @default(0) @map("tax_rate_percent") @db.Decimal(8, 4)
   subtotal       Decimal   @db.Decimal(18, 6)
+  purchaseDiscountAmount Decimal @default(0) @map("purchase_discount_amount") @db.Decimal(18, 6)
+  taxAmount      Decimal   @default(0) @map("tax_amount") @db.Decimal(18, 6)
+  invoiceTotalInput Decimal? @map("invoice_total_input") @db.Decimal(18, 6)
+  calculatedTotal Decimal @default(0) @map("calculated_total") @db.Decimal(18, 6)
+  roundingAdjustment Decimal @default(0) @map("rounding_adjustment") @db.Decimal(18, 6)
+  differenceNote String?   @map("difference_note") @db.Text
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
   deletedAt      DateTime? @map("deleted_at") @db.Timestamp(6)
 
   supplier Supplier @relation(fields: [supplierId], references: [id])
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
   createdBy User @relation(fields: [createdById], references: [id])
   items PurchaseItem[]
 
   @@index([supplierId], map: "idx_purchases_supplier_id")
+  @@index([purchaseOrderId], map: "idx_purchases_purchase_order_id")
   @@index([createdById], map: "idx_purchases_created_by_id")
   @@index([purchaseDate], map: "idx_purchases_purchase_date")
   @@map("purchases")
@@ -233,29 +249,87 @@ model Purchase {
 model PurchaseItem {
   id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   purchaseId         String   @map("purchase_id") @db.Uuid
+  purchaseOrderItemId String? @map("purchase_order_item_id") @db.Uuid
   productId          String   @map("product_id") @db.Uuid
   productUnitId      String   @map("product_unit_id") @db.Uuid
   batchId            String   @map("batch_id") @db.Uuid
   batchNumber        String   @map("batch_number") @db.VarChar(100)
   expiredDate        DateTime @map("expired_date") @db.Date
   qtyPurchase        Decimal  @map("qty_purchase") @db.Decimal(18, 4)
+  qtyOrdered         Decimal? @map("qty_ordered") @db.Decimal(18, 4)
+  qtyReceived        Decimal  @map("qty_received") @db.Decimal(18, 4)
   conversionSnapshot Decimal  @map("conversion_snapshot") @db.Decimal(18, 4)
   qtyBase            Decimal  @map("qty_base") @db.Decimal(18, 4)
   purchasePrice      Decimal  @map("purchase_price") @db.Decimal(18, 6)
+  discountType       String   @default("NONE") @map("discount_type") @db.VarChar(30)
+  discountValue      Decimal  @default(0) @map("discount_value") @db.Decimal(18, 6)
+  discountAmount     Decimal  @default(0) @map("discount_amount") @db.Decimal(18, 6)
+  grossTotal         Decimal  @default(0) @map("gross_total") @db.Decimal(18, 6)
+  netTotal           Decimal  @default(0) @map("net_total") @db.Decimal(18, 6)
   hppBase            Decimal  @map("hpp_base") @db.Decimal(18, 8)
   totalPrice         Decimal  @map("total_price") @db.Decimal(18, 6)
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
   purchase Purchase @relation(fields: [purchaseId], references: [id])
+  purchaseOrderItem PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id])
   product Product @relation(fields: [productId], references: [id])
   productUnit ProductUnit @relation(fields: [productUnitId], references: [id])
   batch ProductBatch @relation(fields: [batchId], references: [id])
 
   @@index([purchaseId], map: "idx_purchase_items_purchase_id")
+  @@index([purchaseOrderItemId], map: "idx_purchase_items_purchase_order_item_id")
   @@index([productId], map: "idx_purchase_items_product_id")
   @@index([productUnitId], map: "idx_purchase_items_product_unit_id")
   @@index([batchId], map: "idx_purchase_items_batch_id")
   @@map("purchase_items")
+}
+
+model PurchaseOrder {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  supplierId     String    @map("supplier_id") @db.Uuid
+  createdById    String    @map("created_by_id") @db.Uuid
+  poNumber       String    @unique @map("po_number") @db.VarChar(100)
+  orderDate      DateTime  @map("order_date") @db.Date
+  status         String    @default("DRAFT") @db.VarChar(50)
+  note           String?   @db.Text
+  sentAt         DateTime? @map("sent_at") @db.Timestamp(6)
+  cancelledAt    DateTime? @map("cancelled_at") @db.Timestamp(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamp(6)
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  createdBy User @relation(fields: [createdById], references: [id])
+  items PurchaseOrderItem[]
+  purchases Purchase[]
+
+  @@index([supplierId], map: "idx_purchase_orders_supplier_id")
+  @@index([createdById], map: "idx_purchase_orders_created_by_id")
+  @@index([status], map: "idx_purchase_orders_status")
+  @@index([orderDate], map: "idx_purchase_orders_order_date")
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseOrderId String @map("purchase_order_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  productUnitId  String   @map("product_unit_id") @db.Uuid
+  qtyOrdered     Decimal  @map("qty_ordered") @db.Decimal(18, 4)
+  qtyReceived    Decimal  @default(0) @map("qty_received") @db.Decimal(18, 4)
+  note           String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  productUnit ProductUnit @relation(fields: [productUnitId], references: [id])
+  purchaseItems PurchaseItem[]
+
+  @@index([purchaseOrderId], map: "idx_purchase_order_items_purchase_order_id")
+  @@index([productId], map: "idx_purchase_order_items_product_id")
+  @@index([productUnitId], map: "idx_purchase_order_items_product_unit_id")
+  @@map("purchase_order_items")
 }
 
 model StockMutation {

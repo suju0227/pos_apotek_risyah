@@ -3,7 +3,9 @@ import {
   ArrayMinSize,
   IsArray,
   IsDateString,
+  IsIn,
   IsNumber,
+  IsOptional,
   IsString,
   IsUUID,
   Min,
@@ -11,7 +13,14 @@ import {
 } from 'class-validator';
 import { PurchaseSellingPriceDto } from './purchase-selling-price.dto';
 
+export const PURCHASE_DISCOUNT_TYPES = ['NONE', 'NOMINAL', 'PERCENT'] as const;
+export type PurchaseDiscountType = (typeof PURCHASE_DISCOUNT_TYPES)[number];
+
 export class PurchaseItemDto {
+  @IsUUID()
+  @IsOptional()
+  purchaseOrderItemId?: string;
+
   @IsUUID()
   productId!: string;
 
@@ -33,6 +42,16 @@ export class PurchaseItemDto {
   @IsNumber()
   @Min(0)
   purchasePrice!: number;
+
+  @IsIn(PURCHASE_DISCOUNT_TYPES)
+  @IsOptional()
+  discountType?: PurchaseDiscountType;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  discountValue?: number;
 
   @IsArray()
   @ArrayMinSize(1)

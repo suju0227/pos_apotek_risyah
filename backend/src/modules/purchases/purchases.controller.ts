@@ -23,6 +23,11 @@ export class PurchasesController {
     return this.purchasesService.create(dto, user.id);
   }
 
+  @Get('create-from-po/:poId')
+  createFromPo(@Param('poId') poId: string) {
+    return this.purchasesService.createDraftFromPo(poId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.purchasesService.findOne(id);

@@ -6,11 +6,18 @@ import {
 import { Prisma, ProductBatch, ProductUnit } from '@prisma/client';
 import { isPrismaUniqueError } from '../../common/utils/prisma-error';
 import { PrismaService } from '../../database/prisma.service';
-import { CreatePurchaseDto } from './dto/create-purchase.dto';
-import { PurchaseItemDto } from './dto/purchase-item.dto';
+import {
+  CreatePurchaseDto,
+  PurchaseTaxMode,
+} from './dto/create-purchase.dto';
+import {
+  PurchaseDiscountType,
+  PurchaseItemDto,
+} from './dto/purchase-item.dto';
 
 const purchaseInclude = {
   supplier: true,
+  purchaseOrder: true,
   createdBy: {
     include: { role: true },
   },
@@ -20,6 +27,7 @@ const purchaseInclude = {
       productUnit: {
         include: { unit: true },
       },
+      purchaseOrderItem: true,
       batch: true,
     },
     orderBy: { createdAt: 'asc' },
@@ -52,6 +60,60 @@ export class PurchasesService {
     return purchases.map((purchase) => this.toPurchaseResponse(purchase));
   }
 
+  async createDraftFromPo(poId: string) {
+    const purchaseOrder = await this.prisma.purchaseOrder.findFirst({
+      where: {
+        id: poId,
+        status: { not: 'CANCELLED' },
+        deletedAt: null,
+      },
+      include: {
+        items: {
+          include: {
+            product: true,
+            productUnit: { include: { unit: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!purchaseOrder) {
+      throw new NotFoundException('PO tidak ditemukan');
+    }
+
+    return {
+      supplierId: purchaseOrder.supplierId,
+      purchaseOrderId: purchaseOrder.id,
+      purchaseDate: new Date().toISOString().slice(0, 10),
+      taxMode: 'NON_PPN',
+      taxRatePercent: 0,
+      items: purchaseOrder.items
+        .filter((item) => Number(item.qtyReceived) < Number(item.qtyOrdered))
+        .map((item) => ({
+          purchaseOrderItemId: item.id,
+          productId: item.productId,
+          productUnitId: item.productUnitId,
+          qtyPurchase: this.roundPrecision(
+            Number(item.qtyOrdered) - Number(item.qtyReceived),
+            4,
+          ),
+          batchNumber: '',
+          expiredDate: '',
+          purchasePrice: 0,
+          discountType: 'NONE',
+          discountValue: 0,
+          sellingPrices: [],
+          product: item.product,
+          productUnit: {
+            ...item.productUnit,
+            conversionToBase: Number(item.productUnit.conversionToBase),
+            minSaleQty: Number(item.productUnit.minSaleQty),
+          },
+        })),
+    };
+  }
+
   async findOne(id: string) {
     const purchase = await this.prisma.purchase.findFirst({
       where: { id, deletedAt: null },
@@ -67,13 +129,35 @@ export class PurchasesService {
 
   async create(dto: CreatePurchaseDto, createdById: string) {
     await this.ensureSupplierActive(dto.supplierId);
+    if (dto.purchaseOrderId) {
+      await this.ensurePurchaseOrderUsable(dto.purchaseOrderId, dto.supplierId);
+    }
     this.ensureUniqueSellingPrices(dto.items);
 
-    const items = await this.resolveItems(dto.items);
+    const items = await this.resolveItems(dto.items, dto.purchaseOrderId);
     const purchaseNumber = this.generatePurchaseNumber();
     const subtotal = this.roundPrecision(
-      items.reduce((sum, item) => sum + item.totalPrice, 0),
+      items.reduce((sum, item) => sum + item.netTotal, 0),
       6,
+    );
+    const purchaseDiscountAmount = this.roundPrecision(
+      items.reduce((sum, item) => sum + item.discountAmount, 0),
+      6,
+    );
+    const taxMode = dto.taxMode ?? 'NON_PPN';
+    const taxRatePercent = dto.taxRatePercent ?? 0;
+    const taxAmount = this.calculateTaxAmount(subtotal, taxMode, taxRatePercent);
+    const calculatedTotal = this.calculateInvoiceTotal({
+      subtotal,
+      taxAmount,
+      taxMode,
+      roundingAdjustment: dto.roundingAdjustment ?? 0,
+    });
+
+    this.validateInvoiceDifference(
+      dto.invoiceTotalInput,
+      calculatedTotal,
+      dto.differenceNote,
     );
 
     try {
@@ -81,11 +165,21 @@ export class PurchasesService {
         const createdPurchase = await tx.purchase.create({
           data: {
             supplierId: dto.supplierId,
+            purchaseOrderId: dto.purchaseOrderId,
             createdById,
             purchaseNumber,
             invoiceNumber: dto.invoiceNumber,
+            invoiceDate: dto.invoiceDate ? this.toDate(dto.invoiceDate) : undefined,
             purchaseDate: this.toDate(dto.purchaseDate),
+            taxMode,
+            taxRatePercent,
             subtotal,
+            purchaseDiscountAmount,
+            taxAmount,
+            invoiceTotalInput: dto.invoiceTotalInput,
+            calculatedTotal,
+            roundingAdjustment: dto.roundingAdjustment ?? 0,
+            differenceNote: dto.differenceNote,
           },
         });
 
@@ -102,19 +196,35 @@ export class PurchasesService {
           await tx.purchaseItem.create({
             data: {
               purchaseId: createdPurchase.id,
+              purchaseOrderItemId: item.purchaseOrderItemId,
               productId: item.productId,
               productUnitId: item.productUnitId,
               batchId: batch.id,
               batchNumber: item.batchNumber,
               expiredDate: item.expiredDate,
               qtyPurchase: item.qtyPurchase,
+              qtyOrdered: item.qtyOrdered,
+              qtyReceived: item.qtyPurchase,
               conversionSnapshot: item.conversionSnapshot,
               qtyBase: item.qtyBase,
               purchasePrice: item.purchasePrice,
+              discountType: item.discountType,
+              discountValue: item.discountValue,
+              discountAmount: item.discountAmount,
+              grossTotal: item.grossTotal,
+              netTotal: item.netTotal,
               hppBase: item.hppBase,
-              totalPrice: item.totalPrice,
+              totalPrice: item.netTotal,
             },
           });
+
+          if (item.purchaseOrderItemId) {
+            await this.applyPurchaseOrderReceipt(
+              tx,
+              item.purchaseOrderItemId,
+              item.qtyPurchase,
+            );
+          }
 
           await this.replaceBatchPrices(tx, batch.id, item.sellingPrices);
 
@@ -132,6 +242,10 @@ export class PurchasesService {
               reason: `Pembelian ${createdPurchase.purchaseNumber}`,
             },
           });
+        }
+
+        if (dto.purchaseOrderId) {
+          await this.refreshPurchaseOrderStatus(tx, dto.purchaseOrderId);
         }
 
         return tx.purchase.findUniqueOrThrow({
@@ -168,23 +282,45 @@ export class PurchasesService {
     }
   }
 
-  private async resolveItems(items: PurchaseItemDto[]) {
+  private async resolveItems(
+    items: PurchaseItemDto[],
+    purchaseOrderId?: string,
+  ) {
     const resolvedItems = [];
 
     for (const item of items) {
-      const purchaseUnit = await this.findProductUnit(item.productId, item.productUnitId);
+      const purchaseUnit = await this.findProductUnit(
+        item.productId,
+        item.productUnitId,
+      );
+      const purchaseOrderItem = item.purchaseOrderItemId
+        ? await this.findPurchaseOrderItem(
+            item.purchaseOrderItemId,
+            item.productId,
+            item.productUnitId,
+            purchaseOrderId,
+          )
+        : null;
       const conversionSnapshot = Number(purchaseUnit.conversionToBase);
       const qtyBase = this.roundPrecision(
         item.qtyPurchase * conversionSnapshot,
         4,
       );
-      const totalPrice = this.roundPrecision(
+      const grossTotal = this.roundPrecision(
         item.qtyPurchase * item.purchasePrice,
         6,
       );
+      const discountType = item.discountType ?? 'NONE';
+      const discountValue = item.discountValue ?? 0;
+      const discountAmount = this.calculateDiscountAmount(
+        grossTotal,
+        discountType,
+        discountValue,
+      );
+      const netTotal = this.roundPrecision(grossTotal - discountAmount, 6);
       const hppBase = qtyBase === 0
         ? 0
-        : this.roundPrecision(item.purchasePrice / qtyBase, 8);
+        : this.roundPrecision(netTotal / qtyBase, 8);
 
       await this.ensureSellingPricesBelongToProduct(
         item.productId,
@@ -194,14 +330,22 @@ export class PurchasesService {
       resolvedItems.push({
         productId: item.productId,
         productUnitId: item.productUnitId,
+        purchaseOrderItemId: item.purchaseOrderItemId,
+        qtyOrdered: purchaseOrderItem
+          ? Number(purchaseOrderItem.qtyOrdered)
+          : undefined,
         batchNumber: item.batchNumber,
         expiredDate: this.toDate(item.expiredDate),
         qtyPurchase: item.qtyPurchase,
         conversionSnapshot,
         qtyBase,
         purchasePrice: item.purchasePrice,
+        discountType,
+        discountValue,
+        discountAmount,
+        grossTotal,
+        netTotal,
         hppBase,
-        totalPrice,
         sellingPrices: item.sellingPrices,
       });
     }
@@ -237,6 +381,57 @@ export class PurchasesService {
     }
 
     return productUnit as ProductUnitForPurchase;
+  }
+
+  private async findPurchaseOrderItem(
+    purchaseOrderItemId: string,
+    productId: string,
+    productUnitId: string,
+    purchaseOrderId?: string,
+  ) {
+    const purchaseOrderItem = await this.prisma.purchaseOrderItem.findFirst({
+      where: {
+        id: purchaseOrderItemId,
+        productId,
+        productUnitId,
+        purchaseOrderId,
+        purchaseOrder: {
+          status: { not: 'CANCELLED' },
+          deletedAt: null,
+        },
+      },
+      include: { purchaseOrder: true },
+    });
+
+    if (!purchaseOrderItem) {
+      throw new BadRequestException('Item PO tidak valid untuk pembelian');
+    }
+
+    const remainingQty =
+      Number(purchaseOrderItem.qtyOrdered) - Number(purchaseOrderItem.qtyReceived);
+    if (remainingQty <= 0) {
+      throw new BadRequestException('Item PO sudah diterima penuh');
+    }
+
+    return purchaseOrderItem;
+  }
+
+  private async ensurePurchaseOrderUsable(
+    purchaseOrderId: string,
+    supplierId: string,
+  ) {
+    const purchaseOrder = await this.prisma.purchaseOrder.findFirst({
+      where: {
+        id: purchaseOrderId,
+        supplierId,
+        status: { not: 'CANCELLED' },
+        deletedAt: null,
+      },
+    });
+
+    if (!purchaseOrder) {
+      throw new BadRequestException('PO tidak valid untuk pembelian');
+    }
   }
 
   private async ensureSellingPricesBelongToProduct(
@@ -280,7 +475,7 @@ export class PurchasesService {
 
     if (existingBatch) {
       const qtyBefore = Number(existingBatch.currentStockBase);
-      const qtyAfter = qtyBefore + input.qtyBase;
+      const qtyAfter = this.roundPrecision(qtyBefore + input.qtyBase, 4);
       const updatedBatch = await tx.productBatch.update({
         where: { id: existingBatch.id },
         data: {
@@ -318,6 +513,53 @@ export class PurchasesService {
     };
   }
 
+  private async applyPurchaseOrderReceipt(
+    tx: Prisma.TransactionClient,
+    purchaseOrderItemId: string,
+    qtyReceived: number,
+  ) {
+    const item = await tx.purchaseOrderItem.findUniqueOrThrow({
+      where: { id: purchaseOrderItemId },
+    });
+    const nextQtyReceived = this.roundPrecision(
+      Number(item.qtyReceived) + qtyReceived,
+      4,
+    );
+
+    if (nextQtyReceived > Number(item.qtyOrdered)) {
+      throw new BadRequestException('Qty diterima melebihi qty PO');
+    }
+
+    await tx.purchaseOrderItem.update({
+      where: { id: purchaseOrderItemId },
+      data: { qtyReceived: nextQtyReceived },
+    });
+  }
+
+  private async refreshPurchaseOrderStatus(
+    tx: Prisma.TransactionClient,
+    purchaseOrderId: string,
+  ) {
+    const items = await tx.purchaseOrderItem.findMany({
+      where: { purchaseOrderId },
+    });
+    const receivedItems = items.filter((item) => Number(item.qtyReceived) > 0);
+    const allReceived = items.every(
+      (item) => Number(item.qtyReceived) >= Number(item.qtyOrdered),
+    );
+
+    await tx.purchaseOrder.update({
+      where: { id: purchaseOrderId },
+      data: {
+        status: allReceived
+          ? 'RECEIVED'
+          : receivedItems.length > 0
+            ? 'PARTIALLY_RECEIVED'
+            : 'SENT',
+      },
+    });
+  }
+
   private async replaceBatchPrices(
     tx: Prisma.TransactionClient,
     batchId: string,
@@ -350,6 +592,15 @@ export class PurchasesService {
     return {
       ...purchase,
       subtotal: Number(purchase.subtotal),
+      purchaseDiscountAmount: Number(purchase.purchaseDiscountAmount),
+      taxRatePercent: Number(purchase.taxRatePercent),
+      taxAmount: Number(purchase.taxAmount),
+      invoiceTotalInput:
+        purchase.invoiceTotalInput === null
+          ? null
+          : Number(purchase.invoiceTotalInput),
+      calculatedTotal: Number(purchase.calculatedTotal),
+      roundingAdjustment: Number(purchase.roundingAdjustment),
       createdBy: {
         id: purchase.createdBy.id,
         name: purchase.createdBy.name,
@@ -359,9 +610,16 @@ export class PurchasesService {
       items: purchase.items.map((item) => ({
         ...item,
         qtyPurchase: Number(item.qtyPurchase),
+        qtyOrdered:
+          item.qtyOrdered === null ? null : Number(item.qtyOrdered),
+        qtyReceived: Number(item.qtyReceived),
         conversionSnapshot: Number(item.conversionSnapshot),
         qtyBase: Number(item.qtyBase),
         purchasePrice: Number(item.purchasePrice),
+        discountValue: Number(item.discountValue),
+        discountAmount: Number(item.discountAmount),
+        grossTotal: Number(item.grossTotal),
+        netTotal: Number(item.netTotal),
         hppBase: Number(item.hppBase),
         totalPrice: Number(item.totalPrice),
         product: {
@@ -371,6 +629,7 @@ export class PurchasesService {
         productUnit: {
           ...item.productUnit,
           conversionToBase: Number(item.productUnit.conversionToBase),
+          minSaleQty: Number(item.productUnit.minSaleQty),
         },
         batch: {
           ...item.batch,
@@ -384,6 +643,66 @@ export class PurchasesService {
 
   private generatePurchaseNumber() {
     return `PUR-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  }
+
+  private calculateDiscountAmount(
+    grossTotal: number,
+    discountType: PurchaseDiscountType,
+    discountValue: number,
+  ) {
+    if (discountType === 'NONE') return 0;
+    if (discountType === 'PERCENT') {
+      if (discountValue > 100) {
+        throw new BadRequestException('Diskon persen tidak boleh lebih dari 100');
+      }
+      return this.roundPrecision((grossTotal * discountValue) / 100, 6);
+    }
+    if (discountValue > grossTotal) {
+      throw new BadRequestException('Diskon tidak boleh melebihi total item');
+    }
+    return this.roundPrecision(discountValue, 6);
+  }
+
+  private calculateTaxAmount(
+    subtotal: number,
+    taxMode: PurchaseTaxMode,
+    taxRatePercent: number,
+  ) {
+    if (taxMode === 'NON_PPN' || taxRatePercent === 0) return 0;
+    if (taxMode === 'PPN_INCLUDED') {
+      return this.roundPrecision(
+        subtotal - subtotal / (1 + taxRatePercent / 100),
+        6,
+      );
+    }
+    return this.roundPrecision((subtotal * taxRatePercent) / 100, 6);
+  }
+
+  private calculateInvoiceTotal(input: {
+    subtotal: number;
+    taxAmount: number;
+    taxMode: PurchaseTaxMode;
+    roundingAdjustment: number;
+  }) {
+    const baseTotal =
+      input.taxMode === 'PPN_EXCLUDED'
+        ? input.subtotal + input.taxAmount
+        : input.subtotal;
+    return this.roundPrecision(baseTotal + input.roundingAdjustment, 6);
+  }
+
+  private validateInvoiceDifference(
+    invoiceTotalInput: number | undefined,
+    calculatedTotal: number,
+    differenceNote: string | undefined,
+  ) {
+    if (invoiceTotalInput === undefined) return;
+    const difference = Math.abs(invoiceTotalInput - calculatedTotal);
+    if (difference > 1 && !differenceNote?.trim()) {
+      throw new BadRequestException(
+        'Selisih faktur signifikan wajib memiliki catatan koreksi',
+      );
+    }
   }
 
   private toDate(value: string) {

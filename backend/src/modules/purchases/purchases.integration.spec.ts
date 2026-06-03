@@ -70,7 +70,7 @@ describe('Purchases API', () => {
       conversionSnapshot: 10,
       qtyBase: 20,
       purchasePrice: 10000,
-      hppBase: 500,
+      hppBase: 1000,
       totalPrice: 20000,
     });
 
@@ -287,6 +287,75 @@ describe('Purchases API', () => {
             purchasePrice: 1000,
             sellingPrices: [
               { productUnitId: fixture.baseProductUnit.id, sellingPrice: 1200 },
+            ],
+          },
+        ],
+      },
+      400,
+    );
+  });
+
+  it('calculates purchase discounts, PPN excluded, and invoice validation', async () => {
+    const fixture = await createProductFixture('invoice');
+
+    const purchase = await postManager('/api/purchases', {
+      supplierId: fixture.supplier.id,
+      purchaseDate: today(),
+      invoiceNumber: `INV-PPN-${suffix}`,
+      invoiceDate: today(),
+      taxMode: 'PPN_EXCLUDED',
+      taxRatePercent: 11,
+      invoiceTotalInput: 9990,
+      items: [
+        {
+          productId: fixture.product.id,
+          productUnitId: fixture.baseProductUnit.id,
+          batchNumber: `INV-PPN-BATCH-${suffix}`,
+          expiredDate: futureDate(365),
+          qtyPurchase: 10,
+          purchasePrice: 1000,
+          discountType: 'NOMINAL',
+          discountValue: 1000,
+          sellingPrices: [
+            { productUnitId: fixture.baseProductUnit.id, sellingPrice: 1500 },
+          ],
+        },
+      ],
+    });
+
+    expect(purchase).toMatchObject({
+      subtotal: 9000,
+      purchaseDiscountAmount: 1000,
+      taxMode: 'PPN_EXCLUDED',
+      taxRatePercent: 11,
+      taxAmount: 990,
+      invoiceTotalInput: 9990,
+      calculatedTotal: 9990,
+    });
+    expect(purchase.items[0]).toMatchObject({
+      grossTotal: 10000,
+      discountAmount: 1000,
+      netTotal: 9000,
+      hppBase: 900,
+    });
+
+    await postManager(
+      '/api/purchases',
+      {
+        supplierId: fixture.supplier.id,
+        purchaseDate: today(),
+        taxMode: 'NON_PPN',
+        invoiceTotalInput: 5000,
+        items: [
+          {
+            productId: fixture.product.id,
+            productUnitId: fixture.baseProductUnit.id,
+            batchNumber: `BAD-INVOICE-${suffix}`,
+            expiredDate: futureDate(365),
+            qtyPurchase: 1,
+            purchasePrice: 1000,
+            sellingPrices: [
+              { productUnitId: fixture.baseProductUnit.id, sellingPrice: 1500 },
             ],
           },
         ],

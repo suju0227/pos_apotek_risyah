@@ -13,6 +13,7 @@ import {
   DiscountType,
   PaymentMethod,
 } from './dto/create-sale.dto';
+import { CreateSaleFromPrescriptionDto } from '../prescriptions/dto/create-sale-from-prescription.dto';
 import { IdempotencyService } from './idempotency.service';
 
 const SALE_CHECKOUT_ACTION = 'SALE_CHECKOUT';
@@ -21,6 +22,7 @@ const saleInclude = {
   cashier: {
     include: { role: true },
   },
+  prescription: true,
   items: {
     include: {
       allocations: {
@@ -33,6 +35,10 @@ const saleInclude = {
 
 type SaleWithRelations = Prisma.SaleGetPayload<{ include: typeof saleInclude }>;
 type Tx = Prisma.TransactionClient;
+
+type CreateSaleOptions = {
+  prescriptionId?: string;
+};
 
 type LockedBatchRow = {
   id: string;
@@ -205,13 +211,21 @@ export class SalesService {
     return this.toSaleResponse(sale, user.role);
   }
 
-  async create(dto: CreateSaleDto, user: AuthUser, idempotencyKey?: string) {
+  async create(
+    dto: CreateSaleDto,
+    user: AuthUser,
+    idempotencyKey?: string,
+    options: CreateSaleOptions = {},
+  ) {
     const key = idempotencyKey?.trim();
     if (!key) {
       throw new BadRequestException('Header Idempotency-Key wajib diisi');
     }
 
-    const requestHash = this.idempotencyService.hashRequest(dto);
+    const requestHash = this.idempotencyService.hashRequest({
+      ...dto,
+      prescriptionId: options.prescriptionId ?? null,
+    });
     const activeKey = await this.idempotencyService.findActiveKey({
       key,
       userId: user.id,
@@ -236,7 +250,7 @@ export class SalesService {
     });
 
     try {
-      const response = await this.createSaleTransaction(dto, user);
+      const response = await this.createSaleTransaction(dto, user, options);
       await this.idempotencyService.markSuccess(processingKey.id, response);
       return response;
     } catch (error) {
@@ -245,11 +259,71 @@ export class SalesService {
     }
   }
 
-  private async createSaleTransaction(dto: CreateSaleDto, user: AuthUser) {
+  async createFromPrescription(
+    prescriptionId: string,
+    dto: CreateSaleFromPrescriptionDto,
+    user: AuthUser,
+    idempotencyKey?: string,
+  ) {
+    const prescription = await this.prisma.prescription.findFirst({
+      where: {
+        id: prescriptionId,
+        status: { in: ['READY_FOR_PAYMENT', 'PAID'] },
+        deletedAt: null,
+      },
+      include: {
+        items: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!prescription) {
+      throw new BadRequestException('Resep belum siap bayar atau tidak ditemukan');
+    }
+
+    const saleDto: CreateSaleDto = {
+      paymentMethod: dto.paymentMethod,
+      paidAmount: dto.paidAmount,
+      discountType: dto.discountType,
+      discountValue: dto.discountValue,
+      customerName: dto.customerName ?? prescription.patientName,
+      note: dto.note,
+      items: prescription.items.map((item) => ({
+        productId: item.productId,
+        productUnitId: item.productUnitId,
+        qtySaleUnit: Number(item.qtySaleUnit),
+        note: item.note ?? item.instruction ?? undefined,
+      })),
+    };
+
+    return this.create(saleDto, user, idempotencyKey, { prescriptionId });
+  }
+
+  private async createSaleTransaction(
+    dto: CreateSaleDto,
+    user: AuthUser,
+    options: CreateSaleOptions = {},
+  ) {
     const resolvedItems = await this.resolveItems(dto);
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        if (options.prescriptionId) {
+          const prescription = await tx.prescription.findFirst({
+            where: {
+              id: options.prescriptionId,
+              status: 'READY_FOR_PAYMENT',
+              deletedAt: null,
+            },
+            select: { id: true },
+          });
+
+          if (!prescription) {
+            throw new BadRequestException('Resep belum siap bayar atau sudah dibayar');
+          }
+        }
+
         const preparedItems = await this.prepareItems(tx, resolvedItems);
         const subtotal = this.roundMoney(
           preparedItems.reduce((sum, item) => sum + item.subtotal, 0),
@@ -304,6 +378,7 @@ export class SalesService {
         const createdSale = await tx.sale.create({
           data: {
             cashierId: user.id,
+            prescriptionId: options.prescriptionId,
             saleNumber: this.generateSaleNumber(),
             paymentMethod: dto.paymentMethod,
             subtotal,
@@ -318,6 +393,16 @@ export class SalesService {
             totalProfit,
           },
         });
+
+        if (options.prescriptionId) {
+          await tx.prescription.update({
+            where: { id: options.prescriptionId },
+            data: {
+              status: 'PAID',
+              paidAt: new Date(),
+            },
+          });
+        }
 
         for (const item of preparedItems) {
           const createdItem = await tx.saleItem.create({
@@ -582,6 +667,8 @@ export class SalesService {
     const response = {
       id: sale.id,
       saleNumber: sale.saleNumber,
+      prescriptionId: sale.prescriptionId,
+      prescriptionNumber: sale.prescription?.prescriptionNumber ?? null,
       paymentMethod: sale.paymentMethod,
       subtotal: Number(sale.subtotal),
       discountTotal: Number(sale.discountTotal),

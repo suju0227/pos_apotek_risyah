@@ -22,6 +22,13 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const data = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
+    if (response.status === 401 && !skipAuth) {
+      useAuthStore.getState().logout();
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login');
+      }
+    }
+
     const message =
       typeof data?.message === 'string'
         ? data.message

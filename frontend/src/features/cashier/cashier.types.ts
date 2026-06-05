@@ -43,3 +43,41 @@ export type CashierCartItem = {
   sellingPrice: number;
   stockAvailable: number;
 };
+
+export type PaymentMethod = 'CASH' | 'TRANSFER' | 'QRIS' | 'DEBIT';
+
+export type DiscountType = 'NONE' | 'PERCENT' | 'NOMINAL';
+
+export type CreateSalePayload = {
+  paymentMethod: PaymentMethod;
+  paidAmount: number;
+  discountType: DiscountType;
+  discountValue: number;
+  items: Array<{
+    productId: string;
+    productUnitId: string;
+    qtySaleUnit: number;
+  }>;
+};
+
+export type CashierSaleResponse = {
+  id: string;
+  saleNumber: string;
+  paymentMethod: PaymentMethod;
+  subtotal: number;
+  discountTotal: number;
+  grandTotal: number;
+  paidAmount: number;
+  changeAmount: number;
+  createdAt: string;
+  items: Array<{
+    id: string;
+    productName: string;
+    unitName: string;
+    qtySale: number;
+    sellingPrice: number;
+    subtotal: number;
+    discountAmount: number;
+    totalAfterDiscount: number;
+  }>;
+};

@@ -1,4 +1,14 @@
-import { Minus, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react';
+import {
+  Banknote,
+  CreditCard,
+  Minus,
+  Plus,
+  QrCode,
+  Receipt,
+  Search,
+  ShoppingCart,
+  Trash2,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '../../shared/components/Button';
 import { Card } from '../../shared/components/Card';
@@ -8,17 +18,47 @@ import { Input } from '../../shared/components/Input';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import { formatQty, formatRupiah } from '../../shared/utils/formatters';
-import { useCashierProducts } from './cashier.hooks';
+import { useCashierProducts, useCreateCashierSale } from './cashier.hooks';
 import { useCashierCartStore } from './cashierCart.store';
-import type { CashierProduct, CashierProductUnit } from './cashier.types';
+import type {
+  CashierCartItem,
+  CashierProduct,
+  CashierProductUnit,
+  DiscountType,
+  PaymentMethod,
+} from './cashier.types';
+
+const paymentMethods: Array<{
+  value: PaymentMethod;
+  label: string;
+  icon: React.ComponentType<{ size?: number }>;
+}> = [
+  { value: 'CASH', label: 'Cash', icon: Banknote },
+  { value: 'TRANSFER', label: 'Transfer', icon: Receipt },
+  { value: 'QRIS', label: 'QRIS', icon: QrCode },
+  { value: 'DEBIT', label: 'Debit', icon: CreditCard },
+];
+
+const discountTypes: Array<{ value: DiscountType; label: string }> = [
+  { value: 'NONE', label: 'Tanpa diskon' },
+  { value: 'PERCENT', label: 'Persen' },
+  { value: 'NOMINAL', label: 'Nominal' },
+];
 
 export function CashierPage() {
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
+  const [paidAmount, setPaidAmount] = useState(0);
+  const [discountType, setDiscountType] = useState<DiscountType>('NONE');
+  const [discountValue, setDiscountValue] = useState(0);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const productsQuery = useCashierProducts(search);
+  const createSaleMutation = useCreateCashierSale();
   const { items, addItem, updateQty, removeItem, clear } = useCashierCartStore();
   const showToast = useToastStore((state) => state.show);
-  const estimatedTotal = useMemo(
+
+  const estimatedSubtotal = useMemo(
     () =>
       items.reduce(
         (sum, item) => sum + item.qtySaleUnit * item.sellingPrice,
@@ -26,10 +66,66 @@ export function CashierPage() {
       ),
     [items],
   );
+  const discountTotal = useMemo(
+    () => calculateDiscount(discountType, discountValue, estimatedSubtotal),
+    [discountType, discountValue, estimatedSubtotal],
+  );
+  const grandTotal = Math.max(estimatedSubtotal - discountTotal, 0);
+  const changeAmount =
+    paymentMethod === 'CASH' ? Math.max(paidAmount - grandTotal, 0) : 0;
 
   const handleAddItem = (product: CashierProduct, unit: CashierProductUnit) => {
     addItem({ product, unit });
     showToast(`${product.name} ditambahkan ke keranjang.`);
+  };
+
+  const handleCheckout = async () => {
+    const validationMessage = validateCheckout({
+      items,
+      paymentMethod,
+      paidAmount,
+      discountType,
+      discountValue,
+      subtotal: estimatedSubtotal,
+      grandTotal,
+    });
+
+    if (validationMessage) {
+      setCheckoutError(validationMessage);
+      showToast(validationMessage);
+      return;
+    }
+
+    setCheckoutError(null);
+
+    try {
+      const sale = await createSaleMutation.mutateAsync({
+        idempotencyKey: makeIdempotencyKey(),
+        payload: {
+          paymentMethod,
+          paidAmount,
+          discountType,
+          discountValue: discountType === 'NONE' ? 0 : discountValue,
+          items: items.map((item) => ({
+            productId: item.productId,
+            productUnitId: item.productUnitId,
+            qtySaleUnit: item.qtySaleUnit,
+          })),
+        },
+      });
+
+      clear();
+      setPaidAmount(0);
+      setDiscountType('NONE');
+      setDiscountValue(0);
+      showToast(`Transaksi ${sale.saleNumber} berhasil disimpan.`);
+      void productsQuery.refetch();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Transaksi gagal disimpan.';
+      setCheckoutError(message);
+      showToast(message);
+    }
   };
 
   return (
@@ -99,9 +195,10 @@ export function CashierPage() {
               <Button
                 type="button"
                 variant="ghost"
-                disabled={!items.length}
+                disabled={!items.length || createSaleMutation.isPending}
                 onClick={() => {
                   clear();
+                  setCheckoutError(null);
                   showToast('Keranjang dikosongkan.');
                 }}
               >
@@ -120,13 +217,14 @@ export function CashierPage() {
                           {item.productName}
                         </div>
                         <div className="text-xs text-slate-500">
-                          {item.productCode} · {item.unitSymbol ?? item.unitName}
+                          {item.productCode} - {item.unitSymbol ?? item.unitName}
                         </div>
                       </div>
                       <button
                         type="button"
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600"
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                         aria-label={`Hapus ${item.productName}`}
+                        disabled={createSaleMutation.isPending}
                         onClick={() => removeItem(item.cartItemId)}
                       >
                         <Trash2 size={16} />
@@ -138,6 +236,7 @@ export function CashierPage() {
                         value={item.qtySaleUnit}
                         min={item.minSaleQty}
                         max={item.stockAvailable}
+                        disabled={createSaleMutation.isPending}
                         onChange={(qty) => updateQty(item.cartItemId, qty)}
                       />
                       <div className="text-right">
@@ -164,17 +263,26 @@ export function CashierPage() {
               </div>
             )}
 
-            <div className="rounded-md bg-slate-50 p-4">
-              <div className="flex items-center justify-between text-sm text-slate-600">
-                <span>Estimasi subtotal</span>
-                <span className="font-semibold text-slate-950">
-                  {formatRupiah(estimatedTotal)}
-                </span>
-              </div>
-              <p className="mt-2 text-xs text-slate-500">
-                Checkout dan pembayaran final akan diaktifkan pada fase berikutnya.
-              </p>
-            </div>
+            <PaymentPanel
+              paymentMethod={paymentMethod}
+              paidAmount={paidAmount}
+              discountType={discountType}
+              discountValue={discountValue}
+              subtotal={estimatedSubtotal}
+              discountTotal={discountTotal}
+              grandTotal={grandTotal}
+              changeAmount={changeAmount}
+              isSubmitting={createSaleMutation.isPending}
+              checkoutError={checkoutError}
+              onPaymentMethodChange={setPaymentMethod}
+              onPaidAmountChange={setPaidAmount}
+              onDiscountTypeChange={(value) => {
+                setDiscountType(value);
+                if (value === 'NONE') setDiscountValue(0);
+              }}
+              onDiscountValueChange={setDiscountValue}
+              onCheckout={handleCheckout}
+            />
           </Card>
         </aside>
       </div>
@@ -203,8 +311,8 @@ function ProductResult({
           </div>
           <div className="mt-1 text-sm text-slate-500">
             {product.code}
-            {product.barcode ? ` · ${product.barcode}` : ''}
-            {product.genericName ? ` · ${product.genericName}` : ''}
+            {product.barcode ? ` - ${product.barcode}` : ''}
+            {product.genericName ? ` - ${product.genericName}` : ''}
           </div>
         </div>
         <div className="text-sm text-slate-600">
@@ -250,7 +358,7 @@ function ProductUnitButton({
             {unit.unitSymbol ?? unit.unitName}
           </div>
           <div className="mt-1 text-xs text-slate-500">
-            Min {formatQty(unit.minSaleQty)} · Stok{' '}
+            Min {formatQty(unit.minSaleQty)} - Stok{' '}
             {formatQty(unit.stockAvailable, unit.unitSymbol)}
           </div>
           {isBelowMinimum ? (
@@ -273,11 +381,13 @@ function QtyStepper({
   value,
   min,
   max,
+  disabled,
   onChange,
 }: {
   value: number;
   min: number;
   max: number;
+  disabled?: boolean;
   onChange: (value: number) => void;
 }) {
   const step = min || 1;
@@ -287,25 +397,26 @@ function QtyStepper({
       <button
         type="button"
         className="grid h-9 w-9 place-items-center text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-        disabled={value <= min}
+        disabled={disabled || value <= min}
         onClick={() => onChange(value - step)}
         aria-label="Kurangi qty"
       >
         <Minus size={15} />
       </button>
       <input
-        className="h-9 w-20 border-x border-slate-200 text-center text-sm font-semibold outline-none"
+        className="h-9 w-20 border-x border-slate-200 text-center text-sm font-semibold outline-none disabled:bg-slate-50"
         type="number"
         min={min}
         max={max}
         step={step}
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(Number(event.target.value))}
       />
       <button
         type="button"
         className="grid h-9 w-9 place-items-center text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-        disabled={value >= max}
+        disabled={disabled || value >= max}
         onClick={() => onChange(value + step)}
         aria-label="Tambah qty"
       >
@@ -313,4 +424,213 @@ function QtyStepper({
       </button>
     </div>
   );
+}
+
+function PaymentPanel({
+  paymentMethod,
+  paidAmount,
+  discountType,
+  discountValue,
+  subtotal,
+  discountTotal,
+  grandTotal,
+  changeAmount,
+  isSubmitting,
+  checkoutError,
+  onPaymentMethodChange,
+  onPaidAmountChange,
+  onDiscountTypeChange,
+  onDiscountValueChange,
+  onCheckout,
+}: {
+  paymentMethod: PaymentMethod;
+  paidAmount: number;
+  discountType: DiscountType;
+  discountValue: number;
+  subtotal: number;
+  discountTotal: number;
+  grandTotal: number;
+  changeAmount: number;
+  isSubmitting: boolean;
+  checkoutError: string | null;
+  onPaymentMethodChange: (value: PaymentMethod) => void;
+  onPaidAmountChange: (value: number) => void;
+  onDiscountTypeChange: (value: DiscountType) => void;
+  onDiscountValueChange: (value: number) => void;
+  onCheckout: () => void;
+}) {
+  return (
+    <div className="rounded-md bg-slate-50 p-4">
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-950">Pembayaran</h3>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {paymentMethods.map((method) => {
+              const Icon = method.icon;
+              const active = paymentMethod === method.value;
+              return (
+                <button
+                  key={method.value}
+                  type="button"
+                  className={`flex h-10 items-center justify-center gap-2 rounded-md border text-sm font-semibold transition ${
+                    active
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                  disabled={isSubmitting}
+                  onClick={() => onPaymentMethodChange(method.value)}
+                >
+                  <Icon size={16} />
+                  {method.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+              Jenis diskon
+            </span>
+            <select
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-50"
+              value={discountType}
+              disabled={isSubmitting}
+              onChange={(event) =>
+                onDiscountTypeChange(event.target.value as DiscountType)
+              }
+            >
+              {discountTypes.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Input
+            label={discountType === 'PERCENT' ? 'Diskon persen' : 'Diskon nominal'}
+            type="number"
+            min={0}
+            max={discountType === 'PERCENT' ? 100 : undefined}
+            disabled={discountType === 'NONE' || isSubmitting}
+            value={discountValue}
+            onChange={(event) => onDiscountValueChange(Number(event.target.value))}
+          />
+          <Input
+            label="Nominal diterima"
+            type="number"
+            min={0}
+            disabled={isSubmitting}
+            value={paidAmount}
+            onChange={(event) => onPaidAmountChange(Number(event.target.value))}
+          />
+        </div>
+
+        <div className="space-y-2 border-t border-slate-200 pt-4 text-sm">
+          <SummaryRow label="Subtotal" value={formatRupiah(subtotal)} />
+          <SummaryRow label="Diskon" value={formatRupiah(discountTotal)} />
+          <SummaryRow
+            label="Grand total"
+            value={formatRupiah(grandTotal)}
+            strong
+          />
+          <SummaryRow label="Kembalian" value={formatRupiah(changeAmount)} />
+        </div>
+
+        {checkoutError ? (
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {checkoutError}
+          </div>
+        ) : null}
+
+        <Button
+          type="button"
+          fullWidth
+          disabled={isSubmitting}
+          onClick={onCheckout}
+        >
+          {isSubmitting ? 'Menyimpan...' : 'Simpan Transaksi'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-3 ${
+        strong ? 'text-base font-bold text-slate-950' : 'text-slate-600'
+      }`}
+    >
+      <span>{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
+function calculateDiscount(
+  discountType: DiscountType,
+  discountValue: number,
+  subtotal: number,
+) {
+  if (discountValue <= 0 || discountType === 'NONE') return 0;
+  if (discountType === 'PERCENT') {
+    return Math.round((subtotal * Math.min(discountValue, 100)) / 100);
+  }
+  return Math.round(Math.min(discountValue, subtotal));
+}
+
+function validateCheckout({
+  items,
+  paymentMethod,
+  paidAmount,
+  discountType,
+  discountValue,
+  subtotal,
+  grandTotal,
+}: {
+  items: CashierCartItem[];
+  paymentMethod: PaymentMethod;
+  paidAmount: number;
+  discountType: DiscountType;
+  discountValue: number;
+  subtotal: number;
+  grandTotal: number;
+}) {
+  if (!items.length) return 'Keranjang masih kosong.';
+  if (items.some((item) => item.qtySaleUnit < item.minSaleQty)) {
+    return 'Qty item tidak boleh di bawah minimum jual.';
+  }
+  if (items.some((item) => item.qtySaleUnit > item.stockAvailable)) {
+    return 'Qty item melebihi stok tersedia.';
+  }
+  if (discountValue < 0) return 'Diskon tidak boleh negatif.';
+  if (discountType === 'PERCENT' && discountValue > 100) {
+    return 'Diskon persen tidak boleh lebih dari 100.';
+  }
+  if (discountType === 'NOMINAL' && discountValue > subtotal) {
+    return 'Diskon nominal tidak boleh melebihi subtotal.';
+  }
+  if (paidAmount < 0) return 'Nominal pembayaran tidak boleh negatif.';
+  if (paymentMethod === 'CASH' && paidAmount < grandTotal) {
+    return 'Nominal pembayaran belum mencukupi.';
+  }
+  return null;
+}
+
+function makeIdempotencyKey() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `sale-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }

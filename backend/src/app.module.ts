@@ -14,6 +14,7 @@ import { ProductsModule } from './modules/products/products.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
 import { PurchaseReturnsModule } from './modules/purchase-returns/purchase-returns.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { SalesReturnsModule } from './modules/sales-returns/sales-returns.module';
 import { SalesModule } from './modules/sales/sales.module';
@@ -41,6 +42,7 @@ import { UsersModule } from './modules/users/users.module';
     PurchaseReturnsModule,
     BatchesModule,
     PurchasesModule,
+    ReportsModule,
     StockModule,
     PrescriptionsModule,
     CounselingRecordsModule,

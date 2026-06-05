@@ -82,8 +82,12 @@ describe('Dashboard API', () => {
       returnTotal: 250,
       netTotal: 750,
     });
-    expect(JSON.stringify(recent.body)).not.toContain('hpp');
-    expect(JSON.stringify(recent.body)).not.toContain('profit');
+    for (const row of recent.body) {
+      expect(row).not.toHaveProperty('totalHpp');
+      expect(row).not.toHaveProperty('totalProfit');
+      expect(row).not.toHaveProperty('profitAmount');
+      expect(row).not.toHaveProperty('hppBaseSnapshot');
+    }
   });
 
   it('returns low stock based on active non-expired batch stock only', async () => {

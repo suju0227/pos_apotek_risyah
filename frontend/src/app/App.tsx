@@ -4,6 +4,7 @@ import { ProtectedRoute } from './routes/ProtectedRoute';
 import { PlaceholderPage } from '../shared/components/PlaceholderPage';
 import { ToastRegion } from '../shared/components/ToastRegion';
 import { LoginPage } from '../features/auth/LoginPage';
+import { CashierPage } from '../features/cashier/CashierPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { ProfitReportPage } from '../features/reports/ProfitReportPage';
 import { SalesReportPage } from '../features/reports/SalesReportPage';
@@ -38,10 +39,7 @@ export function App() {
             path="/kasir"
             element={
               <ProtectedRoute allowedRoles={cashierAndManager}>
-                <PlaceholderPage
-                  title="Kasir"
-                  description="Area transaksi kasir berbasis data backend."
-                />
+                <CashierPage />
               </ProtectedRoute>
             }
           />

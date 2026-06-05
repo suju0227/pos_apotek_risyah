@@ -8,13 +8,11 @@ import { Prisma } from '@prisma/client';
 import { AuthUser } from '../../common/types/auth-user';
 import { isPrismaUniqueError } from '../../common/utils/prisma-error';
 import { PrismaService } from '../../database/prisma.service';
-import {
-  CreateSaleDto,
-  DiscountType,
-  PaymentMethod,
-} from './dto/create-sale.dto';
 import { CreateSaleFromPrescriptionDto } from '../prescriptions/dto/create-sale-from-prescription.dto';
+import { DiscountService } from './discount.service';
+import { CreateSaleDto } from './dto/create-sale.dto';
 import { IdempotencyService } from './idempotency.service';
+import { PaymentService } from './payment.service';
 
 const SALE_CHECKOUT_ACTION = 'SALE_CHECKOUT';
 
@@ -85,7 +83,9 @@ type PreparedSaleItem = ResolvedSaleItem & {
 export class SalesService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly discountService: DiscountService,
     private readonly idempotencyService: IdempotencyService,
+    private readonly paymentService: PaymentService,
   ) {}
 
   async findCashierProducts(q?: string) {
@@ -328,17 +328,20 @@ export class SalesService {
         const subtotal = this.roundMoney(
           preparedItems.reduce((sum, item) => sum + item.subtotal, 0),
         );
-        const discountTotal = this.calculateDiscount(
+        const discountTotal = this.discountService.calculateDiscount(
           dto.discountType,
           dto.discountValue,
           subtotal,
         );
         const grandTotal = this.roundMoney(subtotal - discountTotal);
-
-        this.validatePayment(dto.paymentMethod, dto.paidAmount, grandTotal);
+        const payment = this.paymentService.validatePayment(
+          dto.paymentMethod,
+          dto.paidAmount,
+          grandTotal,
+        );
 
         const allocations = preparedItems.flatMap((item) => item.allocations);
-        const allocationDiscounts = this.allocateDiscount(
+        const allocationDiscounts = this.discountService.allocateDiscount(
           allocations.map((allocation) => allocation.subtotal),
           discountTotal,
         );
@@ -384,11 +387,8 @@ export class SalesService {
             subtotal,
             discountTotal,
             grandTotal,
-            paidAmount: dto.paidAmount,
-            changeAmount:
-              dto.paymentMethod === 'CASH'
-                ? this.roundMoney(dto.paidAmount - grandTotal)
-                : 0,
+            paidAmount: payment.paidAmount,
+            changeAmount: payment.changeAmount,
             totalHpp,
             totalProfit,
           },
@@ -614,52 +614,6 @@ export class SalesService {
       ORDER BY expired_date ASC, created_at ASC
       FOR UPDATE
     `);
-  }
-
-  private calculateDiscount(
-    discountType: DiscountType,
-    discountValue: number,
-    subtotal: number,
-  ) {
-    if (discountType === 'NONE') return 0;
-
-    if (discountType === 'PERCENT') {
-      if (discountValue > 100) {
-        throw new BadRequestException('Diskon persen tidak boleh lebih dari 100');
-      }
-      return this.roundMoney((subtotal * discountValue) / 100);
-    }
-
-    if (discountValue > subtotal) {
-      throw new BadRequestException('Diskon tidak boleh melebihi subtotal');
-    }
-
-    return this.roundMoney(discountValue);
-  }
-
-  private allocateDiscount(subtotals: number[], discountTotal: number) {
-    if (discountTotal === 0) return subtotals.map(() => 0);
-
-    const subtotalTotal = subtotals.reduce((sum, subtotal) => sum + subtotal, 0);
-    let allocated = 0;
-    return subtotals.map((subtotal, index) => {
-      if (index === subtotals.length - 1) {
-        return this.roundMoney(discountTotal - allocated);
-      }
-      const value = this.roundMoney((subtotal / subtotalTotal) * discountTotal);
-      allocated = this.roundMoney(allocated + value);
-      return value;
-    });
-  }
-
-  private validatePayment(
-    paymentMethod: PaymentMethod,
-    paidAmount: number,
-    grandTotal: number,
-  ) {
-    if (paymentMethod === 'CASH' && paidAmount < grandTotal) {
-      throw new BadRequestException('Nominal pembayaran belum mencukupi');
-    }
   }
 
   private toSaleResponse(sale: SaleWithRelations, role: string) {

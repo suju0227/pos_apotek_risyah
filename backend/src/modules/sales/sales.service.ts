@@ -211,6 +211,61 @@ export class SalesService {
     return this.toSaleResponse(sale, user.role);
   }
 
+  async returnableItems(id: string, user: AuthUser) {
+    const sale = await this.prisma.sale.findFirst({
+      where: { id, deletedAt: null },
+      include: saleInclude,
+    });
+
+    if (!sale) {
+      throw new NotFoundException('Transaksi penjualan tidak ditemukan');
+    }
+
+    const isManager = user.role === 'MANAGER';
+    const items = sale.items.flatMap((item) =>
+      item.allocations
+        .map((allocation) => {
+          const qtyBase = Number(allocation.qtyBase);
+          const returnedQtyBase = Number(allocation.returnedQtyBase);
+          const returnableQtyBase = this.roundQty(qtyBase - returnedQtyBase);
+          if (returnableQtyBase <= 0) return null;
+
+          const refundableAmount = this.roundMoney(
+            Number(allocation.subtotal) - Number(allocation.discountAmount),
+          );
+          return {
+            saleItemId: item.id,
+            saleBatchAllocationId: allocation.id,
+            productId: item.productId,
+            productName: item.productName,
+            productUnitId: item.productUnitId,
+            unitName: item.unitName,
+            batchId: allocation.batchId,
+            batchNumber: allocation.batchNumber,
+            expiredDate: allocation.expiredDate.toISOString().slice(0, 10),
+            qtyBase,
+            returnedQtyBase,
+            returnableQtyBase,
+            refundableAmount,
+            ...(isManager
+              ? {
+                  hppBaseSnapshot: Number(allocation.hppBaseSnapshot),
+                  profitAmount: Number(allocation.profitAmount),
+                }
+              : {}),
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+    );
+
+    return {
+      saleId: sale.id,
+      saleNumber: sale.saleNumber,
+      createdAt: sale.createdAt.toISOString(),
+      items,
+    };
+  }
+
   async create(
     dto: CreateSaleDto,
     user: AuthUser,

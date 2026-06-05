@@ -4,6 +4,7 @@ import { ProtectedRoute } from './routes/ProtectedRoute';
 import { PlaceholderPage } from '../shared/components/PlaceholderPage';
 import { ToastRegion } from '../shared/components/ToastRegion';
 import { LoginPage } from '../features/auth/LoginPage';
+import { DashboardPage } from '../features/dashboard/DashboardPage';
 import type { RoleName } from '../features/auth/auth.types';
 
 const managerOnly: RoleName[] = ['MANAGER'];
@@ -27,10 +28,7 @@ export function App() {
             path="/dashboard"
             element={
               <ProtectedRoute allowedRoles={managerOnly}>
-                <PlaceholderPage
-                  title="Dashboard"
-                  description="Ringkasan operasional apotek untuk Manager."
-                />
+                <DashboardPage />
               </ProtectedRoute>
             }
           />

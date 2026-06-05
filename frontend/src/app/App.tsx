@@ -5,6 +5,8 @@ import { PlaceholderPage } from '../shared/components/PlaceholderPage';
 import { ToastRegion } from '../shared/components/ToastRegion';
 import { LoginPage } from '../features/auth/LoginPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { ProfitReportPage } from '../features/reports/ProfitReportPage';
+import { SalesReportPage } from '../features/reports/SalesReportPage';
 import type { RoleName } from '../features/auth/auth.types';
 
 const managerOnly: RoleName[] = ['MANAGER'];
@@ -87,8 +89,6 @@ export function App() {
             ['/stok', 'Stok'],
             ['/mutasi-stok', 'Mutasi Stok'],
             ['/retur-pembelian', 'Retur Pembelian'],
-            ['/laporan/penjualan', 'Laporan Penjualan'],
-            ['/laporan/laba', 'Laporan Laba'],
             ['/export', 'Export'],
             ['/users', 'Users'],
             ['/settings', 'Settings'],
@@ -103,6 +103,22 @@ export function App() {
               }
             />
           ))}
+          <Route
+            path="/laporan/penjualan"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <SalesReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/laporan/laba"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <ProfitReportPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="*"
             element={<PlaceholderPage title="Halaman tidak ditemukan" />}

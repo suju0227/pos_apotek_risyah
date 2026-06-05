@@ -51,6 +51,11 @@ export class SalesController {
     );
   }
 
+  @Get(':id/returnable-items')
+  returnableItems(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.salesService.returnableItems(id, user);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.salesService.findOne(id, user);

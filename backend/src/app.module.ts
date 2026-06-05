@@ -13,6 +13,7 @@ import { ProductsModule } from './modules/products/products.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
 import { RolesModule } from './modules/roles/roles.module';
+import { SalesReturnsModule } from './modules/sales-returns/sales-returns.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { StockModule } from './modules/stock/stock.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
@@ -41,6 +42,7 @@ import { UsersModule } from './modules/users/users.module';
     PrescriptionsModule,
     CounselingRecordsModule,
     SalesModule,
+    SalesReturnsModule,
   ],
 })
 export class AppModule {}

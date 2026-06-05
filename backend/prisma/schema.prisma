@@ -40,6 +40,7 @@ model User {
   stockAdjustments StockAdjustment[]
   sales          Sale[]
   salesReturns   SalesReturn[]
+  purchaseReturns PurchaseReturn[]
   idempotencyKeys IdempotencyKey[]
   prescriptions Prescription[] @relation("PrescriptionPharmacist")
   counselingRecords CounselingRecord[] @relation("CounselingPharmacist")
@@ -130,6 +131,7 @@ model Product {
   productUnits ProductUnit[]
   batches      ProductBatch[]
   purchaseItems PurchaseItem[]
+  purchaseReturnItems PurchaseReturnItem[]
   purchaseOrderItems PurchaseOrderItem[]
   stockMutations StockMutation[]
   saleItems SaleItem[]
@@ -193,6 +195,7 @@ model ProductBatch {
   stockAdjustments StockAdjustment[]
   saleBatchAllocations SaleBatchAllocation[]
   salesReturnItems SalesReturnItem[]
+  purchaseReturnItems PurchaseReturnItem[]
 
   @@index([productId], map: "idx_product_batches_product_id")
   @@index([supplierId], map: "idx_product_batches_supplier_id")
@@ -245,6 +248,7 @@ model Purchase {
   purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
   createdBy User @relation(fields: [createdById], references: [id])
   items PurchaseItem[]
+  purchaseReturns PurchaseReturn[]
 
   @@index([supplierId], map: "idx_purchases_supplier_id")
   @@index([purchaseOrderId], map: "idx_purchases_purchase_order_id")
@@ -509,6 +513,47 @@ model SalesReturnItem {
   @@index([productId], map: "idx_sales_return_items_product_id")
   @@index([batchId], map: "idx_sales_return_items_batch_id")
   @@map("sales_return_items")
+}
+
+model PurchaseReturn {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseId     String?  @map("purchase_id") @db.Uuid
+  createdById    String   @map("created_by_id") @db.Uuid
+  returnNumber   String   @unique @map("return_number") @db.VarChar(100)
+  reason         String   @db.Text
+  totalAmount    Decimal  @default(0) @map("total_amount") @db.Decimal(18, 8)
+  status         String   @default("FINAL") @db.VarChar(50)
+  idempotencyKey String?  @map("idempotency_key") @db.VarChar(150)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  purchase  Purchase? @relation(fields: [purchaseId], references: [id])
+  createdBy User      @relation(fields: [createdById], references: [id])
+  items     PurchaseReturnItem[]
+
+  @@index([purchaseId], map: "idx_purchase_returns_purchase_id")
+  @@index([createdById], map: "idx_purchase_returns_created_by_id")
+  @@index([createdAt], map: "idx_purchase_returns_created_at")
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnItem {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseReturnId String   @map("purchase_return_id") @db.Uuid
+  productId        String   @map("product_id") @db.Uuid
+  batchId          String   @map("batch_id") @db.Uuid
+  qtyBaseReturned  Decimal  @map("qty_base_returned") @db.Decimal(18, 4)
+  hppBaseSnapshot  Decimal  @map("hpp_base_snapshot") @db.Decimal(18, 8)
+  totalAmount      Decimal  @map("total_amount") @db.Decimal(18, 8)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id])
+  product        Product        @relation(fields: [productId], references: [id])
+  batch          ProductBatch   @relation(fields: [batchId], references: [id])
+
+  @@index([purchaseReturnId], map: "idx_purchase_return_items_purchase_return_id")
+  @@index([productId], map: "idx_purchase_return_items_product_id")
+  @@index([batchId], map: "idx_purchase_return_items_batch_id")
+  @@map("purchase_return_items")
 }
 
 model IdempotencyKey {

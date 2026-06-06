@@ -4,8 +4,16 @@ import { ProtectedRoute } from './routes/ProtectedRoute';
 import { PlaceholderPage } from '../shared/components/PlaceholderPage';
 import { ToastRegion } from '../shared/components/ToastRegion';
 import { LoginPage } from '../features/auth/LoginPage';
+import { BatchPage } from '../features/batches/BatchPage';
 import { CashierPage } from '../features/cashier/CashierPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
+import {
+  CategoriesPage,
+  ProductsPage,
+  SuppliersPage,
+  UnitsPage,
+} from '../features/master-data/MasterDataPages';
+import { PurchaseOrderPage } from '../features/purchase-orders/PurchaseOrderPage';
 import { ProfitReportPage } from '../features/reports/ProfitReportPage';
 import { SalesReportPage } from '../features/reports/SalesReportPage';
 import type { RoleName } from '../features/auth/auth.types';
@@ -60,6 +68,54 @@ export function App() {
             }
           />
           <Route
+            path="/produk"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <ProductsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/kategori"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <CategoriesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/supplier"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <SuppliersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/satuan"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <UnitsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/batch"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <BatchPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pemesanan"
+            element={
+              <ProtectedRoute allowedRoles={pharmacistAndManager}>
+                <PurchaseOrderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/pelayanan/resep"
             element={
               <ProtectedRoute allowedRoles={pharmacistAndManager}>
@@ -76,12 +132,6 @@ export function App() {
             }
           />
           {[
-            ['/produk', 'Produk'],
-            ['/kategori', 'Kategori'],
-            ['/supplier', 'Supplier'],
-            ['/satuan', 'Satuan'],
-            ['/batch', 'Batch'],
-            ['/pemesanan', 'Pemesanan'],
             ['/pembelian', 'Pembelian'],
             ['/pembelian/dari-po/:poId', 'Pembelian dari PO'],
             ['/stok', 'Stok'],

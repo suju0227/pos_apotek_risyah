@@ -9,6 +9,7 @@ import { BatchesModule } from './modules/batches/batches.module';
 import { CounselingRecordsModule } from './modules/counseling-records/counseling-records.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ExportsModule } from './modules/exports/exports.module';
+import { HealthModule } from './modules/health/health.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { PrescriptionsModule } from './modules/prescriptions/prescriptions.module';
 import { ProductsModule } from './modules/products/products.module';
@@ -31,6 +32,7 @@ import { UsersModule } from './modules/users/users.module';
       load: [appConfig, databaseConfig],
       validationSchema: envSchema,
     }),
+    HealthModule,
     PrismaModule,
     AuthModule,
     RolesModule,

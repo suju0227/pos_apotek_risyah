@@ -7,7 +7,7 @@
 | Nama proyek | POS Apotek V2 |
 | Nama file | `08_TASK_COMPLETED_LOG_POS_APOTEK.md` |
 | Versi dokumen | 0.2.0 |
-| Status dokumen | Audit Backend Tervalidasi, Frontend Parsial |
+| Status dokumen | Audit Backend Tervalidasi, Frontend dan Deployment Parsial |
 | Tanggal dibuat | 2026-06-05 |
 | Tanggal terakhir diperbarui | 2026-06-06 |
 | Penyusun | Codex GPT |
@@ -23,7 +23,7 @@ Audit ini memverifikasi progres aktual repository setelah PostgreSQL development
 | Backend API utama | Selesai Terverifikasi | `npm.cmd test -- --runInBand`: 18 test suite lulus, 78 test lulus. |
 | API smoke test | Selesai Terverifikasi | Manager login/dashboard/reports berhasil; user kasir sementara dapat akses cashier products dan ditolak dari profit report; user kasir smoke dinonaktifkan setelah test. |
 | Frontend build | Selesai Parsial | `npm.cmd run build` berhasil setelah UI pemesanan/PO ditambahkan. |
-| Frontend halaman operasional | Perlu Implementasi Lanjutan | Produk, kategori, supplier, satuan, pengaturan satuan jual produk, batch, dan pemesanan/PO sudah memiliki UI; route lain masih memakai `PlaceholderPage`. |
+| Frontend halaman operasional | Perlu Implementasi Lanjutan | Produk, kategori, supplier, satuan, pengaturan satuan jual produk, batch, pemesanan/PO, dan pembelian sudah memiliki UI; route lain masih memakai `PlaceholderPage`. |
 | Audit log | Belum Dikerjakan / Belum Terbukti | Tidak ditemukan model/service audit log pada schema/source. |
 | Settings profil apotek | Belum Dikerjakan / Belum Terbukti | Route frontend masih placeholder dan tidak ditemukan backend settings module. |
 
@@ -71,7 +71,7 @@ vite build completed successfully
 | Phase 1 | Database Foundation | Selesai Terverifikasi | Migration Prisma tersedia dan deploy berhasil. |
 | Phase 2 | Auth, RBAC, User & Security Foundation | Selesai Sebagian | Auth, refresh token, RBAC, dan users teruji; audit log belum terbukti. |
 | Phase 3 | Master Data | Selesai Terverifikasi Backend, Frontend Selesai | API dan integration test master data lulus; UI kategori, supplier, satuan, produk, dan pengaturan satuan jual produk tersedia. |
-| Phase 4 | Batch, PO & Pembelian | Selesai Sebagian | Batch dan PO UI/backend selesai; purchase backend teruji tetapi UI pembelian masih placeholder. |
+| Phase 4 | Batch, PO & Pembelian | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Batch, PO, dan pembelian memiliki backend/UI; pembelian UI build-level lulus, smoke test operasional masih perlu. |
 | Phase 5 | Stok & Mutasi | Selesai Terverifikasi Backend | Stock summary, mutation, dan stock adjustment teruji. |
 | Phase 6 | Kasir & Transaksi | Selesai Terverifikasi Backend, Frontend Parsial | FEFO, split batch, checkout, idempotency, dan cashier-safe response teruji; UI kasir tersedia. |
 | Phase 6C | Pelayanan Resep dan Konseling | Selesai Terverifikasi Backend, Frontend Belum | Backend resep/konseling teruji; UI masih placeholder. |
@@ -81,7 +81,7 @@ vite build completed successfully
 | Phase 10 | Export | Selesai Terverifikasi Backend, Frontend Belum | Export xlsx/pdf teruji; UI masih placeholder. |
 | Phase 11 | User, Settings, Responsive & UX Polish | Selesai Sebagian | User API teruji; settings belum terbukti; banyak UI operasional masih placeholder. |
 | Phase 12 | Testing | Selesai Sebagian | Backend Jest/Supertest lulus; E2E browser/manual smoke test belum dicatat. |
-| Phase 13 | Deployment | Belum Dikerjakan | Belum ada verifikasi production checklist/backup. |
+| Phase 13 | Deployment | Selesai Parsial | Konfigurasi repo untuk Vercel frontend, Railway backend, Railway PostgreSQL, healthcheck, CORS, env example, dan dokumentasi tersedia; production checklist/backup belum diverifikasi. |
 | Phase 14 | Final Review | Sedang Dikerjakan | Audit progres aktual sudah dibuat; traceability penuh masih perlu dilanjutkan setelah UI selesai. |
 
 ## 4. Daftar Task Selesai Terverifikasi
@@ -146,17 +146,20 @@ vite build completed successfully
 | 56 | TASK-FE-017 | Dashboard UI | Phase 9 | DashboardPage tersedia. | Frontend build lulus. | Selesai build-level. |
 | 57 | TASK-FE-018 | Laporan penjualan UI | Phase 9 | SalesReportPage tersedia. | Frontend build lulus. | Selesai build-level. |
 | 58 | TASK-FE-019 | Laporan laba UI | Phase 9 | ProfitReportPage tersedia. | Frontend build lulus. | Selesai build-level. |
-| 59 | TASK-TEST-001 | Test FEFO | Phase 12 | `fefo.service.spec.ts`. | Backend test lulus. | Selesai. |
-| 60 | TASK-TEST-002 | Test diskon | Phase 12 | `discount.service.spec.ts`. | Backend test lulus. | Selesai. |
-| 61 | TASK-TEST-004 | Integration test penjualan | Phase 12 | `sales.integration.spec.ts`. | Backend test lulus. | Selesai. |
-| 62 | TASK-TEST-008 | Test idempotency checkout | Phase 12 | Sales/idempotency tests. | Backend test lulus. | Selesai. |
-| 63 | TASK-TEST-009 | Test role sanitization | Phase 12 | Sales/Auth/Reports role tests. | Backend test lulus. | Selesai. |
-| 64 | TASK-TEST-010 | Test histori dan retur sebagian | Phase 12 | Sales returns/reports tests. | Backend test lulus. | Selesai. |
-| 65 | TASK-TEST-PO-001 | Test PO tidak mengubah stok | Phase 12 | Purchase Orders API tests. | Backend test lulus. | Selesai. |
-| 66 | TASK-TEST-PUR-001 | Test pembelian dari PO, diskon, PPN, dan faktur | Phase 12 | Purchases and PO tests. | Backend test lulus. | Selesai. |
-| 67 | TASK-TEST-PRECISION-001 | Test presisi harga modal, HPP, laba internal | Phase 12 | Sales precision tests. | Backend test lulus. | Selesai. |
-| 68 | TASK-TEST-PRESC-001 | Test pelayanan resep dasar | Phase 12 | Prescriptions integration tests. | Backend test lulus. | Selesai. |
-| 69 | TASK-TEST-UNIT-001 | Test pembatasan satuan jual aktif | Phase 12 | Sales API unit restriction tests. | Backend test lulus. | Selesai. |
+| 59 | TASK-FE-008 | Pembelian UI | Phase 4 | PurchasePage tersambung ke `/pembelian` dengan daftar pembelian, filter client-side, form pembelian manual, item dinamis, batch, expired date, harga beli, diskon, harga jual manual, dan detail pembelian. | Frontend build lulus. | Selesai build-level; smoke test operasional dengan backend hidup masih perlu. |
+| 60 | TASK-FE-PUR-REV-001 | UI pembelian faktur, diskon, PPN | Phase 4D | PurchasePage mendukung faktur supplier, tanggal faktur, mode PPN, total faktur input, pembulatan/koreksi, catatan selisih, diskon item, dan pembelian dari PO. | Frontend build lulus. | Selesai build-level; final stock mutation tetap backend. |
+| 61 | TASK-DEPLOY-001 | Setup environment deployment | Phase 13 | `frontend/vercel.json`, root `vercel.json`, Railway-ready backend scripts, `/health`, env examples, CORS env, dan `DEPLOYMENT.md`. | Backend build, frontend build, dan `git diff --check` lulus. | Selesai untuk konfigurasi repo; actual env Railway/Vercel dan production smoke test masih pending. |
+| 62 | TASK-TEST-001 | Test FEFO | Phase 12 | `fefo.service.spec.ts`. | Backend test lulus. | Selesai. |
+| 63 | TASK-TEST-002 | Test diskon | Phase 12 | `discount.service.spec.ts`. | Backend test lulus. | Selesai. |
+| 64 | TASK-TEST-004 | Integration test penjualan | Phase 12 | `sales.integration.spec.ts`. | Backend test lulus. | Selesai. |
+| 65 | TASK-TEST-008 | Test idempotency checkout | Phase 12 | Sales/idempotency tests. | Backend test lulus. | Selesai. |
+| 66 | TASK-TEST-009 | Test role sanitization | Phase 12 | Sales/Auth/Reports role tests. | Backend test lulus. | Selesai. |
+| 67 | TASK-TEST-010 | Test histori dan retur sebagian | Phase 12 | Sales returns/reports tests. | Backend test lulus. | Selesai. |
+| 68 | TASK-TEST-PO-001 | Test PO tidak mengubah stok | Phase 12 | Purchase Orders API tests. | Backend test lulus. | Selesai. |
+| 69 | TASK-TEST-PUR-001 | Test pembelian dari PO, diskon, PPN, dan faktur | Phase 12 | Purchases and PO tests. | Backend test lulus. | Selesai. |
+| 70 | TASK-TEST-PRECISION-001 | Test presisi harga modal, HPP, laba internal | Phase 12 | Sales precision tests. | Backend test lulus. | Selesai. |
+| 71 | TASK-TEST-PRESC-001 | Test pelayanan resep dasar | Phase 12 | Prescriptions integration tests. | Backend test lulus. | Selesai. |
+| 72 | TASK-TEST-UNIT-001 | Test pembatasan satuan jual aktif | Phase 12 | Sales API unit restriction tests. | Backend test lulus. | Selesai. |
 
 ## 5. Task Belum Selesai / Perlu Lanjutan
 
@@ -164,8 +167,6 @@ vite build completed successfully
 |---|---|---|---|
 | TASK-BE-026 | AuditLogService | Belum Dikerjakan / Belum Terbukti | Tidak ditemukan model/service audit log. |
 | TASK-DB-012 | Audit logs | Belum Dikerjakan / Belum Terbukti | Tidak ditemukan tabel/model audit log. |
-| TASK-FE-008 | Pembelian UI | Belum Selesai | Route pembelian masih placeholder. |
-| TASK-FE-PUR-REV-001 | UI pembelian faktur, diskon, PPN | Belum Selesai | Route pembelian masih placeholder. |
 | TASK-FE-PRESC-001 | UI pelayanan resep | Belum Selesai | Route masih placeholder. |
 | TASK-FE-PRESC-002 | Integrasi resep ke kasir | Belum Selesai | UI resep masih placeholder. |
 | TASK-FE-COUNS-001 | UI konseling dasar | Belum Selesai | Route masih placeholder. |
@@ -176,7 +177,7 @@ vite build completed successfully
 | TASK-FE-022 | UI pengaturan profil apotek | Belum Selesai | Route settings masih placeholder dan backend settings belum terbukti. |
 | TASK-TEST-006 | E2E test alur utama | Belum Selesai | Belum ada E2E browser/manual smoke test tercatat. |
 | TASK-TEST-007 | Test concurrent sale | Belum Terbukti | Tidak ditemukan bukti eksplisit dari nama test audit ini. |
-| TASK-DEPLOY-001 | Setup environment deployment | Belum Dikerjakan | Belum ada verifikasi production. |
+| TASK-DEPLOY-001 | Setup environment deployment | Selesai Parsial | Konfigurasi repo siap, tetapi env Railway/Vercel aktual dan smoke test production belum dijalankan. |
 | TASK-DEPLOY-002 | Setup backup dan recovery | Belum Dikerjakan | Belum ada strategi/tes restore. |
 | TASK-DEPLOY-003 | Final production checklist | Belum Dikerjakan | Menunggu UI, audit log/settings, E2E, dan deployment. |
 | TASK-DOC-001 | Review traceability penuh | Sedang Dikerjakan | Audit progres sudah dibuat, traceability detail penuh belum selesai. |
@@ -187,6 +188,7 @@ vite build completed successfully
 - Backend test membutuhkan PostgreSQL development berjalan di `127.0.0.1:55432`.
 - `prisma generate` sempat gagal karena lock file DLL Windows, lalu berhasil setelah test selesai. Jika terulang, tutup proses Node yang memegang Prisma Client dan ulangi command.
 - Frontend build lulus, tetapi build bukan pengganti smoke test operasional dengan backend hidup.
+- Deployment config lulus build, tetapi belum membuktikan Railway/Vercel production benar sampai environment platform diisi dan `/health` serta login diuji dari URL publik.
 - Task frontend yang masih placeholder tidak boleh ditandai selesai hanya karena route tersedia.
 - Audit log dan settings adalah gap requirement yang harus diputuskan: implementasikan sebagai V1 atau revisi dokumen jika benar-benar dikeluarkan dari scope.
 
@@ -199,3 +201,4 @@ vite build completed successfully
 | 2026-06-06 | Menambahkan UI pengaturan satuan jual aktif per produk dan verifikasi frontend build. | TASK-FE-006, TASK-FE-UNIT-REV-001 | Produk UI sekarang mendukung panel satuan jual produk. |
 | 2026-06-06 | Menambahkan UI Batch dan verifikasi frontend build. | TASK-FE-007 | `/batch` sekarang mendukung create/list/search/filter/detail/mutasi/deactivate. |
 | 2026-06-06 | Menambahkan UI Pemesanan/PO dan verifikasi frontend build. | TASK-FE-PO-001, TASK-FE-PO-002 | `/pemesanan` sekarang mendukung create/list/status/preview/convert draft. |
+| 2026-06-06 | Menambahkan UI Pembelian Supplier dan kesiapan deployment Vercel/Railway. | TASK-FE-008, TASK-FE-PUR-REV-001, TASK-DEPLOY-001 | `/pembelian` dan `/pembelian/dari-po/:poId` tersambung ke PurchasePage; deployment config, healthcheck, CORS env, dan dokumentasi tersedia. |

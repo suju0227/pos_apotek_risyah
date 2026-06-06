@@ -14,6 +14,7 @@ import {
   UnitsPage,
 } from '../features/master-data/MasterDataPages';
 import { PurchaseOrderPage } from '../features/purchase-orders/PurchaseOrderPage';
+import { PurchasePage } from '../features/purchases/PurchasePage';
 import { ProfitReportPage } from '../features/reports/ProfitReportPage';
 import { SalesReportPage } from '../features/reports/SalesReportPage';
 import type { RoleName } from '../features/auth/auth.types';
@@ -131,9 +132,23 @@ export function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/pembelian"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <PurchasePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pembelian/dari-po/:poId"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <PurchasePage />
+              </ProtectedRoute>
+            }
+          />
           {[
-            ['/pembelian', 'Pembelian'],
-            ['/pembelian/dari-po/:poId', 'Pembelian dari PO'],
             ['/stok', 'Stok'],
             ['/mutasi-stok', 'Mutasi Stok'],
             ['/retur-pembelian', 'Retur Pembelian'],

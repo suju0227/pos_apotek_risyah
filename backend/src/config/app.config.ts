@@ -4,5 +4,6 @@ export const appConfig = registerAs('app', () => ({
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 3000),
   appUrl: process.env.APP_URL ?? 'http://localhost:5173',
+  frontendUrl: process.env.FRONTEND_URL ?? process.env.CORS_ORIGIN ?? 'http://localhost:5173',
   timezone: process.env.APP_TIMEZONE ?? 'Asia/Makassar',
 }));

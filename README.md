@@ -40,6 +40,7 @@ Salin `.env.example` menjadi `.env` saat development lokal, lalu sesuaikan nilai
 ```powershell
 Copy-Item .env.example .env
 Copy-Item .env.example backend/.env
+Copy-Item frontend/.env.example frontend/.env
 ```
 
 Catatan:
@@ -88,6 +89,16 @@ npm.cmd install
 npm.cmd run build
 npm.cmd run dev
 ```
+
+## Deployment
+
+Deployment production dipisah:
+
+- Frontend: Vercel dari folder `frontend`.
+- Backend: Railway dari folder `backend`.
+- Database: PostgreSQL service di Railway.
+
+Panduan lengkap environment variable, CORS, Prisma migration production, dan healthcheck ada di [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Hasil Verifikasi Terakhir
 

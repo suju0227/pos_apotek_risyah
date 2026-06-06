@@ -1,5 +1,9 @@
 import { apiClient } from '../../shared/api/apiClient';
-import type { CashierProduct } from './cashier.types';
+import type {
+  CashierProduct,
+  CashierSaleResponse,
+  CreateSalePayload,
+} from './cashier.types';
 
 export const cashierApi = {
   products: (q: string) => {
@@ -10,4 +14,10 @@ export const cashierApi = {
       `/cashier/products${query ? `?${query}` : ''}`,
     );
   },
+  createSale: (payload: CreateSalePayload, idempotencyKey: string) =>
+    apiClient.post<CashierSaleResponse>('/sales', payload, {
+      headers: {
+        'Idempotency-Key': idempotencyKey,
+      },
+    }),
 };

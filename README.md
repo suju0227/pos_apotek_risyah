@@ -49,7 +49,7 @@ pos_apotek_risyah/
 
 ## Environment
 
-Salin file contoh environment, lalu sesuaikan IP server lokal.
+Salin file contoh environment. Untuk local production, frontend memakai same-origin `/api` melalui Nginx sehingga `VITE_API_BASE_URL` tidak perlu diubah ketika IP server berubah.
 
 ```powershell
 Copy-Item backend/.env.example backend/.env
@@ -89,7 +89,7 @@ Cari bagian Wi-Fi atau Ethernet:
 IPv4 Address . . . . . . . . . . : 192.168.1.10
 ```
 
-Untuk operasional harian, gunakan DHCP reservation di router atau IP statis yang stabil. Jika IP berubah, client harus memperbarui URL dan `VITE_API_BASE_URL`.
+Untuk operasional harian, gunakan DHCP reservation di router atau IP statis yang stabil. Jika IP berubah, client hanya perlu membuka URL server yang baru, misalnya `http://IP_SERVER`. Local production tetap memakai `VITE_API_BASE_URL=/api` karena request API diproxy oleh Nginx pada origin yang sama.
 
 ## Local Production Dengan Docker Compose
 
@@ -123,6 +123,8 @@ Service yang berjalan:
 - Frontend Nginx + proxy `/api`: `http://localhost`
 - Backend API internal: `backend:3000`
 - PostgreSQL internal: `postgres:5432`
+
+Backend dan PostgreSQL tidak diekspos langsung ke LAN pada local production. Client kasir/manager cukup mengakses frontend pada port 80, lalu frontend memanggil API melalui `/api`.
 
 Client dalam LAN membuka:
 

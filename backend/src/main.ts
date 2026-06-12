@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { RequestMethod, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
@@ -26,12 +26,12 @@ async function bootstrap() {
       }
       callback(new Error('Origin tidak diizinkan oleh CORS'));
     },
+    credentials: true,
     allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key'],
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
-  app.setGlobalPrefix('api', {
-    exclude: [{ path: 'health', method: RequestMethod.GET }],
-  });
+  const apiPrefix = configService.get<string>('API_PREFIX') ?? '/api';
+  app.setGlobalPrefix(apiPrefix.replace(/^\/+/, ''));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -39,7 +39,10 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  await app.listen(configService.get<number>('PORT') ?? 3000, '0.0.0.0');
+  const port =
+    configService.get<number>('APP_PORT') ?? configService.get<number>('PORT') ?? 3000;
+  const host = configService.get<string>('APP_HOST') ?? '0.0.0.0';
+  await app.listen(port, host);
 }
 
 void bootstrap();

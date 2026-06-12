@@ -44,11 +44,46 @@ model User {
   idempotencyKeys IdempotencyKey[]
   prescriptions Prescription[] @relation("PrescriptionPharmacist")
   counselingRecords CounselingRecord[] @relation("CounselingPharmacist")
+  auditLogs AuditLog[]
 
   @@index([roleId], map: "idx_users_role_id")
   @@index([username], map: "idx_users_username")
   @@index([email], map: "idx_users_email")
   @@map("users")
+}
+
+model AppSetting {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pharmacyName     String   @default("Apotek Risyah") @map("pharmacy_name") @db.VarChar(200)
+  address          String?  @db.Text
+  phone            String?  @db.VarChar(50)
+  expiredAlertDays Int      @default(30) @map("expired_alert_days")
+  timezone         String   @default("Asia/Makassar") @db.VarChar(100)
+  currency         String   @default("IDR") @db.VarChar(20)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("app_settings")
+}
+
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(100)
+  entityId   String?  @map("entity_id") @db.Uuid
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
+  ipAddress  String?  @map("ip_address") @db.VarChar(100)
+  userAgent  String?  @map("user_agent") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "idx_audit_logs_user_id")
+  @@index([entityType, entityId], map: "idx_audit_logs_entity")
+  @@index([createdAt], map: "idx_audit_logs_created_at")
+  @@map("audit_logs")
 }
 
 model RefreshToken {

@@ -22,6 +22,8 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/auth.store';
 import type { RoleName } from '../../features/auth/auth.types';
 import { Button } from '../../shared/components/Button';
+import { ConnectionStatusIndicator } from '../../shared/components/ConnectionStatusIndicator';
+import { useConnectionStatus } from '../../shared/hooks/useConnectionStatus';
 
 type NavItem = {
   label: string;
@@ -50,7 +52,7 @@ const navItems: NavItem[] = [
   { label: 'Supplier', path: '/supplier', icon: Warehouse, roles: ['MANAGER'] },
   { label: 'Satuan', path: '/satuan', icon: ClipboardList, roles: ['MANAGER'] },
   { label: 'Batch', path: '/batch', icon: Boxes, roles: ['MANAGER'] },
-  { label: 'Pemesanan', path: '/pemesanan', icon: FileText, roles: ['MANAGER'] },
+  { label: 'Pemesanan', path: '/pemesanan', icon: FileText, roles: ['APOTEKER', 'MANAGER'] },
   { label: 'Pembelian', path: '/pembelian', icon: ClipboardList, roles: ['MANAGER'] },
   { label: 'Stok', path: '/stok', icon: Warehouse, roles: ['MANAGER'] },
   { label: 'Mutasi Stok', path: '/mutasi-stok', icon: BarChart3, roles: ['MANAGER'] },
@@ -87,6 +89,7 @@ export function AppShell() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const connection = useConnectionStatus();
   const allowedItems = navItems.filter((item) =>
     user ? item.roles.includes(user.role) : false,
   );
@@ -107,7 +110,10 @@ export function AppShell() {
         >
           <Menu size={20} />
         </button>
-        <div className="text-sm font-semibold">POS Apotek</div>
+        <div className="flex items-center gap-2">
+          <ConnectionStatusIndicator status={connection.status} />
+          <div className="text-sm font-semibold">POS Apotek</div>
+        </div>
       </header>
 
       {open ? (
@@ -173,6 +179,14 @@ export function AppShell() {
       </aside>
 
       <main className="lg:pl-72">
+        <div className="sticky top-0 z-20 hidden h-14 items-center justify-end border-b border-slate-200 bg-white px-6 lg:flex">
+          <ConnectionStatusIndicator status={connection.status} />
+        </div>
+        {connection.isOffline ? (
+          <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 lg:px-8">
+            Server lokal tidak terhubung. Periksa jaringan atau pastikan PC server aktif.
+          </div>
+        ) : null}
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <Outlet />
         </div>

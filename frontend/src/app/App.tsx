@@ -17,6 +17,12 @@ import { PurchaseOrderPage } from '../features/purchase-orders/PurchaseOrderPage
 import { PurchasePage } from '../features/purchases/PurchasePage';
 import { ProfitReportPage } from '../features/reports/ProfitReportPage';
 import { SalesReportPage } from '../features/reports/SalesReportPage';
+import { SalesHistoryPage } from '../features/sales-history/SalesHistoryPage';
+import { SalesReturnPage } from '../features/sales-returns/SalesReturnPage';
+import { SettingsPage } from '../features/settings/SettingsPage';
+import { StockMutationsPage } from '../features/stock/StockMutationsPage';
+import { StockPage } from '../features/stock/StockPage';
+import { UsersPage } from '../features/users/UsersPage';
 import type { RoleName } from '../features/auth/auth.types';
 
 const managerOnly: RoleName[] = ['MANAGER'];
@@ -56,7 +62,7 @@ export function App() {
             path="/riwayat-transaksi"
             element={
               <ProtectedRoute allowedRoles={cashierAndManager}>
-                <PlaceholderPage title="Riwayat Transaksi" />
+                <SalesHistoryPage />
               </ProtectedRoute>
             }
           />
@@ -64,7 +70,7 @@ export function App() {
             path="/retur-penjualan"
             element={
               <ProtectedRoute allowedRoles={cashierAndManager}>
-                <PlaceholderPage title="Retur Penjualan" />
+                <SalesReturnPage />
               </ProtectedRoute>
             }
           />
@@ -148,13 +154,25 @@ export function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/stok"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <StockPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mutasi-stok"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <StockMutationsPage />
+              </ProtectedRoute>
+            }
+          />
           {[
-            ['/stok', 'Stok'],
-            ['/mutasi-stok', 'Mutasi Stok'],
             ['/retur-pembelian', 'Retur Pembelian'],
             ['/export', 'Export'],
-            ['/users', 'Users'],
-            ['/settings', 'Settings'],
           ].map(([path, title]) => (
             <Route
               key={path}
@@ -166,6 +184,22 @@ export function App() {
               }
             />
           ))}
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/laporan/penjualan"
             element={

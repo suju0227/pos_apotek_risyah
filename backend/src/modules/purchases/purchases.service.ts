@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, ProductBatch, ProductUnit } from '@prisma/client';
 import { isPrismaUniqueError } from '../../common/utils/prisma-error';
 import { PrismaService } from '../../database/prisma.service';
+import { IdempotencyService } from '../sales/idempotency.service';
 import {
   CreatePurchaseDto,
   PurchaseTaxMode,
@@ -48,7 +50,10 @@ type ProductUnitForPurchase = ProductUnit & {
 
 @Injectable()
 export class PurchasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly idempotencyService: IdempotencyService,
+  ) {}
 
   async findAll() {
     const purchases = await this.prisma.purchase.findMany({
@@ -127,7 +132,51 @@ export class PurchasesService {
     return this.toPurchaseResponse(purchase);
   }
 
-  async create(dto: CreatePurchaseDto, createdById: string) {
+  async create(
+    dto: CreatePurchaseDto,
+    createdById: string,
+    idempotencyKey?: string,
+  ) {
+    const key = idempotencyKey?.trim();
+    if (!key) {
+      throw new BadRequestException('Header Idempotency-Key wajib diisi');
+    }
+
+    const requestHash = this.idempotencyService.hashRequest(dto);
+    const activeKey = await this.idempotencyService.findActiveKey({
+      key,
+      userId: createdById,
+      actionType: 'PURCHASE_CREATE',
+    });
+
+    if (activeKey) {
+      if (activeKey.requestHash !== requestHash) {
+        throw new ConflictException('Idempotency key dipakai untuk payload berbeda');
+      }
+      if (activeKey.status === 'SUCCESS') {
+        return activeKey.responseSnapshot;
+      }
+      throw new ConflictException('Pembelian dengan idempotency key ini masih aktif');
+    }
+
+    const processingKey = await this.idempotencyService.createProcessingKey({
+      key,
+      userId: createdById,
+      actionType: 'PURCHASE_CREATE',
+      requestHash,
+    });
+
+    try {
+      const response = await this.createPurchase(dto, createdById);
+      await this.idempotencyService.markSuccess(processingKey.id, response);
+      return response;
+    } catch (error) {
+      await this.idempotencyService.markFailed(processingKey.id);
+      throw error;
+    }
+  }
+
+  private async createPurchase(dto: CreatePurchaseDto, createdById: string) {
     await this.ensureSupplierActive(dto.supplierId);
     if (dto.purchaseOrderId) {
       await this.ensurePurchaseOrderUsable(dto.purchaseOrderId, dto.supplierId);

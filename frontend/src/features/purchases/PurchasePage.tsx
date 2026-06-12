@@ -12,6 +12,7 @@ import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
+import { useConnectionStatus } from '../../shared/hooks/useConnectionStatus';
 import { formatDate, formatQty, formatRupiah } from '../../shared/utils/formatters';
 import {
   useProductUnits,
@@ -256,6 +257,7 @@ export function PurchasePage() {
   const productUnits = useProductUnits(itemProductId || null);
   const draftFromPo = usePurchaseDraftFromPo(poId ?? null);
   const createPurchase = useCreatePurchase();
+  const connection = useConnectionStatus();
 
   const purchaseForm = useForm<PurchaseFormInput, unknown, PurchaseForm>({
     resolver: zodResolver(purchaseSchema),
@@ -400,6 +402,11 @@ export function PurchasePage() {
   }
 
   async function submitPurchase(values: PurchaseForm) {
+    if (connection.isOffline) {
+      toast('Server lokal tidak terhubung. Periksa jaringan atau pastikan PC server aktif.');
+      return;
+    }
+
     if (!items.length) {
       toast('Item pembelian wajib diisi');
       return;
@@ -425,7 +432,10 @@ export function PurchasePage() {
       })),
     };
 
-    const created = await createPurchase.mutateAsync(payload);
+    const created = await createPurchase.mutateAsync({
+      payload,
+      idempotencyKey: createIdempotencyKey('purchase'),
+    });
     setSelectedPurchase(created);
     setItems([]);
     itemForm.reset(emptyItemDefaults);
@@ -814,7 +824,7 @@ export function PurchasePage() {
 
           <FormError error={createPurchase.error} />
           <div className="flex justify-end">
-            <Button type="submit" disabled={createPurchase.isPending}>
+            <Button type="submit" disabled={createPurchase.isPending || connection.isOffline}>
               {createPurchase.isPending ? 'Menyimpan...' : 'Simpan pembelian'}
             </Button>
           </div>
@@ -822,6 +832,13 @@ export function PurchasePage() {
       </Card>
     </div>
   );
+}
+
+function createIdempotencyKey(prefix: string) {
+  if ('crypto' in window && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function productNameForUnit(

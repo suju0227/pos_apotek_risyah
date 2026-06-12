@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -19,8 +19,12 @@ export class PurchasesController {
   }
 
   @Post()
-  create(@Body() dto: CreatePurchaseDto, @CurrentUser() user: AuthUser) {
-    return this.purchasesService.create(dto, user.id);
+  create(
+    @Body() dto: CreatePurchaseDto,
+    @CurrentUser() user: AuthUser,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.purchasesService.create(dto, user.id, idempotencyKey);
   }
 
   @Get('create-from-po/:poId')

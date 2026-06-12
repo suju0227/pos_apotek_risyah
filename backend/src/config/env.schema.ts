@@ -5,8 +5,12 @@ export const envSchema = Joi.object({
     .valid('development', 'test', 'staging', 'production')
     .default('development'),
   PORT: Joi.number().port().default(3000),
+  APP_PORT: Joi.number().port().optional(),
+  APP_HOST: Joi.string().default('0.0.0.0'),
+  APP_NAME: Joi.string().default('POS_APOTEK'),
   APP_URL: Joi.string().uri().default('http://localhost:5173'),
   FRONTEND_URL: Joi.string().uri().optional(),
+  API_PREFIX: Joi.string().default('/api'),
   DATABASE_URL: Joi.string().uri().required(),
   JWT_SECRET: Joi.string().min(16).required(),
   JWT_ACCESS_SECRET: Joi.string().min(16).optional(),
@@ -14,6 +18,9 @@ export const envSchema = Joi.object({
   JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
   CORS_ORIGIN: Joi.string().default('http://localhost:5173'),
+  CORS_ALLOW_LOCAL_NETWORK: Joi.boolean().truthy('true').falsy('false').default(false),
+  LOCAL_NETWORK_MODE: Joi.boolean().truthy('true').falsy('false').default(false),
+  LOCAL_SERVER_IP: Joi.string().ip({ version: ['ipv4'] }).optional(),
   APP_TIMEZONE: Joi.string().valid('Asia/Makassar').default('Asia/Makassar'),
   EXPORT_DIR: Joi.string().default('storage/exports'),
 });

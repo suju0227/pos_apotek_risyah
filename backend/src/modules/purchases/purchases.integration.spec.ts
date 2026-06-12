@@ -408,6 +408,7 @@ describe('Purchases API', () => {
     const response = await request(app.getHttpServer())
       .post(path)
       .set('Authorization', `Bearer ${managerToken}`)
+      .set('Idempotency-Key', `purchase-test-${Date.now()}-${Math.random()}`)
       .send(payload)
       .expect(status);
     return response.body;

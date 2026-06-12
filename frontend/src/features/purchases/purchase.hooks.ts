@@ -27,7 +27,13 @@ export function usePurchaseDraftFromPo(poId: string | null) {
 export function useCreatePurchase() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: purchaseApi.create,
+    mutationFn: ({
+      payload,
+      idempotencyKey,
+    }: {
+      payload: Parameters<typeof purchaseApi.create>[0];
+      idempotencyKey: string;
+    }) => purchaseApi.create(payload, idempotencyKey),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['purchases'] }),
   });
 }

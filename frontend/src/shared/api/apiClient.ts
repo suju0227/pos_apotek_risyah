@@ -1,10 +1,5 @@
 import { useAuthStore } from '../../features/auth/auth.store';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-if (!API_BASE_URL) {
-  throw new Error('VITE_API_BASE_URL wajib diisi.');
-}
+import { API_BASE_URL } from '../config';
 
 type RequestOptions = RequestInit & {
   skipAuth?: boolean;

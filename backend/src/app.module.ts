@@ -4,6 +4,7 @@ import { appConfig } from './config/app.config';
 import { databaseConfig } from './config/database.config';
 import { envSchema } from './config/env.schema';
 import { PrismaModule } from './database/prisma.module';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BatchesModule } from './modules/batches/batches.module';
 import { CounselingRecordsModule } from './modules/counseling-records/counseling-records.module';
@@ -20,6 +21,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { SalesReturnsModule } from './modules/sales-returns/sales-returns.module';
 import { SalesModule } from './modules/sales/sales.module';
+import { SettingsModule } from './modules/settings/settings.module';
 import { StockModule } from './modules/stock/stock.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { UnitsModule } from './modules/units/units.module';
@@ -34,6 +36,7 @@ import { UsersModule } from './modules/users/users.module';
     }),
     HealthModule,
     PrismaModule,
+    AuditLogsModule,
     AuthModule,
     RolesModule,
     UsersModule,
@@ -51,6 +54,7 @@ import { UsersModule } from './modules/users/users.module';
     CounselingRecordsModule,
     DashboardModule,
     ExportsModule,
+    SettingsModule,
     SalesModule,
     SalesReturnsModule,
   ],

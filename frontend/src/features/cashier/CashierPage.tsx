@@ -17,6 +17,7 @@ import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
+import { useConnectionStatus } from '../../shared/hooks/useConnectionStatus';
 import { formatQty, formatRupiah } from '../../shared/utils/formatters';
 import { useCashierProducts, useCreateCashierSale } from './cashier.hooks';
 import { useCashierCartStore } from './cashierCart.store';
@@ -55,6 +56,7 @@ export function CashierPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const productsQuery = useCashierProducts(search);
   const createSaleMutation = useCreateCashierSale();
+  const connection = useConnectionStatus();
   const { items, addItem, updateQty, removeItem, clear } = useCashierCartStore();
   const showToast = useToastStore((state) => state.show);
 
@@ -80,6 +82,14 @@ export function CashierPage() {
   };
 
   const handleCheckout = async () => {
+    if (connection.isOffline) {
+      const message =
+        'Server lokal tidak terhubung. Periksa jaringan atau pastikan PC server aktif.';
+      setCheckoutError(message);
+      showToast(message);
+      return;
+    }
+
     const validationMessage = validateCheckout({
       items,
       paymentMethod,
@@ -274,6 +284,7 @@ export function CashierPage() {
               changeAmount={changeAmount}
               isSubmitting={createSaleMutation.isPending}
               checkoutError={checkoutError}
+              isServerOffline={connection.isOffline}
               onPaymentMethodChange={setPaymentMethod}
               onPaidAmountChange={setPaidAmount}
               onDiscountTypeChange={(value) => {
@@ -437,6 +448,7 @@ function PaymentPanel({
   changeAmount,
   isSubmitting,
   checkoutError,
+  isServerOffline,
   onPaymentMethodChange,
   onPaidAmountChange,
   onDiscountTypeChange,
@@ -453,6 +465,7 @@ function PaymentPanel({
   changeAmount: number;
   isSubmitting: boolean;
   checkoutError: string | null;
+  isServerOffline: boolean;
   onPaymentMethodChange: (value: PaymentMethod) => void;
   onPaidAmountChange: (value: number) => void;
   onDiscountTypeChange: (value: DiscountType) => void;
@@ -547,7 +560,7 @@ function PaymentPanel({
         <Button
           type="button"
           fullWidth
-          disabled={isSubmitting}
+          disabled={isSubmitting || isServerOffline}
           onClick={onCheckout}
         >
           {isSubmitting ? 'Menyimpan...' : 'Simpan Transaksi'}

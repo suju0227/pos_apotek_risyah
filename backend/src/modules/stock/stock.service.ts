@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { IdempotencyService } from '../sales/idempotency.service';
 
 const productStockInclude = {
   category: true,
@@ -27,7 +29,10 @@ type BatchStock = ProductStock['batches'][number];
 
 @Injectable()
 export class StockService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly idempotencyService: IdempotencyService,
+  ) {}
 
   async findAll() {
     const products = await this.prisma.product.findMany({
@@ -55,7 +60,64 @@ export class StockService {
     };
   }
 
-  async adjustStock(batchId: string, newQtyBase: number, reason: string, userId: string) {
+  async adjustStock(
+    batchId: string,
+    newQtyBase: number,
+    reason: string,
+    userId: string,
+    idempotencyKey?: string,
+  ) {
+    const key = idempotencyKey?.trim();
+    if (!key) {
+      throw new BadRequestException('Header Idempotency-Key wajib diisi');
+    }
+
+    const requestPayload = { batchId, newQtyBase, reason };
+    const requestHash = this.idempotencyService.hashRequest(requestPayload);
+    const activeKey = await this.idempotencyService.findActiveKey({
+      key,
+      userId,
+      actionType: 'STOCK_ADJUSTMENT',
+    });
+
+    if (activeKey) {
+      if (activeKey.requestHash !== requestHash) {
+        throw new ConflictException('Idempotency key dipakai untuk payload berbeda');
+      }
+      if (activeKey.status === 'SUCCESS') {
+        return activeKey.responseSnapshot;
+      }
+      throw new ConflictException('Koreksi stok dengan idempotency key ini masih aktif');
+    }
+
+    const processingKey = await this.idempotencyService.createProcessingKey({
+      key,
+      userId,
+      actionType: 'STOCK_ADJUSTMENT',
+      requestHash,
+    });
+
+    try {
+      const response = await this.createStockAdjustment(
+        batchId,
+        newQtyBase,
+        reason,
+        userId,
+      );
+      await this.idempotencyService.markSuccess(processingKey.id, response);
+      return response;
+    } catch (error) {
+      await this.idempotencyService.markFailed(processingKey.id);
+      throw error;
+    }
+  }
+
+  private async createStockAdjustment(
+    batchId: string,
+    newQtyBase: number,
+    reason: string,
+    userId: string,
+  ) {
     const adjustment = await this.prisma.$transaction(async (tx) => {
       const batch = await tx.productBatch.findFirst({
         where: { id: batchId, deletedAt: null },

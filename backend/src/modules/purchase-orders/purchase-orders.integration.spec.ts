@@ -223,11 +223,14 @@ describe('Purchase Orders API', () => {
   }
 
   async function post(token: string, path: string, payload: object, status = 201) {
-    const response = await request(app.getHttpServer())
+    const builder = request(app.getHttpServer())
       .post(path)
       .set('Authorization', `Bearer ${token}`)
-      .send(payload)
-      .expect(status);
+      .send(payload);
+    if (path === '/api/purchases') {
+      builder.set('Idempotency-Key', `po-test-${suffix}-${Date.now()}-${Math.random()}`);
+    }
+    const response = await builder.expect(status);
     return response.body;
   }
 

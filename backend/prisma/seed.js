@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 
 const roles = [
   { name: 'KASIR', description: 'Kasir apotek untuk transaksi penjualan.' },
+  { name: 'APOTEKER', description: 'Apoteker untuk pelayanan resep dan konseling.' },
   { name: 'MANAGER', description: 'Manager apotek untuk pengelolaan data dan laporan.' },
   { name: 'PEMILIK', description: 'Pemilik apotek untuk akses ringkasan bisnis.' },
 ];

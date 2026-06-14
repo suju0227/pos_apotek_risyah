@@ -7,9 +7,9 @@
 | Nama proyek | POS Apotek V2 |
 | Nama file | `08_TASK_COMPLETED_LOG_POS_APOTEK.md` |
 | Versi dokumen | 0.2.0 |
-| Status dokumen | Audit Backend Tervalidasi, Frontend dan Deployment Parsial |
+| Status dokumen | Audit Backend Tervalidasi, Frontend V1 Build-Level, Deployment Local Parsial |
 | Tanggal dibuat | 2026-06-05 |
-| Tanggal terakhir diperbarui | 2026-06-06 |
+| Tanggal terakhir diperbarui | 2026-06-14 |
 | Penyusun | Codex GPT |
 | Dokumen rujukan | `01_PRD_POS_APOTEK.md`, `02_SRS_POS_APOTEK.md`, `03_SDD_SYSTEM_DESIGN_POS_APOTEK.md`, `04_UI_UX_FLOW_POS_APOTEK.md`, `05_TASK_BREAKDOWN_POS_APOTEK.md`, `06_FRONTEND_POS_APOTEK.md`, `07_BACKEND_POS_APOTEK.md` |
 
@@ -23,9 +23,9 @@ Audit ini memverifikasi progres aktual repository setelah PostgreSQL development
 | Backend API utama | Selesai Terverifikasi | `npm.cmd test -- --runInBand`: 18 test suite lulus, 78 test lulus. |
 | API smoke test | Selesai Terverifikasi | Manager login/dashboard/reports berhasil; user kasir sementara dapat akses cashier products dan ditolak dari profit report; user kasir smoke dinonaktifkan setelah test. |
 | Frontend build | Selesai Parsial | `npm.cmd run build` berhasil setelah UI pemesanan/PO ditambahkan. |
-| Frontend halaman operasional | Perlu Implementasi Lanjutan | Produk, kategori, supplier, satuan, pengaturan satuan jual produk, batch, pemesanan/PO, dan pembelian sudah memiliki UI; route lain masih memakai `PlaceholderPage`. |
-| Audit log | Belum Dikerjakan / Belum Terbukti | Tidak ditemukan model/service audit log pada schema/source. |
-| Settings profil apotek | Belum Dikerjakan / Belum Terbukti | Route frontend masih placeholder dan tidak ditemukan backend settings module. |
+| Frontend halaman operasional | Selesai Build-Level, Perlu Smoke Manual | UI master data, batch, PO, pembelian, kasir, resep, konseling, retur, laporan, export, users, settings, dan audit log tersedia; smoke operasional penuh belum dicatat. |
+| Audit log | Selesai Build-Level, Perlu Smoke Manual | Migration `audit_logs`, backend `AuditLogsModule`, dan halaman Manager read-only `/audit-log` tersedia. |
+| Settings profil apotek | Selesai Build-Level, Perlu Smoke Manual | Migration `app_settings`, backend `SettingsModule`, dan UI `/settings` tersedia. |
 
 ## 2. Hasil Command Verifikasi
 
@@ -69,7 +69,7 @@ vite build completed successfully
 |---|---|---|---|
 | Phase 0 | Persiapan Proyek | Selesai Terverifikasi | Struktur repo, package, env example, Docker Compose, README, dan script tersedia. |
 | Phase 1 | Database Foundation | Selesai Terverifikasi | Migration Prisma tersedia dan deploy berhasil. |
-| Phase 2 | Auth, RBAC, User & Security Foundation | Selesai Sebagian | Auth, refresh token, RBAC, dan users teruji; audit log belum terbukti. |
+| Phase 2 | Auth, RBAC, User & Security Foundation | Selesai Build-Level | Auth, refresh token, RBAC, users, dan audit log tersedia; smoke role UI dan audit log penuh masih masuk sesi testing. |
 | Phase 3 | Master Data | Selesai Terverifikasi Backend, Frontend Selesai | API dan integration test master data lulus; UI kategori, supplier, satuan, produk, dan pengaturan satuan jual produk tersedia. |
 | Phase 4 | Batch, PO & Pembelian | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Batch, PO, dan pembelian memiliki backend/UI; pembelian UI build-level lulus, smoke test operasional masih perlu. |
 | Phase 5 | Stok & Mutasi | Selesai Terverifikasi Backend | Stock summary, mutation, dan stock adjustment teruji. |
@@ -79,9 +79,9 @@ vite build completed successfully
 | Phase 8 | Retur | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Retur penjualan dan retur pembelian memiliki UI; backend tetap sumber mutasi stok. |
 | Phase 9 | Dashboard & Laporan | Selesai Terverifikasi Backend dan Frontend Parsial | Dashboard/reports backend teruji; halaman dashboard dan laporan tersedia. |
 | Phase 10 | Export | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Export xlsx/pdf teruji dan UI download laporan tersedia. |
-| Phase 11 | User, Settings, Responsive & UX Polish | Selesai Sebagian | User API teruji; settings belum terbukti; banyak UI operasional masih placeholder. |
+| Phase 11 | User, Settings, Responsive & UX Polish | Selesai Build-Level, Perlu Smoke Manual | UI users, settings, dan audit log Manager tersedia; validasi ringan frontend perlu dijalankan setelah polish. |
 | Phase 12 | Testing | Selesai Sebagian | Backend Jest/Supertest lulus; E2E browser/manual smoke test belum dicatat. |
-| Phase 13 | Deployment | Selesai Parsial | Konfigurasi repo untuk Vercel frontend, Railway backend, Railway PostgreSQL, healthcheck, CORS, env example, dan dokumentasi tersedia; production checklist/backup belum diverifikasi. |
+| Phase 13 | Deployment | Selesai Parsial | Docker Full Local Mode menjadi target utama V1; healthcheck, CORS env, Docker Compose lokal, reverse proxy, dan script backup/restore tersedia; checklist produksi dan restore formal belum masuk sesi testing. |
 | Phase 14 | Final Review | Sedang Dikerjakan | Audit progres aktual sudah dibuat; traceability penuh masih perlu dilanjutkan setelah UI selesai. |
 
 ## 4. Daftar Task Selesai Terverifikasi
@@ -148,7 +148,7 @@ vite build completed successfully
 | 58 | TASK-FE-019 | Laporan laba UI | Phase 9 | ProfitReportPage tersedia. | Frontend build lulus. | Selesai build-level. |
 | 59 | TASK-FE-008 | Pembelian UI | Phase 4 | PurchasePage tersambung ke `/pembelian` dengan daftar pembelian, filter client-side, form pembelian manual, item dinamis, batch, expired date, harga beli, diskon, harga jual manual, dan detail pembelian. | Frontend build lulus. | Selesai build-level; smoke test operasional dengan backend hidup masih perlu. |
 | 60 | TASK-FE-PUR-REV-001 | UI pembelian faktur, diskon, PPN | Phase 4D | PurchasePage mendukung faktur supplier, tanggal faktur, mode PPN, total faktur input, pembulatan/koreksi, catatan selisih, diskon item, dan pembelian dari PO. | Frontend build lulus. | Selesai build-level; final stock mutation tetap backend. |
-| 61 | TASK-DEPLOY-001 | Setup environment deployment | Phase 13 | `frontend/vercel.json`, root `vercel.json`, Railway-ready backend scripts, `/health`, env examples, CORS env, dan `DEPLOYMENT.md`. | Backend build, frontend build, dan `git diff --check` lulus. | Selesai untuk konfigurasi repo; actual env Railway/Vercel dan production smoke test masih pending. |
+| 61 | TASK-DEPLOY-001 | Setup environment deployment | Phase 13 | Docker Full Local Mode, `/api/health`, CORS env, compose lokal, frontend Nginx proxy, dan dokumentasi local network deployment. | Build/checkpoint Docker sudah dilakukan pada sesi deployment sebelumnya. | Selesai parsial untuk local mode; production checklist dan restore formal masih pending. |
 | 62 | TASK-TEST-001 | Test FEFO | Phase 12 | `fefo.service.spec.ts`. | Backend test lulus. | Selesai. |
 | 63 | TASK-TEST-002 | Test diskon | Phase 12 | `discount.service.spec.ts`. | Backend test lulus. | Selesai. |
 | 64 | TASK-TEST-004 | Integration test penjualan | Phase 12 | `sales.integration.spec.ts`. | Backend test lulus. | Selesai. |
@@ -165,20 +165,21 @@ vite build completed successfully
 
 | Task ID | Nama Task | Status | Alasan |
 |---|---|---|---|
-| TASK-BE-026 | AuditLogService | Belum Dikerjakan / Belum Terbukti | Tidak ditemukan model/service audit log. |
-| TASK-DB-012 | Audit logs | Belum Dikerjakan / Belum Terbukti | Tidak ditemukan tabel/model audit log. |
+| TASK-BE-026 | AuditLogService | Selesai Build-Level, Perlu Smoke Manual | `AuditLogsService` dan endpoint Manager `/api/audit-logs` tersedia; cakupan event audit penuh perlu diverifikasi di sesi testing. |
+| TASK-DB-012 | Audit logs | Selesai Build-Level | Migration dan Prisma model `AuditLog` tersedia. |
 | TASK-FE-PRESC-001 | UI pelayanan resep | Selesai Build-Level | `/pelayanan/resep` tersedia untuk daftar, form resep, mark ready, dan cancel. |
 | TASK-FE-PRESC-002 | Integrasi resep ke kasir | Selesai Build-Level | `/kasir` menampilkan resep siap bayar dan checkout via backend. |
 | TASK-FE-COUNS-001 | UI konseling dasar | Selesai Build-Level | `/pelayanan/konseling` tersedia untuk list dan create catatan konseling. |
 | TASK-FE-015 | Retur penjualan UI | Selesai Build-Level | `/retur-penjualan` tersedia dan memakai idempotency key. |
 | TASK-FE-016 | UI retur pembelian | Selesai Build-Level | `/retur-pembelian` tersedia dan memakai idempotency key. |
 | TASK-FE-020 | Tombol export | Selesai Build-Level | `/export` tersedia untuk download laporan penjualan/laba XLSX/PDF. |
-| TASK-FE-021 | UI manajemen user | Belum Selesai | Route users masih placeholder. |
-| TASK-FE-022 | UI pengaturan profil apotek | Belum Selesai | Route settings masih placeholder dan backend settings belum terbukti. |
+| TASK-FE-021 | UI manajemen user | Selesai Build-Level, Perlu Smoke Manual | `/users` tersedia untuk create user, ubah role, aktif/nonaktif akun, dan feedback operator. |
+| TASK-FE-022 | UI pengaturan profil apotek | Selesai Build-Level, Perlu Smoke Manual | `/settings` tersedia dan tersambung ke backend settings Manager-only. |
+| TASK-FE-AUDIT-001 | UI audit log Manager | Selesai Build-Level, Perlu Smoke Manual | `/audit-log` tersedia read-only untuk 200 aktivitas terbaru dari backend. |
 | TASK-TEST-006 | E2E test alur utama | Belum Selesai | Belum ada E2E browser/manual smoke test tercatat. |
 | TASK-TEST-007 | Test concurrent sale | Belum Terbukti | Tidak ditemukan bukti eksplisit dari nama test audit ini. |
-| TASK-DEPLOY-001 | Setup environment deployment | Selesai Parsial | Konfigurasi repo siap, tetapi env Railway/Vercel aktual dan smoke test production belum dijalankan. |
-| TASK-DEPLOY-002 | Setup backup dan recovery | Belum Dikerjakan | Belum ada strategi/tes restore. |
+| TASK-DEPLOY-001 | Setup environment deployment | Selesai Parsial | Konfigurasi local network deployment siap; checklist produksi local dan restore formal belum dijalankan di sesi testing. |
+| TASK-DEPLOY-002 | Setup backup dan recovery | Selesai Parsial | Script backup/restore lokal tersedia; restore test formal tetap masuk sesi deployment/testing. |
 | TASK-DEPLOY-003 | Final production checklist | Belum Dikerjakan | Menunggu UI, audit log/settings, E2E, dan deployment. |
 | TASK-DOC-001 | Review traceability penuh | Sedang Dikerjakan | Audit progres sudah dibuat, traceability detail penuh belum selesai. |
 | TASK-DOC-002 | Dokumentasi penggunaan internal | Belum Dikerjakan | Belum ada panduan pengguna akhir. |
@@ -187,10 +188,10 @@ vite build completed successfully
 
 - Backend test membutuhkan PostgreSQL development berjalan di `127.0.0.1:55432`.
 - `prisma generate` sempat gagal karena lock file DLL Windows, lalu berhasil setelah test selesai. Jika terulang, tutup proses Node yang memegang Prisma Client dan ulangi command.
-- Frontend build lulus, tetapi build bukan pengganti smoke test operasional dengan backend hidup.
-- Deployment config lulus build, tetapi belum membuktikan Railway/Vercel production benar sampai environment platform diisi dan `/health` serta login diuji dari URL publik.
-- Task frontend yang masih placeholder tidak boleh ditandai selesai hanya karena route tersedia.
-- Audit log dan settings adalah gap requirement yang harus diputuskan: implementasikan sebagai V1 atau revisi dokumen jika benar-benar dikeluarkan dari scope.
+- Frontend build lulus pada checkpoint sebelumnya, tetapi build bukan pengganti smoke test operasional dengan backend hidup.
+- Target deployment utama V1 saat ini adalah Docker Full Local Mode; Vercel/Railway hanya future-cloud-deployment dan tidak menjadi default aktif.
+- Task frontend yang selesai build-level tetap perlu smoke manual sebelum ditandai siap operasional.
+- Audit log/settings/users sudah ada di source, tetapi cakupan event audit, role UI, dan alur operator perlu diverifikasi di sesi testing khusus.
 
 ## 7. Riwayat Perubahan Log
 
@@ -201,5 +202,6 @@ vite build completed successfully
 | 2026-06-06 | Menambahkan UI pengaturan satuan jual aktif per produk dan verifikasi frontend build. | TASK-FE-006, TASK-FE-UNIT-REV-001 | Produk UI sekarang mendukung panel satuan jual produk. |
 | 2026-06-06 | Menambahkan UI Batch dan verifikasi frontend build. | TASK-FE-007 | `/batch` sekarang mendukung create/list/search/filter/detail/mutasi/deactivate. |
 | 2026-06-06 | Menambahkan UI Pemesanan/PO dan verifikasi frontend build. | TASK-FE-PO-001, TASK-FE-PO-002 | `/pemesanan` sekarang mendukung create/list/status/preview/convert draft. |
-| 2026-06-06 | Menambahkan UI Pembelian Supplier dan kesiapan deployment Vercel/Railway. | TASK-FE-008, TASK-FE-PUR-REV-001, TASK-DEPLOY-001 | `/pembelian` dan `/pembelian/dari-po/:poId` tersambung ke PurchasePage; deployment config, healthcheck, CORS env, dan dokumentasi tersedia. |
+| 2026-06-06 | Menambahkan UI Pembelian Supplier dan konfigurasi deployment awal. | TASK-FE-008, TASK-FE-PUR-REV-001, TASK-DEPLOY-001 | `/pembelian` dan `/pembelian/dari-po/:poId` tersambung ke PurchasePage; deployment config, healthcheck, CORS env, dan dokumentasi tersedia. |
 | 2026-06-12 | Menutup gap UI operasional V1 untuk resep, konseling, retur pembelian, export, dan integrasi resep siap bayar di kasir. | TASK-FE-PRESC-001, TASK-FE-PRESC-002, TASK-FE-COUNS-001, TASK-FE-016, TASK-FE-020 | Frontend build lulus; backend regression prescriptions, purchase returns, sales, reports, exports lulus di database test sementara. |
+| 2026-06-14 | Menyinkronkan status Phase 11, polish UI Manager, dan menambahkan halaman audit log read-only. | TASK-FE-021, TASK-FE-022, TASK-FE-AUDIT-001, TASK-BE-026, TASK-DB-012 | Validasi ringan frontend dilakukan pada sesi implementasi; smoke manual penuh tetap masuk sesi testing khusus. |

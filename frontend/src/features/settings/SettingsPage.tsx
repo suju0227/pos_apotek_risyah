@@ -32,12 +32,14 @@ export function SettingsPage() {
   }, [data]);
 
   const handleSubmit = async () => {
+    const expiredAlertDays = Number(form.expiredAlertDays);
+
     if (!form.pharmacyName?.trim()) {
       showToast('Nama apotek wajib diisi.');
       return;
     }
-    if (!form.expiredAlertDays || form.expiredAlertDays < 1) {
-      showToast('Ambang expired minimal 1 hari.');
+    if (!Number.isInteger(expiredAlertDays) || expiredAlertDays < 1) {
+      showToast('Ambang peringatan expired harus angka bulat minimal 1 hari.');
       return;
     }
 
@@ -46,7 +48,7 @@ export function SettingsPage() {
         pharmacyName: form.pharmacyName.trim(),
         address: form.address?.trim() || null,
         phone: form.phone?.trim() || null,
-        expiredAlertDays: Number(form.expiredAlertDays),
+        expiredAlertDays,
         timezone: 'Asia/Makassar',
       });
       showToast('Pengaturan berhasil disimpan.');
@@ -61,9 +63,10 @@ export function SettingsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-slate-950">Settings</h1>
+        <h1 className="text-2xl font-bold text-slate-950">Pengaturan Apotek</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Profil apotek dan konfigurasi operasional dasar.
+          Profil apotek dan konfigurasi operasional dasar untuk dashboard, alert expired,
+          dan dokumen internal.
         </p>
       </div>
 
@@ -85,7 +88,7 @@ export function SettingsPage() {
             onChange={(event) => setForm({ ...form, address: event.target.value })}
           />
           <Input
-            label="Ambang expired alert hari"
+            label="Ambang peringatan expired (hari)"
             type="number"
             min={1}
             value={form.expiredAlertDays ?? 30}
@@ -93,9 +96,13 @@ export function SettingsPage() {
               setForm({ ...form, expiredAlertDays: Number(event.target.value) })
             }
           />
-          <Input label="Timezone" value="Asia/Makassar" disabled />
-          <Input label="Currency" value={data?.currency ?? 'IDR'} disabled />
+          <Input label="Zona waktu operasional" value="Asia/Makassar" disabled />
+          <Input label="Mata uang" value={data?.currency ?? 'IDR'} disabled />
         </div>
+        <p className="mt-4 text-xs text-slate-500">
+          Zona waktu dan mata uang dikunci untuk V1. Perubahan profil dicatat di audit log
+          backend.
+        </p>
         <div className="mt-5">
           <Button type="button" onClick={handleSubmit} disabled={updateSettings.isPending}>
             {updateSettings.isPending ? 'Menyimpan...' : 'Simpan Pengaturan'}

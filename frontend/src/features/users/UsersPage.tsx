@@ -29,16 +29,27 @@ export function UsersPage() {
   const [form, setForm] = useState<CreateUserPayload>(initialForm);
 
   const handleCreate = async () => {
-    if (!form.name.trim() || !form.username.trim() || !form.password.trim()) {
-      showToast('Nama, username, dan password wajib diisi.');
+    const name = form.name.trim();
+    const username = form.username.trim();
+    const email = form.email?.trim();
+    const password = form.password.trim();
+
+    if (!name || !username || !password) {
+      showToast('Nama, username, dan password awal wajib diisi.');
       return;
     }
+    if (password.length < 6) {
+      showToast('Password awal minimal 6 karakter.');
+      return;
+    }
+
     try {
       await createUser.mutateAsync({
         ...form,
-        name: form.name.trim(),
-        username: form.username.trim(),
-        email: form.email?.trim() || undefined,
+        name,
+        username,
+        email: email || undefined,
+        password,
       });
       setForm(initialForm);
       showToast('User berhasil dibuat.');
@@ -78,7 +89,8 @@ export function UsersPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-950">Manajemen User</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Manager dapat membuat user, mengubah role, dan menonaktifkan akun.
+          Manager dapat membuat akun operasional, mengubah role, dan menonaktifkan akun
+          tanpa menghapus histori transaksi.
         </p>
       </div>
 
@@ -104,6 +116,7 @@ export function UsersPage() {
           <Input
             label="Password awal"
             type="password"
+            minLength={6}
             value={form.password}
             onChange={(event) => setForm({ ...form, password: event.target.value })}
           />
@@ -127,6 +140,10 @@ export function UsersPage() {
             </Button>
           </div>
         </div>
+        <p className="mt-4 text-xs text-slate-500">
+          Role menentukan akses menu dan endpoint backend. Kasir tetap tidak menerima akses
+          harga modal, HPP, laba, pembelian, koreksi stok, atau laporan laba.
+        </p>
       </Card>
 
       {!data.length ? (

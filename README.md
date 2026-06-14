@@ -60,6 +60,15 @@ Guardrail V1:
 - Kasir tidak boleh menerima HPP, laba, margin, harga beli, laporan laba, pembelian supplier, koreksi stok, atau price setting.
 - Jangan menambah BPJS, payment gateway otomatis, multi-cabang, loyalty program, atau akuntansi penuh pada V1.
 
+## Codex Project Skills
+
+Repo ini memiliki skill lokal di `.codex/skills` untuk menjaga workflow Codex tetap konsisten dengan aturan POS Apotek:
+
+- `pos-apotek-v1-implementation`: gunakan saat mengimplementasikan fitur V1 agar aturan stok batch, FEFO, HPP, laba, role, dan transaksi tetap aman.
+- `pos-apotek-testing-safety`: gunakan saat sesi testing/smoke agar regression backend, Docker check, dan backup/restore tidak tercampur ke sesi implementasi harian.
+
+Analisis pemilihan skill berdasarkan katalog `openai/skills` dicatat di `docs/09_CODEX_SKILLS_POS_APOTEK.md`.
+
 ## Struktur Folder
 
 ```text

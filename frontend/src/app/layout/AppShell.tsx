@@ -83,6 +83,7 @@ const navItems: NavItem[] = [
   },
   { label: 'Export', path: '/export', icon: FileDown, roles: ['MANAGER'] },
   { label: 'Users', path: '/users', icon: Users, roles: ['MANAGER'] },
+  { label: 'Audit Log', path: '/audit-log', icon: FileText, roles: ['MANAGER'] },
   { label: 'Settings', path: '/settings', icon: Settings, roles: ['MANAGER'] },
 ];
 

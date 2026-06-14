@@ -3,6 +3,7 @@ import { AppShell } from './layout/AppShell';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { PlaceholderPage } from '../shared/components/PlaceholderPage';
 import { ToastRegion } from '../shared/components/ToastRegion';
+import { AuditLogsPage } from '../features/audit-logs/AuditLogsPage';
 import { LoginPage } from '../features/auth/LoginPage';
 import { BatchPage } from '../features/batches/BatchPage';
 import { CashierPage } from '../features/cashier/CashierPage';
@@ -195,6 +196,14 @@ export function App() {
             element={
               <ProtectedRoute allowedRoles={managerOnly}>
                 <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/audit-log"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <AuditLogsPage />
               </ProtectedRoute>
             }
           />

@@ -34,6 +34,32 @@ http://192.168.1.10/api
 
 Backend tetap menjadi sumber kebenaran final untuk stok, batch, FEFO, HPP, laba, diskon alokasi, retur, dan mutasi stok. Frontend hanya menghitung estimasi tampilan dan tidak menyimpan transaksi final di localStorage.
 
+## Status Fitur V1
+
+Fokus pengembangan saat ini adalah menyelesaikan sistem POS Apotek V1 sebelum kembali memperluas pekerjaan deployment.
+
+Fitur utama yang tersedia:
+
+- Auth JWT, refresh token, role, dan proteksi route.
+- Manajemen user dan pengaturan profil apotek.
+- Master data kategori, supplier, satuan, produk, satuan jual aktif, dan minimum qty jual.
+- Batch produk, harga jual per batch/satuan jual, stok batch, dan mutasi stok.
+- Pemesanan/PO obat dan pembelian supplier, termasuk pembelian dari PO.
+- Presisi Harga Modal dan HPP: harga modal/HPP/laba internal memakai presisi tinggi, harga jual pelanggan tetap rupiah bulat manual.
+- Kasir, keranjang, pembayaran, diskon, checkout, FEFO backend, split batch, dan idempotency checkout.
+- Pelayanan resep dasar: resep tidak mengurangi stok sebelum ditarik kasir dan checkout berhasil.
+- Konseling dasar: catatan konseling tidak membuat tagihan dan tidak mengubah stok.
+- Riwayat transaksi, retur penjualan, retur pembelian, dashboard, laporan penjualan, laporan laba, dan export XLSX/PDF.
+- Indikator koneksi local server dan blokir submit final saat server tidak terhubung.
+
+Guardrail V1:
+
+- Backend tetap sumber kebenaran final untuk stok, batch, FEFO, HPP, laba, retur, diskon alokasi, dan mutasi stok.
+- Jangan menyimpan transaksi final di localStorage.
+- Jangan membuat PWA offline penuh, database per client, atau sinkronisasi peer-to-peer.
+- Kasir tidak boleh menerima HPP, laba, margin, harga beli, laporan laba, pembelian supplier, koreksi stok, atau price setting.
+- Jangan menambah BPJS, payment gateway otomatis, multi-cabang, loyalty program, atau akuntansi penuh pada V1.
+
 ## Struktur Folder
 
 ```text
@@ -221,6 +247,22 @@ npm.cmd run build
 npm.cmd run preview:lan
 ```
 
+## Workflow Pengembangan Saat Ini
+
+Untuk sementara, pekerjaan utama adalah menyelesaikan sistem aplikasi, bukan Docker. Docker Full Local Mode sudah menjadi baseline yang cukup stabil dan hanya disentuh lagi jika ada perubahan deployment atau ada bug runtime.
+
+Kebijakan test per sesi:
+
+- Sesi implementasi harian: jalankan validasi ringan saja, terutama `npm.cmd --prefix frontend run build` setelah perubahan frontend besar dan `git diff --check` sebelum commit.
+- Sesi testing khusus: jalankan backend regression, E2E/manual smoke, Docker check, backup/restore, dan audit role/security.
+- Jangan menjalankan Docker build/check atau backend regression penuh di sesi implementasi biasa kecuali memang sedang menyentuh area tersebut.
+
+Workflow git:
+
+- Gunakan commit bertahap per kelompok fitur yang stabil.
+- Push/PR ke GitHub dilakukan setelah satu kelompok fitur siap direview, bukan setiap perubahan kecil.
+- Backup database tidak boleh masuk git; folder `backups/` diabaikan oleh `.gitignore`.
+
 ## Firewall Windows
 
 Izinkan port berikut pada PC server lokal:
@@ -283,6 +325,22 @@ Backup minimal harian, mingguan, bulanan, sebelum update aplikasi, dan simpan sa
 - Jika backend dimatikan, frontend menampilkan pesan server lokal tidak terhubung.
 - Dua client kasir tidak dapat membuat stok batch negatif.
 - Retry checkout/pembelian/retur/koreksi stok memakai idempotency key.
+
+## Checklist Manual Fitur V1
+
+Checklist ini dijalankan pada sesi testing khusus, bukan setiap sesi implementasi.
+
+- Manager dapat membuat kategori, supplier, satuan, produk, satuan jual, batch, PO, dan pembelian.
+- PO tidak menambah atau mengurangi stok sebelum pembelian final.
+- Pembelian menambah stok batch dan mencatat mutasi stok masuk.
+- Apoteker/Manager dapat membuat resep dan menandai resep siap bayar.
+- Resep tidak mengurangi stok sebelum checkout kasir berhasil.
+- Kasir dapat checkout produk reguler dan resep siap bayar.
+- Checkout menjalankan FEFO backend, split batch jika perlu, idempotency, dan mutasi stok keluar.
+- Retur penjualan mengembalikan stok ke batch asal dan mengoreksi laporan laba.
+- Retur pembelian mengurangi stok batch dan mencatat mutasi stok keluar.
+- Dashboard, laporan penjualan, laporan laba, dan export XLSX/PDF dapat dibuka Manager.
+- Kasir ditolak dari endpoint dan UI sensitif seperti laporan laba, pembelian, HPP, laba, margin, dan koreksi stok.
 
 ## Future Cloud Deployment
 

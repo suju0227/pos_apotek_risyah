@@ -54,6 +54,7 @@ const navItems: NavItem[] = [
   { label: 'Batch', path: '/batch', icon: Boxes, roles: ['MANAGER'] },
   { label: 'Pemesanan', path: '/pemesanan', icon: FileText, roles: ['APOTEKER', 'MANAGER'] },
   { label: 'Pembelian', path: '/pembelian', icon: ClipboardList, roles: ['MANAGER'] },
+  { label: 'Retur Pembelian', path: '/retur-pembelian', icon: Undo2, roles: ['MANAGER'] },
   { label: 'Stok', path: '/stok', icon: Warehouse, roles: ['MANAGER'] },
   { label: 'Mutasi Stok', path: '/mutasi-stok', icon: BarChart3, roles: ['MANAGER'] },
   {

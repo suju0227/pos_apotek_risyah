@@ -74,11 +74,11 @@ vite build completed successfully
 | Phase 4 | Batch, PO & Pembelian | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Batch, PO, dan pembelian memiliki backend/UI; pembelian UI build-level lulus, smoke test operasional masih perlu. |
 | Phase 5 | Stok & Mutasi | Selesai Terverifikasi Backend | Stock summary, mutation, dan stock adjustment teruji. |
 | Phase 6 | Kasir & Transaksi | Selesai Terverifikasi Backend, Frontend Parsial | FEFO, split batch, checkout, idempotency, dan cashier-safe response teruji; UI kasir tersedia. |
-| Phase 6C | Pelayanan Resep dan Konseling | Selesai Terverifikasi Backend, Frontend Belum | Backend resep/konseling teruji; UI masih placeholder. |
+| Phase 6C | Pelayanan Resep dan Konseling | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Backend resep/konseling teruji; UI resep, integrasi kasir resep siap bayar, dan UI konseling tersedia. |
 | Phase 7 | Diskon & Pembayaran | Selesai Terverifikasi Backend | Unit/integration test diskon dan pembayaran lulus. |
-| Phase 8 | Retur | Selesai Terverifikasi Backend, Frontend Belum | Retur penjualan/pembelian teruji; UI masih placeholder. |
+| Phase 8 | Retur | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Retur penjualan dan retur pembelian memiliki UI; backend tetap sumber mutasi stok. |
 | Phase 9 | Dashboard & Laporan | Selesai Terverifikasi Backend dan Frontend Parsial | Dashboard/reports backend teruji; halaman dashboard dan laporan tersedia. |
-| Phase 10 | Export | Selesai Terverifikasi Backend, Frontend Belum | Export xlsx/pdf teruji; UI masih placeholder. |
+| Phase 10 | Export | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Export xlsx/pdf teruji dan UI download laporan tersedia. |
 | Phase 11 | User, Settings, Responsive & UX Polish | Selesai Sebagian | User API teruji; settings belum terbukti; banyak UI operasional masih placeholder. |
 | Phase 12 | Testing | Selesai Sebagian | Backend Jest/Supertest lulus; E2E browser/manual smoke test belum dicatat. |
 | Phase 13 | Deployment | Selesai Parsial | Konfigurasi repo untuk Vercel frontend, Railway backend, Railway PostgreSQL, healthcheck, CORS, env example, dan dokumentasi tersedia; production checklist/backup belum diverifikasi. |
@@ -167,12 +167,12 @@ vite build completed successfully
 |---|---|---|---|
 | TASK-BE-026 | AuditLogService | Belum Dikerjakan / Belum Terbukti | Tidak ditemukan model/service audit log. |
 | TASK-DB-012 | Audit logs | Belum Dikerjakan / Belum Terbukti | Tidak ditemukan tabel/model audit log. |
-| TASK-FE-PRESC-001 | UI pelayanan resep | Belum Selesai | Route masih placeholder. |
-| TASK-FE-PRESC-002 | Integrasi resep ke kasir | Belum Selesai | UI resep masih placeholder. |
-| TASK-FE-COUNS-001 | UI konseling dasar | Belum Selesai | Route masih placeholder. |
-| TASK-FE-015 | Retur penjualan UI | Belum Selesai | Route masih placeholder. |
-| TASK-FE-016 | UI retur pembelian | Belum Selesai | Route masih placeholder. |
-| TASK-FE-020 | Tombol export | Belum Selesai | Route export masih placeholder. |
+| TASK-FE-PRESC-001 | UI pelayanan resep | Selesai Build-Level | `/pelayanan/resep` tersedia untuk daftar, form resep, mark ready, dan cancel. |
+| TASK-FE-PRESC-002 | Integrasi resep ke kasir | Selesai Build-Level | `/kasir` menampilkan resep siap bayar dan checkout via backend. |
+| TASK-FE-COUNS-001 | UI konseling dasar | Selesai Build-Level | `/pelayanan/konseling` tersedia untuk list dan create catatan konseling. |
+| TASK-FE-015 | Retur penjualan UI | Selesai Build-Level | `/retur-penjualan` tersedia dan memakai idempotency key. |
+| TASK-FE-016 | UI retur pembelian | Selesai Build-Level | `/retur-pembelian` tersedia dan memakai idempotency key. |
+| TASK-FE-020 | Tombol export | Selesai Build-Level | `/export` tersedia untuk download laporan penjualan/laba XLSX/PDF. |
 | TASK-FE-021 | UI manajemen user | Belum Selesai | Route users masih placeholder. |
 | TASK-FE-022 | UI pengaturan profil apotek | Belum Selesai | Route settings masih placeholder dan backend settings belum terbukti. |
 | TASK-TEST-006 | E2E test alur utama | Belum Selesai | Belum ada E2E browser/manual smoke test tercatat. |
@@ -202,3 +202,4 @@ vite build completed successfully
 | 2026-06-06 | Menambahkan UI Batch dan verifikasi frontend build. | TASK-FE-007 | `/batch` sekarang mendukung create/list/search/filter/detail/mutasi/deactivate. |
 | 2026-06-06 | Menambahkan UI Pemesanan/PO dan verifikasi frontend build. | TASK-FE-PO-001, TASK-FE-PO-002 | `/pemesanan` sekarang mendukung create/list/status/preview/convert draft. |
 | 2026-06-06 | Menambahkan UI Pembelian Supplier dan kesiapan deployment Vercel/Railway. | TASK-FE-008, TASK-FE-PUR-REV-001, TASK-DEPLOY-001 | `/pembelian` dan `/pembelian/dari-po/:poId` tersambung ke PurchasePage; deployment config, healthcheck, CORS env, dan dokumentasi tersedia. |
+| 2026-06-12 | Menutup gap UI operasional V1 untuk resep, konseling, retur pembelian, export, dan integrasi resep siap bayar di kasir. | TASK-FE-PRESC-001, TASK-FE-PRESC-002, TASK-FE-COUNS-001, TASK-FE-016, TASK-FE-020 | Frontend build lulus; backend regression prescriptions, purchase returns, sales, reports, exports lulus di database test sementara. |

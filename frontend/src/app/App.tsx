@@ -6,7 +6,9 @@ import { ToastRegion } from '../shared/components/ToastRegion';
 import { LoginPage } from '../features/auth/LoginPage';
 import { BatchPage } from '../features/batches/BatchPage';
 import { CashierPage } from '../features/cashier/CashierPage';
+import { CounselingPage } from '../features/counseling/CounselingPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { ExportPage } from '../features/exports/ExportPage';
 import {
   CategoriesPage,
   ProductsPage,
@@ -14,7 +16,9 @@ import {
   UnitsPage,
 } from '../features/master-data/MasterDataPages';
 import { PurchaseOrderPage } from '../features/purchase-orders/PurchaseOrderPage';
+import { PurchaseReturnPage } from '../features/purchase-returns/PurchaseReturnPage';
 import { PurchasePage } from '../features/purchases/PurchasePage';
+import { PrescriptionPage } from '../features/prescriptions/PrescriptionPage';
 import { ProfitReportPage } from '../features/reports/ProfitReportPage';
 import { SalesReportPage } from '../features/reports/SalesReportPage';
 import { SalesHistoryPage } from '../features/sales-history/SalesHistoryPage';
@@ -126,7 +130,7 @@ export function App() {
             path="/pelayanan/resep"
             element={
               <ProtectedRoute allowedRoles={pharmacistAndManager}>
-                <PlaceholderPage title="Pelayanan Resep" />
+                <PrescriptionPage />
               </ProtectedRoute>
             }
           />
@@ -134,7 +138,7 @@ export function App() {
             path="/pelayanan/konseling"
             element={
               <ProtectedRoute allowedRoles={pharmacistAndManager}>
-                <PlaceholderPage title="Konseling" />
+                <CounselingPage />
               </ProtectedRoute>
             }
           />
@@ -170,20 +174,22 @@ export function App() {
               </ProtectedRoute>
             }
           />
-          {[
-            ['/retur-pembelian', 'Retur Pembelian'],
-            ['/export', 'Export'],
-          ].map(([path, title]) => (
-            <Route
-              key={path}
-              path={path}
-              element={
-                <ProtectedRoute allowedRoles={managerOnly}>
-                  <PlaceholderPage title={title} />
-                </ProtectedRoute>
-              }
-            />
-          ))}
+          <Route
+            path="/retur-pembelian"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <PurchaseReturnPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/export"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <ExportPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/users"
             element={

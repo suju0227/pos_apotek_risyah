@@ -19,7 +19,12 @@ import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import { useConnectionStatus } from '../../shared/hooks/useConnectionStatus';
 import { formatQty, formatRupiah } from '../../shared/utils/formatters';
-import { useCashierProducts, useCreateCashierSale } from './cashier.hooks';
+import {
+  useCashierProducts,
+  useCreateCashierSale,
+  useCreateSaleFromPrescription,
+  useReadyPrescriptions,
+} from './cashier.hooks';
 import { useCashierCartStore } from './cashierCart.store';
 import type {
   CashierCartItem,
@@ -27,6 +32,7 @@ import type {
   CashierProductUnit,
   DiscountType,
   PaymentMethod,
+  ReadyPrescription,
 } from './cashier.types';
 
 const paymentMethods: Array<{
@@ -56,6 +62,8 @@ export function CashierPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const productsQuery = useCashierProducts(search);
   const createSaleMutation = useCreateCashierSale();
+  const readyPrescriptionsQuery = useReadyPrescriptions();
+  const createPrescriptionSaleMutation = useCreateSaleFromPrescription();
   const connection = useConnectionStatus();
   const { items, addItem, updateQty, removeItem, clear } = useCashierCartStore();
   const showToast = useToastStore((state) => state.show);
@@ -138,6 +146,55 @@ export function CashierPage() {
     }
   };
 
+  const handlePrescriptionCheckout = async (prescription: ReadyPrescription) => {
+    if (connection.isOffline) {
+      const message =
+        'Server lokal tidak terhubung. Periksa jaringan atau pastikan PC server aktif.';
+      setCheckoutError(message);
+      showToast(message);
+      return;
+    }
+
+    if (discountValue < 0) {
+      showToast('Diskon tidak boleh negatif.');
+      return;
+    }
+    if (discountType === 'PERCENT' && discountValue > 100) {
+      showToast('Diskon persen tidak boleh lebih dari 100.');
+      return;
+    }
+    if (paidAmount < 0) {
+      showToast('Nominal pembayaran tidak boleh negatif.');
+      return;
+    }
+
+    try {
+      const sale = await createPrescriptionSaleMutation.mutateAsync({
+        prescriptionId: prescription.id,
+        idempotencyKey: makeIdempotencyKey(),
+        payload: {
+          paymentMethod,
+          paidAmount,
+          discountType,
+          discountValue: discountType === 'NONE' ? 0 : discountValue,
+          customerName: prescription.patientName,
+          note: `Checkout dari resep ${prescription.prescriptionNumber}`,
+        },
+      });
+      showToast(`Resep ${prescription.prescriptionNumber} dibayar sebagai ${sale.saleNumber}.`);
+      setPaidAmount(0);
+      setDiscountType('NONE');
+      setDiscountValue(0);
+      void readyPrescriptionsQuery.refetch();
+      void productsQuery.refetch();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Checkout resep gagal.';
+      setCheckoutError(message);
+      showToast(message);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div>
@@ -147,6 +204,18 @@ export function CashierPage() {
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="space-y-4">
+          <ReadyPrescriptionPanel
+            prescriptions={readyPrescriptionsQuery.data ?? []}
+            isLoading={readyPrescriptionsQuery.isLoading}
+            error={
+              readyPrescriptionsQuery.isError
+                ? readyPrescriptionsQuery.error.message
+                : null
+            }
+            isSubmitting={createPrescriptionSaleMutation.isPending}
+            onCheckout={handlePrescriptionCheckout}
+          />
+
           <Card>
             <form
               className="flex flex-col gap-3 sm:flex-row sm:items-end"
@@ -341,6 +410,79 @@ function ProductResult({
             unit={unit}
             onClick={() => onAddItem(product, unit)}
           />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function ReadyPrescriptionPanel({
+  prescriptions,
+  isLoading,
+  error,
+  isSubmitting,
+  onCheckout,
+}: {
+  prescriptions: ReadyPrescription[];
+  isLoading: boolean;
+  error: string | null;
+  isSubmitting: boolean;
+  onCheckout: (prescription: ReadyPrescription) => void;
+}) {
+  if (isLoading) return <LoadingSkeleton rows={2} />;
+  if (error) {
+    return (
+      <ErrorState
+        title="Resep siap bayar gagal dimuat"
+        message={error}
+      />
+    );
+  }
+  if (!prescriptions.length) return null;
+
+  return (
+    <Card className="space-y-3">
+      <div>
+        <h2 className="text-base font-semibold text-slate-950">Resep Siap Bayar</h2>
+        <p className="text-sm text-slate-600">
+          Checkout resep tetap menjalankan FEFO dan pengurangan stok di backend.
+        </p>
+      </div>
+      <div className="grid gap-3">
+        {prescriptions.map((prescription) => (
+          <div
+            key={prescription.id}
+            className="rounded-md border border-slate-200 p-3"
+          >
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <div className="font-semibold text-slate-950">
+                  {prescription.prescriptionNumber} - {prescription.patientName}
+                </div>
+                <div className="mt-1 text-sm text-slate-500">
+                  {prescription.doctorName ? `Dokter ${prescription.doctorName} - ` : ''}
+                  {prescription.items.length} item
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {prescription.items.map((item) => (
+                    <span
+                      key={item.id}
+                      className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600"
+                    >
+                      {item.productName} {formatQty(item.qtySaleUnit, item.unitSymbol)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <Button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => onCheckout(prescription)}
+              >
+                {isSubmitting ? 'Memproses...' : 'Checkout Resep'}
+              </Button>
+            </div>
+          </div>
         ))}
       </div>
     </Card>

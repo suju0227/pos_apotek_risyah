@@ -2,7 +2,9 @@ import { apiClient } from '../../shared/api/apiClient';
 import type {
   CashierProduct,
   CashierSaleResponse,
+  CreateSaleFromPrescriptionPayload,
   CreateSalePayload,
+  ReadyPrescription,
 } from './cashier.types';
 
 export const cashierApi = {
@@ -20,4 +22,20 @@ export const cashierApi = {
         'Idempotency-Key': idempotencyKey,
       },
     }),
+  readyPrescriptions: () =>
+    apiClient.get<ReadyPrescription[]>('/prescriptions/ready-for-payment'),
+  createSaleFromPrescription: (
+    prescriptionId: string,
+    payload: CreateSaleFromPrescriptionPayload,
+    idempotencyKey: string,
+  ) =>
+    apiClient.post<CashierSaleResponse>(
+      `/sales/from-prescription/${prescriptionId}`,
+      payload,
+      {
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+        },
+      },
+    ),
 };

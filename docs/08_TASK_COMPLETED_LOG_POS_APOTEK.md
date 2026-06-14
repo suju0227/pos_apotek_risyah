@@ -80,8 +80,8 @@ vite build completed successfully
 | Phase 9 | Dashboard & Laporan | Selesai Terverifikasi Backend dan Frontend Parsial | Dashboard/reports backend teruji; halaman dashboard dan laporan tersedia. |
 | Phase 10 | Export | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Export xlsx/pdf teruji dan UI download laporan tersedia. |
 | Phase 11 | User, Settings, Responsive & UX Polish | Selesai Build-Level, Perlu Smoke Manual | UI users, settings, dan audit log Manager tersedia; validasi ringan frontend perlu dijalankan setelah polish. |
-| Phase 12 | Testing | Selesai Sebagian | Backend Jest/Supertest lulus; E2E browser/manual smoke test belum dicatat. |
-| Phase 13 | Deployment | Selesai Parsial | Docker Full Local Mode menjadi target utama V1; healthcheck, CORS env, Docker Compose lokal, reverse proxy, dan script backup/restore tersedia; checklist produksi dan restore formal belum masuk sesi testing. |
+| Phase 12 | Testing | Selesai Sebagian | Frontend build, Prisma validate, backend build, local healthcheck, dan smoke API Manager/Kasir lulus; backend regression host terblokir akses DB `postgres:5432`; smoke Apoteker terblokir karena role `APOTEKER` belum ada di DB aktif. |
+| Phase 13 | Deployment | Selesai Parsial Terverifikasi Lokal | Docker Full Local Mode aktif, `/api/health` lulus, hanya frontend expose `80`, backup dan restore ke container test bersih lulus; checklist produksi penuh masih perlu sesi terpisah. |
 | Phase 14 | Final Review | Sedang Dikerjakan | Audit progres aktual sudah dibuat; traceability penuh masih perlu dilanjutkan setelah UI selesai. |
 
 ## 4. Daftar Task Selesai Terverifikasi
@@ -176,10 +176,10 @@ vite build completed successfully
 | TASK-FE-021 | UI manajemen user | Selesai Build-Level, Perlu Smoke Manual | `/users` tersedia untuk create user, ubah role, aktif/nonaktif akun, dan feedback operator. |
 | TASK-FE-022 | UI pengaturan profil apotek | Selesai Build-Level, Perlu Smoke Manual | `/settings` tersedia dan tersambung ke backend settings Manager-only. |
 | TASK-FE-AUDIT-001 | UI audit log Manager | Selesai Build-Level, Perlu Smoke Manual | `/audit-log` tersedia read-only untuk 200 aktivitas terbaru dari backend. |
-| TASK-TEST-006 | E2E test alur utama | Checklist Siap, Belum Dieksekusi | Checklist manual smoke tersedia di `docs/11_CHECKLIST_SESI_TESTING_POS_APOTEK.md`; eksekusi belum dilakukan. |
+| TASK-TEST-006 | E2E test alur utama | Selesai Sebagian | Smoke API Manager/Kasir lulus; smoke browser penuh dan alur Apoteker belum selesai. |
 | TASK-TEST-007 | Test concurrent sale | Belum Terbukti | Tidak ditemukan bukti eksplisit dari nama test audit ini. |
-| TASK-DEPLOY-001 | Setup environment deployment | Selesai Parsial | Konfigurasi local network deployment siap; checklist produksi local dan restore formal belum dijalankan di sesi testing. |
-| TASK-DEPLOY-002 | Setup backup dan recovery | Selesai Parsial | Script backup/restore lokal tersedia; restore test formal tetap masuk sesi deployment/testing. |
+| TASK-DEPLOY-001 | Setup environment deployment | Selesai Terverifikasi Lokal | Docker local stack aktif; `http://localhost/api/health` mengembalikan `status: ok`, `mode: local-network`, dan database connected. |
+| TASK-DEPLOY-002 | Setup backup dan recovery | Selesai Terverifikasi Lokal | Backup dari `pos_apotek_postgres` berhasil dibuat dan restore ke container PostgreSQL test bersih menghasilkan 30 tabel. |
 | TASK-DEPLOY-003 | Final production checklist | Belum Dikerjakan | Menunggu UI, audit log/settings, E2E, dan deployment. |
 | TASK-DOC-001 | Review traceability penuh | Sedang Dikerjakan | Audit progres sudah dibuat, traceability detail penuh belum selesai. |
 | TASK-DOC-002 | Dokumentasi penggunaan internal | Selesai Draft Internal | Panduan role Manager, Apoteker, dan Kasir tersedia di `docs/10_PANDUAN_PENGGUNA_INTERNAL_POS_APOTEK.md`. |
@@ -192,6 +192,8 @@ vite build completed successfully
 - Target deployment utama V1 saat ini adalah Docker Full Local Mode; Vercel/Railway hanya future-cloud-deployment dan tidak menjadi default aktif.
 - Task frontend yang selesai build-level tetap perlu smoke manual sebelum ditandai siap operasional.
 - Audit log/settings/users sudah ada di source, tetapi cakupan event audit, role UI, dan alur operator perlu diverifikasi di sesi testing khusus.
+- Role `APOTEKER` belum muncul pada DB aktif hasil seed (`KASIR`, `MANAGER`, `PEMILIK` ada); ini memblokir smoke test Apoteker dan perlu fix terpisah pada role/seed tanpa memperluas scope V1.
+- Backend regression dari host gagal karena `backend/.env` mengarah ke `postgres:5432` yang valid di Docker network, bukan host; dev DB port `55432` juga tidak dapat start karena port ditolak Windows pada sesi ini.
 
 ## 7. Riwayat Perubahan Log
 
@@ -206,3 +208,4 @@ vite build completed successfully
 | 2026-06-12 | Menutup gap UI operasional V1 untuk resep, konseling, retur pembelian, export, dan integrasi resep siap bayar di kasir. | TASK-FE-PRESC-001, TASK-FE-PRESC-002, TASK-FE-COUNS-001, TASK-FE-016, TASK-FE-020 | Frontend build lulus; backend regression prescriptions, purchase returns, sales, reports, exports lulus di database test sementara. |
 | 2026-06-14 | Menyinkronkan status Phase 11, polish UI Manager, dan menambahkan halaman audit log read-only. | TASK-FE-021, TASK-FE-022, TASK-FE-AUDIT-001, TASK-BE-026, TASK-DB-012 | Validasi ringan frontend dilakukan pada sesi implementasi; smoke manual penuh tetap masuk sesi testing khusus. |
 | 2026-06-14 | Menambahkan panduan pengguna internal dan checklist sesi testing khusus. | TASK-DOC-002, TASK-TEST-006 | Dokumentasi operasional role dan checklist manual smoke/testing tersedia; eksekusi testing tetap dipisah ke sesi khusus. |
+| 2026-06-14 | Menjalankan sesi testing khusus sebagian: frontend build, Prisma validate, backend build, Docker healthcheck, smoke API Manager/Kasir, backup, dan restore test. | TASK-TEST-006, TASK-DEPLOY-001, TASK-DEPLOY-002 | Regression backend host terblokir DB; smoke Apoteker terblokir role seed; concurrent sale belum terbukti. |

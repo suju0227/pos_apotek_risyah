@@ -7,7 +7,7 @@
 | Nama proyek | POS Apotek V2 |
 | Nama file | `08_TASK_COMPLETED_LOG_POS_APOTEK.md` |
 | Versi dokumen | 0.2.0 |
-| Status dokumen | Final Smoke V1 Tervalidasi Lokal, Concurrent Sale Pending |
+| Status dokumen | Final Smoke V1 Tervalidasi Lokal |
 | Tanggal dibuat | 2026-06-05 |
 | Tanggal terakhir diperbarui | 2026-06-14 |
 | Penyusun | Codex GPT |
@@ -97,6 +97,62 @@ Test Suites: 18 passed, 18 total
 Tests: 78 passed, 78 total
 ```
 
+## 2B. Hasil Validasi Gap Terakhir 2026-06-14
+
+Validasi ini menutup dua gap terakhir setelah commit baseline `42de9f1` dipush ke branch `codex/phase-13-purchase-ui`.
+
+```text
+git push origin codex/phase-13-purchase-ui
+e513511..42de9f1 pushed
+
+docker compose -f database/docker-compose.test.yml up -d
+pos_apotek_test_postgres healthy
+
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:15433/pos_apotek_risyah_test?schema=public
+npm.cmd --prefix backend test -- src/modules/sales/sales.integration.spec.ts
+Test Suites: 1 passed, 1 total
+Tests: 11 passed, 11 total
+
+npm.cmd --prefix backend test
+Test Suites: 18 passed, 18 total
+Tests: 79 passed, 79 total
+
+docker compose -f docker-compose.local.yml build frontend --progress=plain
+frontend Docker image built successfully after one retry from transient npm ECONNRESET
+
+docker compose -f docker-compose.local.yml up -d frontend
+pos_apotek_frontend recreated from latest image
+```
+
+Hasil concurrent sale eksplisit:
+
+| Skenario | Hasil |
+|---|---|
+| Dua checkout paralel pada stok batch 3, masing-masing qty 2 | Lulus |
+| Hanya satu checkout berhasil | Lulus |
+| Checkout lain gagal aman karena stok tidak cukup | Lulus |
+| `product_batches.current_stock_base` tidak negatif | Lulus, stok akhir 1 |
+| Total `sale_batch_allocations.qty_base` tidak melewati stok yang berhasil dialokasikan | Lulus, total allocation 2 |
+
+Hasil browser UI click-through pada `http://localhost`:
+
+| Role | Skenario | Hasil |
+|---|---|---|
+| Manager | Login, dashboard, master data, batch, PO, pembelian, stok, mutasi, laporan, users, settings, audit log | Lulus |
+| Manager | Export laporan penjualan XLSX | Lulus, download `laporan-penjualan-2026-06-14.xlsx` dimulai |
+| Apoteker | Login, menu tidak menampilkan area Manager-only, halaman resep dan konseling | Lulus |
+| Apoteker | Submit form konseling | Lulus |
+| Kasir | Login langsung ke kasir, menu tidak menampilkan laporan laba/pembelian/users/settings/audit/mutasi | Lulus |
+| Kasir | Search produk, UI produk tidak menampilkan HPP/laba/margin/harga beli | Lulus |
+| Kasir | Checkout produk dari UI | Lulus |
+| Kasir | Riwayat transaksi dan retur penjualan terbuka | Lulus |
+| Kasir | Akses langsung `/laporan/laba` ditolak oleh UI guard | Lulus |
+
+```text
+UI_BROWSER_SMOKE_SUMMARY {"passed":51,"stamp":"20260614123545","product":"UI-20260614123545"}
+temporary ui_* smoke users deactivated
+```
+
 Smoke role dan bisnis kritis pada stack Docker aktif:
 
 | Skenario | Hasil |
@@ -145,9 +201,9 @@ temporary smoke users deactivated
 | Phase 9 | Dashboard & Laporan | Selesai Terverifikasi Backend dan Frontend Parsial | Dashboard/reports backend teruji; halaman dashboard dan laporan tersedia. |
 | Phase 10 | Export | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Export xlsx/pdf teruji dan UI download laporan tersedia. |
 | Phase 11 | User, Settings, Responsive & UX Polish | Selesai Build-Level, Perlu Smoke Manual | UI users, settings, dan audit log Manager tersedia; validasi ringan frontend perlu dijalankan setelah polish. |
-| Phase 12 | Testing | Selesai Mayoritas Terverifikasi Lokal | Backend regression lulus pada PostgreSQL test terpisah, smoke role `MANAGER`/`APOTEKER`/`KASIR` lulus, dan skenario bisnis kritis V1 lulus; concurrent sale eksplisit masih belum terbukti. |
+| Phase 12 | Testing | Selesai Terverifikasi Lokal | Backend regression lulus pada PostgreSQL test terpisah, concurrent sale eksplisit lulus, smoke role `MANAGER`/`APOTEKER`/`KASIR` lulus, dan browser UI click-through penuh lulus pada Docker aktif. |
 | Phase 13 | Deployment | Selesai Terverifikasi Lokal | Docker Full Local Mode aktif, `/api/health` lulus, hanya frontend expose `80`, backend/PostgreSQL internal, backup dan restore ke container test bersih lulus. |
-| Phase 14 | Final Review | Selesai Parsial | Final smoke lokal sudah dicatat; production checklist final dan concurrent sale tetap menjadi sisa validasi sebelum rilis operasional penuh. |
+| Phase 14 | Final Review | Selesai Lokal | Final smoke lokal, concurrent sale, role security, dan browser UI click-through sudah dicatat; production checklist akhir tetap perlu dijalankan saat rilis operasional. |
 
 ## 4. Daftar Task Selesai Terverifikasi
 
@@ -242,7 +298,7 @@ temporary smoke users deactivated
 | TASK-FE-022 | UI pengaturan profil apotek | Selesai Build-Level, Perlu Smoke Manual | `/settings` tersedia dan tersambung ke backend settings Manager-only. |
 | TASK-FE-AUDIT-001 | UI audit log Manager | Selesai Build-Level, Perlu Smoke Manual | `/audit-log` tersedia read-only untuk 200 aktivitas terbaru dari backend. |
 | TASK-TEST-006 | E2E test alur utama | Selesai Terverifikasi Lokal | Smoke API role Manager/Apoteker/Kasir lulus; alur PO, pembelian, resep ke kasir, FEFO split batch, retur, sanitasi kasir, dan konseling lulus pada Docker aktif. |
-| TASK-TEST-007 | Test concurrent sale | Belum Terbukti | Tidak ditemukan bukti eksplisit dari nama test audit ini. |
+| TASK-TEST-007 | Test concurrent sale | Selesai Terverifikasi Lokal | `sales.integration.spec.ts` menembak dua checkout paralel yang melebihi stok; satu berhasil, satu gagal aman, stok batch tidak negatif, dan allocation tidak melewati stok. |
 | TASK-DEPLOY-001 | Setup environment deployment | Selesai Terverifikasi Lokal | Docker local stack aktif; `http://localhost/api/health` mengembalikan `status: ok`, `mode: local-network`, dan database connected. |
 | TASK-DEPLOY-002 | Setup backup dan recovery | Selesai Terverifikasi Lokal | Backup dari `pos_apotek_postgres` berhasil dibuat dan restore ke container PostgreSQL test bersih menghasilkan 30 tabel. |
 | TASK-DEPLOY-003 | Final production checklist | Belum Dikerjakan | Menunggu UI, audit log/settings, E2E, dan deployment. |
@@ -255,11 +311,11 @@ temporary smoke users deactivated
 - `prisma generate` sempat gagal karena lock file DLL Windows, lalu berhasil setelah test selesai. Jika terulang, tutup proses Node yang memegang Prisma Client dan ulangi command.
 - Frontend build lulus pada checkpoint sebelumnya, tetapi build bukan pengganti smoke test operasional dengan backend hidup.
 - Target deployment utama V1 saat ini adalah Docker Full Local Mode; Vercel/Railway hanya future-cloud-deployment dan tidak menjadi default aktif.
-- Task frontend yang selesai build-level tetap perlu smoke manual sebelum ditandai siap operasional.
-- Audit log/settings/users sudah ada di source, tetapi cakupan event audit, role UI, dan alur operator perlu diverifikasi di sesi testing khusus.
+- Browser UI click-through penuh sudah lulus pada Docker aktif setelah frontend image direbuild dari source terbaru.
+- Audit log/settings/users sudah ada di source dan halaman Manager berhasil dibuka pada browser smoke; cakupan event audit penuh tetap dapat diperluas pada audit observability terpisah.
 - Role `APOTEKER` sudah ditambahkan ke seed dan DB aktif; smoke Apoteker lulus.
 - Port `55432` dan `55433` berada pada rentang port exclusion Windows di mesin ini; test PostgreSQL dipindahkan ke port `15433`.
-- Test concurrent sale eksplisit masih belum tercatat dan menjadi gap testing utama yang tersisa.
+- Test concurrent sale eksplisit sudah ditambahkan ke sales integration test dan lulus pada PostgreSQL test terpisah.
 
 ## 7. Riwayat Perubahan Log
 
@@ -276,3 +332,4 @@ temporary smoke users deactivated
 | 2026-06-14 | Menambahkan panduan pengguna internal dan checklist sesi testing khusus. | TASK-DOC-002, TASK-TEST-006 | Dokumentasi operasional role dan checklist manual smoke/testing tersedia; eksekusi testing tetap dipisah ke sesi khusus. |
 | 2026-06-14 | Menjalankan sesi testing khusus sebagian: frontend build, Prisma validate, backend build, Docker healthcheck, smoke API Manager/Kasir, backup, dan restore test. | TASK-TEST-006, TASK-DEPLOY-001, TASK-DEPLOY-002 | Regression backend host terblokir DB; smoke Apoteker terblokir role seed; concurrent sale belum terbukti. |
 | 2026-06-14 | Menjalankan final validation lokal: menambahkan role APOTEKER ke seed, menyediakan PostgreSQL test terpisah, backend regression lulus, smoke role Manager/Apoteker/Kasir lulus, dan skenario bisnis kritis V1 lulus pada Docker aktif. | TASK-DB-001, TASK-TEST-006, TASK-DEPLOY-001 | Concurrent sale eksplisit masih belum terbukti; temporary smoke users dinonaktifkan setelah test. |
+| 2026-06-14 | Menutup gap terakhir: push baseline validasi, menambahkan test concurrent sale eksplisit, menjalankan backend regression 79 test, rebuild frontend Docker image terbaru, dan menjalankan browser UI click-through 51 checks. | TASK-TEST-006, TASK-TEST-007, TASK-DEPLOY-001 | Browser/Chrome plugin runtime gagal bootstrap di sesi ini sehingga click-through dilakukan dengan Playwright headless temporary di luar repo; user smoke `ui_*` dinonaktifkan setelah test. |

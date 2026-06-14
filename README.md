@@ -69,6 +69,11 @@ Repo ini memiliki skill lokal di `.codex/skills` untuk menjaga workflow Codex te
 
 Analisis pemilihan skill berdasarkan katalog `openai/skills` dicatat di `docs/09_CODEX_SKILLS_POS_APOTEK.md`.
 
+## Panduan Operasional dan Testing
+
+- Panduan pengguna internal role Manager, Apoteker, dan Kasir tersedia di `docs/10_PANDUAN_PENGGUNA_INTERNAL_POS_APOTEK.md`.
+- Checklist sesi testing khusus tersedia di `docs/11_CHECKLIST_SESI_TESTING_POS_APOTEK.md`.
+
 ## Struktur Folder
 
 ```text

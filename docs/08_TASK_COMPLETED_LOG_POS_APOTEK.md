@@ -176,13 +176,13 @@ vite build completed successfully
 | TASK-FE-021 | UI manajemen user | Selesai Build-Level, Perlu Smoke Manual | `/users` tersedia untuk create user, ubah role, aktif/nonaktif akun, dan feedback operator. |
 | TASK-FE-022 | UI pengaturan profil apotek | Selesai Build-Level, Perlu Smoke Manual | `/settings` tersedia dan tersambung ke backend settings Manager-only. |
 | TASK-FE-AUDIT-001 | UI audit log Manager | Selesai Build-Level, Perlu Smoke Manual | `/audit-log` tersedia read-only untuk 200 aktivitas terbaru dari backend. |
-| TASK-TEST-006 | E2E test alur utama | Belum Selesai | Belum ada E2E browser/manual smoke test tercatat. |
+| TASK-TEST-006 | E2E test alur utama | Checklist Siap, Belum Dieksekusi | Checklist manual smoke tersedia di `docs/11_CHECKLIST_SESI_TESTING_POS_APOTEK.md`; eksekusi belum dilakukan. |
 | TASK-TEST-007 | Test concurrent sale | Belum Terbukti | Tidak ditemukan bukti eksplisit dari nama test audit ini. |
 | TASK-DEPLOY-001 | Setup environment deployment | Selesai Parsial | Konfigurasi local network deployment siap; checklist produksi local dan restore formal belum dijalankan di sesi testing. |
 | TASK-DEPLOY-002 | Setup backup dan recovery | Selesai Parsial | Script backup/restore lokal tersedia; restore test formal tetap masuk sesi deployment/testing. |
 | TASK-DEPLOY-003 | Final production checklist | Belum Dikerjakan | Menunggu UI, audit log/settings, E2E, dan deployment. |
 | TASK-DOC-001 | Review traceability penuh | Sedang Dikerjakan | Audit progres sudah dibuat, traceability detail penuh belum selesai. |
-| TASK-DOC-002 | Dokumentasi penggunaan internal | Belum Dikerjakan | Belum ada panduan pengguna akhir. |
+| TASK-DOC-002 | Dokumentasi penggunaan internal | Selesai Draft Internal | Panduan role Manager, Apoteker, dan Kasir tersedia di `docs/10_PANDUAN_PENGGUNA_INTERNAL_POS_APOTEK.md`. |
 
 ## 6. Catatan Risiko
 
@@ -205,3 +205,4 @@ vite build completed successfully
 | 2026-06-06 | Menambahkan UI Pembelian Supplier dan konfigurasi deployment awal. | TASK-FE-008, TASK-FE-PUR-REV-001, TASK-DEPLOY-001 | `/pembelian` dan `/pembelian/dari-po/:poId` tersambung ke PurchasePage; deployment config, healthcheck, CORS env, dan dokumentasi tersedia. |
 | 2026-06-12 | Menutup gap UI operasional V1 untuk resep, konseling, retur pembelian, export, dan integrasi resep siap bayar di kasir. | TASK-FE-PRESC-001, TASK-FE-PRESC-002, TASK-FE-COUNS-001, TASK-FE-016, TASK-FE-020 | Frontend build lulus; backend regression prescriptions, purchase returns, sales, reports, exports lulus di database test sementara. |
 | 2026-06-14 | Menyinkronkan status Phase 11, polish UI Manager, dan menambahkan halaman audit log read-only. | TASK-FE-021, TASK-FE-022, TASK-FE-AUDIT-001, TASK-BE-026, TASK-DB-012 | Validasi ringan frontend dilakukan pada sesi implementasi; smoke manual penuh tetap masuk sesi testing khusus. |
+| 2026-06-14 | Menambahkan panduan pengguna internal dan checklist sesi testing khusus. | TASK-DOC-002, TASK-TEST-006 | Dokumentasi operasional role dan checklist manual smoke/testing tersedia; eksekusi testing tetap dipisah ke sesi khusus. |

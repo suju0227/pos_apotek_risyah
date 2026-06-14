@@ -73,6 +73,7 @@ Analisis pemilihan skill berdasarkan katalog `openai/skills` dicatat di `docs/09
 
 - Panduan pengguna internal role Manager, Apoteker, dan Kasir tersedia di `docs/10_PANDUAN_PENGGUNA_INTERNAL_POS_APOTEK.md`.
 - Checklist sesi testing khusus tersedia di `docs/11_CHECKLIST_SESI_TESTING_POS_APOTEK.md`.
+- Referensi ringkas deployment lokal, pola frontend, aturan bisnis, dan test matrix tersedia di `docs/local-deployment.md`, `docs/frontend-patterns.md`, `docs/business-rules.md`, dan `docs/test-matrix.md`.
 
 ## Struktur Folder
 

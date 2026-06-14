@@ -23,6 +23,13 @@ Dokumen ini mencatat adaptasi konsep dari katalog `openai/skills` ke workflow PO
 | `pos-apotek-v1-implementation` | `.codex/skills/pos-apotek-v1-implementation` | Dipakai saat implementasi fitur V1, terutama stock/batch/FEFO/sales/purchase/return/report/users/settings/audit-log. |
 | `pos-apotek-testing-safety` | `.codex/skills/pos-apotek-testing-safety` | Dipakai saat sesi testing, smoke manual, role security, Docker local validation, dan backup/restore. |
 
+Referensi publik yang setara tersedia untuk pembaca repo di:
+
+- `docs/business-rules.md`
+- `docs/frontend-patterns.md`
+- `docs/local-deployment.md`
+- `docs/test-matrix.md`
+
 ## 4. Aturan Prioritas
 
 1. `AGENTS.md` dan dokumen PRD/SRS/SDD tetap menjadi otoritas proyek.

@@ -1,7 +1,11 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import {
+  DashboardDaysQueryDto,
+  DashboardTopProductsQueryDto,
+} from './dto/dashboard-query.dto';
 import { DashboardService } from './dashboard.service';
 
 @Controller('dashboard')
@@ -28,5 +32,20 @@ export class DashboardController {
   @Get('recent-transactions')
   recentTransactions() {
     return this.dashboardService.recentTransactions();
+  }
+
+  @Get('trends')
+  trends(@Query() query: DashboardDaysQueryDto) {
+    return this.dashboardService.trends(query.days);
+  }
+
+  @Get('top-products')
+  topProducts(@Query() query: DashboardTopProductsQueryDto) {
+    return this.dashboardService.topProducts(query.days, query.limit);
+  }
+
+  @Get('payment-methods')
+  paymentMethods(@Query() query: DashboardDaysQueryDto) {
+    return this.dashboardService.paymentMethods(query.days);
   }
 }

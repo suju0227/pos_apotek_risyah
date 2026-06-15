@@ -26,6 +26,41 @@ export type DashboardSummary = {
   expiredBatchCount: number;
 };
 
+export type DashboardTrendItem = {
+  date: string;
+  transactionCount: number;
+  returnCount: number;
+  subtotal: number;
+  discountTotal: number;
+  salesTotal: number;
+  salesReturnTotal: number;
+  netRevenue: number;
+  totalHpp: number;
+  hppReversed: number;
+  netHpp: number;
+  totalProfit: number;
+  profitReversed: number;
+  netProfit: number;
+};
+
+export type DashboardTopProduct = {
+  productId: string;
+  productName: string;
+  categoryName: string;
+  qtyBase: number;
+  revenue: number;
+  transactionCount: number;
+};
+
+export type DashboardPaymentMethod = {
+  paymentMethod: string;
+  transactionCount: number;
+  returnCount: number;
+  salesTotal: number;
+  returnTotal: number;
+  netRevenue: number;
+};
+
 export type LowStockItem = {
   productId: string;
   code: string;

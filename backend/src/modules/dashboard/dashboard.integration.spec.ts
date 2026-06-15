@@ -88,6 +88,59 @@ describe('Dashboard API', () => {
       expect(row).not.toHaveProperty('profitAmount');
       expect(row).not.toHaveProperty('hppBaseSnapshot');
     }
+
+    const trends = await request(app.getHttpServer())
+      .get('/api/dashboard/trends?days=1')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(200);
+
+    expect(trends.body).toHaveLength(1);
+    expect(trends.body[0]).toMatchObject({
+      transactionCount: expect.any(Number),
+      returnCount: expect.any(Number),
+      netRevenue: expect.any(Number),
+      netProfit: expect.any(Number),
+    });
+    expect(trends.body[0].transactionCount).toBeGreaterThanOrEqual(1);
+    expect(trends.body[0].returnCount).toBeGreaterThanOrEqual(1);
+    expect(trends.body[0].netRevenue).toBeGreaterThanOrEqual(750);
+    expect(trends.body[0].netProfit).toBeGreaterThanOrEqual(300.01234567);
+
+    const topProducts = await request(app.getHttpServer())
+      .get('/api/dashboard/top-products?days=1&limit=20')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(200);
+
+    expect(topProducts.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          productId: sale.productId,
+          productName: sale.productName,
+          qtyBase: expect.any(Number),
+          revenue: expect.any(Number),
+        }),
+      ]),
+    );
+
+    const paymentMethods = await request(app.getHttpServer())
+      .get('/api/dashboard/payment-methods?days=1')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(200);
+
+    expect(paymentMethods.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          paymentMethod: 'CASH',
+          transactionCount: expect.any(Number),
+          returnCount: expect.any(Number),
+          netRevenue: expect.any(Number),
+        }),
+      ]),
+    );
+    const cashRow = paymentMethods.body.find(
+      (row: { paymentMethod: string }) => row.paymentMethod === 'CASH',
+    );
+    expect(cashRow.netRevenue).toBeGreaterThanOrEqual(750);
   });
 
   it('returns low stock based on active non-expired batch stock only', async () => {
@@ -165,6 +218,21 @@ describe('Dashboard API', () => {
       .get('/api/dashboard/low-stock')
       .set('Authorization', `Bearer ${ownerToken}`)
       .expect(403);
+
+    await request(app.getHttpServer())
+      .get('/api/dashboard/trends')
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get('/api/dashboard/top-products')
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get('/api/dashboard/payment-methods')
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(403);
   });
 
   async function getSummary() {
@@ -236,7 +304,11 @@ describe('Dashboard API', () => {
       },
     });
 
-    return sale;
+    return {
+      ...sale,
+      productId: fixture.product.id,
+      productName: fixture.product.name,
+    };
   }
 
   async function createProductWithBatch(

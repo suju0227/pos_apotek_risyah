@@ -9,7 +9,7 @@ import { Card } from '../../shared/components/Card';
 import { Input } from '../../shared/components/Input';
 import { useToastStore } from '../../shared/components/toast.store';
 import { useAuthStore } from './auth.store';
-import type { LoginResponse } from './auth.types';
+import type { LoginResponse, RoleName } from './auth.types';
 
 const loginSchema = z.object({
   usernameOrEmail: z.string().min(1, 'Username atau email wajib diisi'),
@@ -17,6 +17,27 @@ const loginSchema = z.object({
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
+
+const defaultPathByRole: Record<RoleName, string> = {
+  KASIR: '/kasir',
+  APOTEKER: '/pelayanan/resep',
+  MANAGER: '/dashboard',
+};
+
+const allowedPathPrefixesByRole: Record<RoleName, string[]> = {
+  KASIR: ['/kasir', '/riwayat-transaksi', '/retur-penjualan'],
+  APOTEKER: ['/pelayanan/resep', '/pelayanan/konseling', '/pemesanan'],
+  MANAGER: ['/'],
+};
+
+function resolvePostLoginPath(role: RoleName, requestedPath: string) {
+  const allowedPrefixes = allowedPathPrefixesByRole[role];
+  const isAllowed = allowedPrefixes.some((path) =>
+    path === '/' ? true : requestedPath.startsWith(path),
+  );
+
+  return isAllowed ? requestedPath : defaultPathByRole[role];
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -33,7 +54,7 @@ export function LoginPage() {
   });
 
   if (accessToken && user) {
-    return <Navigate to={user.role === 'KASIR' ? '/kasir' : from} replace />;
+    return <Navigate to={resolvePostLoginPath(user.role, from)} replace />;
   }
 
   const onSubmit = form.handleSubmit(async (values) => {
@@ -41,7 +62,7 @@ export function LoginPage() {
       const session = await apiClient.post<LoginResponse>('/auth/login', values);
       setSession(session);
       toast('Login berhasil');
-      navigate(session.user.role === 'KASIR' ? '/kasir' : from, { replace: true });
+      navigate(resolvePostLoginPath(session.user.role, from), { replace: true });
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Login gagal');
     }

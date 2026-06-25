@@ -2,84 +2,149 @@ import type { ComponentType } from 'react';
 import {
   Activity,
   AlertTriangle,
-  ArrowDownRight,
-  BarChart3,
   CalendarClock,
+  ClipboardList,
+  History,
   LineChart as LineChartIcon,
   PackageSearch,
   ReceiptText,
   RefreshCw,
+  Stethoscope,
+  ShoppingCart,
   Wallet,
 } from 'lucide-react';
 import {
   Area,
-  Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
   ComposedChart,
   Line,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
+import { Link } from 'react-router-dom';
+import { useAuthStore } from '../auth/auth.store';
 import { Button } from '../../shared/components/Button';
+import { Badge } from '../../shared/components/Badge';
 import { Card } from '../../shared/components/Card';
-import { DataTable } from '../../shared/components/DataTable';
+import { ConnectionStatusIndicator } from '../../shared/components/ConnectionStatusIndicator';
 import { EmptyState } from '../../shared/components/EmptyState';
-import { ErrorState } from '../../shared/components/ErrorState';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
+import { ResponsiveDataView } from '../../shared/components/ResponsiveDataView';
+import { useConnectionStatus } from '../../shared/hooks/useConnectionStatus';
 import {
   formatDate,
   formatDateTimeWita,
+  formatNumber,
   formatQty,
   formatRupiah,
 } from '../../shared/utils/formatters';
 import {
-  useDashboardPaymentMethods,
+  canViewAuditSummary,
+  canViewCashierShortcut,
+  canViewExpiringBatches,
+  canViewManagerDashboard,
+  canViewPrescriptionSummary,
+  canViewProfit,
+  canViewPurchaseOrderSummary,
+  canViewRecentSales,
+  canViewRevenue,
+  canViewStockSummary,
+  canViewTransactionSummary,
+} from './dashboard.permissions';
+import {
+  useDashboardProfitTrend,
+  useDashboardPurchaseOrderSummary,
+  useDashboardPrescriptionSummary,
+  useDashboardRecentActivities,
+  useDashboardRevenueTrend,
   useDashboardSummary,
-  useDashboardTopProducts,
-  useDashboardTrends,
   useExpiredBatches,
   useLowStock,
   useRecentTransactions,
 } from './dashboard.hooks';
 import type {
-  DashboardPaymentMethod,
+  DashboardTrendPoint,
+  ExpiringBatchItem,
+  LatestSaleItem,
+  LowStockProduct,
+  PrescriptionSummary,
+  PurchaseOrderSummary,
+  RecentActivity,
   DashboardSummary,
-  DashboardTopProduct,
-  DashboardTrendItem,
-  ExpiredBatchItem,
-  LowStockItem,
-  RecentTransaction,
-} from './dashboard.types';
+} from './types';
 
-const paymentColors = ['#059669', '#0f766e', '#2563eb', '#7c3aed', '#f59e0b'];
+type SummaryTone = 'amber' | 'blue' | 'emerald' | 'red' | 'slate' | 'violet';
+
+const summaryToneClasses: Record<
+  SummaryTone,
+  { border: string; icon: string }
+> = {
+  amber: {
+    border: 'border-l-amber-500',
+    icon: 'bg-amber-50 text-amber-700',
+  },
+  blue: {
+    border: 'border-l-blue-500',
+    icon: 'bg-blue-50 text-blue-700',
+  },
+  emerald: {
+    border: 'border-l-emerald-500',
+    icon: 'bg-emerald-50 text-emerald-700',
+  },
+  red: {
+    border: 'border-l-red-500',
+    icon: 'bg-red-50 text-red-700',
+  },
+  slate: {
+    border: 'border-l-slate-400',
+    icon: 'bg-slate-100 text-slate-700',
+  },
+  violet: {
+    border: 'border-l-violet-500',
+    icon: 'bg-violet-50 text-violet-700',
+  },
+};
 
 export function DashboardPage() {
+  const user = useAuthStore((state) => state.user);
+  const role = user?.role;
+  const connection = useConnectionStatus();
+  const canViewFinancials = canViewProfit(role);
+  const showRevenue = canViewRevenue(role);
+  const showTransactionSummary = canViewTransactionSummary(role);
+  const showRecentSales = canViewRecentSales(role);
+  const showStock = canViewStockSummary(role);
+  const showExpired = canViewExpiringBatches(role);
+  const showStockAction = canViewManagerDashboard(role);
+  const showPurchaseSummary = canViewPurchaseOrderSummary(role);
+  const showPrescriptionSummary = canViewPrescriptionSummary(role);
+  const showAudit = canViewAuditSummary(role);
+  const showCashierShortcut = canViewCashierShortcut(role);
   const summary = useDashboardSummary();
-  const trends = useDashboardTrends();
-  const topProducts = useDashboardTopProducts();
-  const paymentMethods = useDashboardPaymentMethods();
+  const revenueTrend = useDashboardRevenueTrend(showRevenue);
+  const profitTrend = useDashboardProfitTrend(canViewFinancials);
   const lowStock = useLowStock();
-  const expiredBatches = useExpiredBatches();
-  const recentTransactions = useRecentTransactions();
+  const expiredBatches = useExpiredBatches(showExpired);
+  const recentTransactions = useRecentTransactions(showRecentSales);
+  const purchaseOrderSummary =
+    useDashboardPurchaseOrderSummary(showPurchaseSummary);
+  const prescriptionSummary = useDashboardPrescriptionSummary(showPrescriptionSummary);
+  const recentActivities = useDashboardRecentActivities(showAudit);
   const queries = [
     summary,
-    trends,
-    topProducts,
-    paymentMethods,
+    revenueTrend,
+    profitTrend,
     lowStock,
     expiredBatches,
     recentTransactions,
+    purchaseOrderSummary,
+    prescriptionSummary,
+    recentActivities,
   ];
 
-  const isLoading = queries.some((query) => query.isLoading);
   const isFetching = queries.some((query) => query.isFetching);
-  const error = queries.find((query) => query.error)?.error;
 
   const refreshAll = () => {
     for (const query of queries) {
@@ -87,51 +152,16 @@ export function DashboardPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <DashboardHeader
-          generatedAt={null}
-          isFetching={isFetching}
-          onRefresh={refreshAll}
-        />
-        <LoadingSkeleton rows={6} />
-      </div>
-    );
-  }
-
-  if (error && !summary.data) {
+  if (summary.isError && !summary.data) {
     return (
       <div className="space-y-4">
         <DashboardHeader
+          connectionStatus={connection.status}
           generatedAt={null}
           isFetching={isFetching}
           onRefresh={refreshAll}
         />
-        <ErrorState
-          title="Dashboard gagal dimuat"
-          message={
-            error instanceof Error
-              ? error.message
-              : 'Data dashboard belum dapat diambil dari backend.'
-          }
-        />
-      </div>
-    );
-  }
-
-  if (!summary.data) {
-    return (
-      <div className="space-y-4">
-        <DashboardHeader
-          generatedAt={null}
-          isFetching={isFetching}
-          onRefresh={refreshAll}
-        />
-        <EmptyState
-          title="Dashboard belum memiliki data"
-          message="Ringkasan operasional akan tampil setelah backend mengirim data."
-        />
+        <DashboardSectionError onRetry={() => void summary.refetch()} />
       </div>
     );
   }
@@ -139,135 +169,338 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <DashboardHeader
-        generatedAt={summary.data.generatedAt}
+        connectionStatus={connection.status}
+        generatedAt={null}
         isFetching={isFetching}
         onRefresh={refreshAll}
       />
-      {error ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Sebagian data gagal disinkronkan. Dashboard tetap menampilkan data terakhir
-          yang tersedia.
-        </div>
+      {showCashierShortcut ? <CashierShortcut /> : null}
+      {summary.isLoading ? (
+        <SummarySkeleton />
+      ) : summary.isError ? (
+        <DashboardSectionError onRetry={() => void summary.refetch()} />
+      ) : summary.data ? (
+        <SummaryGrid
+          canViewFinancials={canViewFinancials}
+          canViewRevenue={showRevenue}
+          canViewExpiringBatchSummary={showExpired}
+          canViewStock={showStock}
+          canViewTransactions={showTransactionSummary}
+          summary={summary.data}
+        />
+      ) : (
+        <EmptyState
+          title="Dashboard belum memiliki data"
+          message="Ringkasan operasional akan tampil setelah backend mengirim data."
+        />
+      )}
+      {showRevenue ? (
+        <TrendChartGrid
+          canViewFinancials={canViewFinancials}
+          profitError={profitTrend.isError}
+          profitLoading={profitTrend.isLoading}
+          profitTrend={profitTrend.data ?? []}
+          revenueError={revenueTrend.isError}
+          revenueLoading={revenueTrend.isLoading}
+          revenueTrend={revenueTrend.data ?? []}
+          onRetryProfit={() => void profitTrend.refetch()}
+          onRetryRevenue={() => void revenueTrend.refetch()}
+        />
       ) : null}
-      <SummaryGrid summary={summary.data} />
-      <RealtimeChartGrid
-        paymentMethods={paymentMethods.data ?? []}
-        topProducts={topProducts.data ?? []}
-        trends={trends.data ?? []}
-      />
-      <section className="grid gap-4 xl:grid-cols-2">
-        <LowStockSection items={lowStock.data ?? []} />
-        <ExpiredBatchSection items={expiredBatches.data ?? []} />
+      <section className="grid gap-4 lg:grid-cols-2">
+        {showRecentSales ? (
+          <RecentTransactionSection
+            isError={recentTransactions.isError}
+            isLoading={recentTransactions.isLoading}
+            items={recentTransactions.data ?? []}
+            onRetry={() => void recentTransactions.refetch()}
+          />
+        ) : null}
+        {showStock ? (
+          <LowStockSection
+            canViewStockAction={showStockAction}
+            isError={lowStock.isError}
+            isLoading={lowStock.isLoading}
+            items={lowStock.data ?? []}
+            onRetry={() => void lowStock.refetch()}
+          />
+        ) : null}
       </section>
-      <RecentTransactionSection items={recentTransactions.data ?? []} />
+      {showExpired ? (
+        <ExpiredBatchSection
+          isError={expiredBatches.isError}
+          isLoading={expiredBatches.isLoading}
+          items={expiredBatches.data ?? []}
+          onRetry={() => void expiredBatches.refetch()}
+        />
+      ) : null}
+      <section className="grid gap-4 lg:grid-cols-2">
+        {showPurchaseSummary ? (
+          <PurchaseSummarySection
+            isError={purchaseOrderSummary.isError}
+            isLoading={purchaseOrderSummary.isLoading}
+            onRetry={() => void purchaseOrderSummary.refetch()}
+            summary={purchaseOrderSummary.data}
+          />
+        ) : null}
+        {showPrescriptionSummary ? (
+          <ServiceSummarySection
+            isError={prescriptionSummary.isError}
+            isLoading={prescriptionSummary.isLoading}
+            onRetry={() => void prescriptionSummary.refetch()}
+            summary={prescriptionSummary.data}
+          />
+        ) : null}
+      </section>
+      {showAudit ? (
+        <AuditLogSection
+          isError={recentActivities.isError}
+          isLoading={recentActivities.isLoading}
+          items={recentActivities.data ?? []}
+          onRetry={() => void recentActivities.refetch()}
+        />
+      ) : null}
     </div>
   );
 }
 
 function DashboardHeader({
+  connectionStatus,
   generatedAt,
   isFetching,
   onRefresh,
 }: {
+  connectionStatus: ReturnType<typeof useConnectionStatus>['status'];
   generatedAt: string | null;
   isFetching: boolean;
   onRefresh: () => void;
 }) {
+  const today = formatDate(new Date());
+
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-950">Dashboard</h1>
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            Live 15 detik
-          </span>
-        </div>
-        <p className="mt-1 text-sm text-slate-600">
-          Monitoring operasional, penjualan, stok, dan alert batch dari backend.
-        </p>
-        {generatedAt ? (
-          <p className="mt-1 text-xs text-slate-500">
-            Diperbarui {formatDateTimeWita(generatedAt)}
-            {isFetching ? ' - menyinkronkan data terbaru...' : ''}
+    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-3xl font-bold text-slate-950">Dashboard</h1>
+            <ConnectionStatusIndicator status={connectionStatus} />
+          </div>
+          <p className="mt-1 text-sm text-slate-600">
+            Ringkasan operasional apotek
           </p>
-        ) : null}
+          <p className="mt-1 text-xs font-medium text-slate-500">
+            Hari ini: {today} WITA
+          </p>
+          {generatedAt ? (
+            <p className="mt-1 text-xs text-slate-500">
+              Diperbarui {formatDateTimeWita(generatedAt)}
+              {isFetching ? ' - menyinkronkan data terbaru...' : ''}
+            </p>
+          ) : null}
+        </div>
+        <Button type="button" variant="secondary" onClick={onRefresh}>
+          <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
+          Muat Ulang
+        </Button>
       </div>
-      <Button type="button" variant="secondary" onClick={onRefresh}>
-        <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
-        Refresh
+    </div>
+  );
+}
+
+function CashierShortcut() {
+  return (
+    <Card>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <SectionTitle
+          icon={ShoppingCart}
+          title="Mode Kasir"
+          description="Dashboard terbatas. Lanjutkan transaksi dari halaman kasir."
+        />
+        <Link
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700"
+          to="/kasir"
+        >
+          <ShoppingCart size={16} />
+          Buka Kasir
+        </Link>
+      </div>
+    </Card>
+  );
+}
+
+function DashboardSectionError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+      <h2 className="text-base font-semibold text-red-900">
+        Dashboard gagal dimuat.
+      </h2>
+      <p className="mt-1 text-sm text-red-700">
+        Periksa koneksi server atau coba muat ulang.
+      </p>
+      <Button className="mt-4" type="button" variant="secondary" onClick={onRetry}>
+        <RefreshCw size={16} />
+        Muat Ulang
       </Button>
     </div>
   );
 }
 
-function SummaryGrid({ summary }: { summary: DashboardSummary }) {
+function DashboardEmptyState({
+  message,
+  title,
+}: {
+  message: string;
+  title: string;
+}) {
+  return (
+    <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
+      <h2 className="text-base font-semibold text-slate-950">{title}</h2>
+      <p className="mt-1 text-sm text-slate-600">{message}</p>
+    </div>
+  );
+}
+
+function SummarySkeleton() {
+  return (
+    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Card key={index} className="min-h-32">
+          <LoadingSkeleton rows={3} />
+        </Card>
+      ))}
+    </section>
+  );
+}
+
+function ChartSkeleton() {
+  return (
+    <div className="mt-4 h-72">
+      <LoadingSkeleton rows={5} />
+    </div>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div className="mt-4">
+      <LoadingSkeleton rows={5} />
+    </div>
+  );
+}
+
+function SummaryGrid({
+  canViewFinancials,
+  canViewExpiringBatchSummary,
+  canViewRevenue,
+  canViewStock,
+  canViewTransactions,
+  summary,
+}: {
+  canViewFinancials: boolean;
+  canViewExpiringBatchSummary: boolean;
+  canViewRevenue: boolean;
+  canViewStock: boolean;
+  canViewTransactions: boolean;
+  summary: DashboardSummary;
+}) {
   const cards = [
-    {
-      label: 'Omzet Hari Ini',
-      value: formatRupiah(summary.today.netRevenue),
-      helper: `${summary.today.transactionCount} transaksi`,
-      icon: Wallet,
-    },
+    canViewRevenue
+      ? {
+          label: 'Omzet Hari Ini',
+          value: formatRupiah(summary.todayRevenue),
+          helper: `${formatNumber(summary.todayTransactionCount)} transaksi`,
+          icon: Wallet,
+          tone: 'emerald' as const,
+        }
+      : null,
+    canViewTransactions
+      ? {
+          label: 'Jumlah Transaksi Hari Ini',
+          value: formatNumber(summary.todayTransactionCount),
+          helper: 'Checkout berhasil hari ini',
+          icon: ReceiptText,
+          tone: 'blue' as const,
+        }
+      : null,
+    canViewStock
+      ? {
+          label: 'Stok Kritis',
+          value: formatNumber(summary.lowStockCount),
+          helper: 'Produk perlu dicek',
+          icon: PackageSearch,
+          tone: summary.lowStockCount > 0 ? ('red' as const) : ('slate' as const),
+        }
+      : null,
+    canViewExpiringBatchSummary
+      ? {
+          label: 'Batch Mendekati Expired',
+          value: formatNumber(summary.expiringBatchCount),
+          helper: 'Dalam 90 hari',
+          icon: CalendarClock,
+          tone:
+            summary.expiringBatchCount > 0
+              ? ('amber' as const)
+              : ('slate' as const),
+        }
+      : null,
+  ].filter((card): card is NonNullable<typeof card> => Boolean(card));
+  const financialCards = [
     {
       label: 'Laba Hari Ini',
-      value: formatRupiah(summary.today.netProfit),
-      helper: `${summary.today.returnCount} retur`,
+      value: formatRupiah(summary.todayProfit ?? 0),
+      helper: 'Khusus manager/pemilik',
       icon: LineChartIcon,
+      tone: 'violet' as const,
     },
     {
       label: 'Laba Minggu Ini',
-      value: formatRupiah(summary.week.netProfit),
-      helper: `${formatRupiah(summary.week.netRevenue)} omzet`,
+      value: formatRupiah(summary.weeklyProfit ?? 0),
+      helper: 'Khusus manager/pemilik',
       icon: LineChartIcon,
+      tone: 'violet' as const,
     },
     {
       label: 'Laba Bulan Ini',
-      value: formatRupiah(summary.month.netProfit),
-      helper: `${formatRupiah(summary.month.netRevenue)} omzet`,
+      value: formatRupiah(summary.monthlyProfit ?? 0),
+      helper: 'Khusus manager/pemilik',
       icon: LineChartIcon,
+      tone: 'violet' as const,
     },
     {
       label: 'Laba Tahun Ini',
-      value: formatRupiah(summary.year.netProfit),
-      helper: `${formatRupiah(summary.year.netRevenue)} omzet`,
+      value: formatRupiah(summary.yearlyProfit ?? 0),
+      helper: 'Khusus manager/pemilik',
       icon: LineChartIcon,
-    },
-    {
-      label: 'Transaksi Hari Ini',
-      value: String(summary.today.transactionCount),
-      helper: `${formatRupiah(summary.today.discountTotal)} diskon`,
-      icon: ReceiptText,
-    },
-    {
-      label: 'Stok Kritis',
-      value: String(summary.lowStockCount),
-      helper: 'Produk perlu dicek',
-      icon: PackageSearch,
-    },
-    {
-      label: 'Batch Mendekati Expired',
-      value: String(summary.expiredBatchCount),
-      helper: 'Dalam 30 hari',
-      icon: CalendarClock,
+      tone: 'violet' as const,
     },
   ];
+  const visibleCards = canViewFinancials
+    ? [cards[0], ...financialCards, ...cards.slice(1)].filter(
+        (card): card is NonNullable<typeof card> => Boolean(card),
+      )
+    : cards;
 
   return (
-    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map((card) => {
+    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {visibleCards.map((card) => {
         const Icon = card.icon;
+        const toneClasses = summaryToneClasses[card.tone];
         return (
-          <Card key={card.label} className="min-h-32">
+          <Card
+            key={card.label}
+            className={`min-h-32 border-l-4 ${toneClasses.border}`}
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-slate-500">{card.label}</p>
-                <p className="mt-3 text-2xl font-bold text-slate-950">
+                <p className="mt-3 text-2xl font-bold leading-tight text-slate-950">
                   {card.value}
                 </p>
                 <p className="mt-2 text-xs text-slate-500">{card.helper}</p>
               </div>
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-emerald-50 text-emerald-700">
+              <div
+                className={`grid h-10 w-10 shrink-0 place-items-center rounded-md ${toneClasses.icon}`}
+              >
                 <Icon size={20} />
               </div>
             </div>
@@ -278,211 +511,156 @@ function SummaryGrid({ summary }: { summary: DashboardSummary }) {
   );
 }
 
-function RealtimeChartGrid({
-  paymentMethods,
-  topProducts,
-  trends,
+function TrendChartGrid({
+  canViewFinancials,
+  profitError,
+  profitLoading,
+  profitTrend,
+  revenueError,
+  revenueLoading,
+  revenueTrend,
+  onRetryProfit,
+  onRetryRevenue,
 }: {
-  paymentMethods: DashboardPaymentMethod[];
-  topProducts: DashboardTopProduct[];
-  trends: DashboardTrendItem[];
+  canViewFinancials: boolean;
+  profitError: boolean;
+  profitLoading: boolean;
+  profitTrend: DashboardTrendPoint[];
+  revenueError: boolean;
+  revenueLoading: boolean;
+  revenueTrend: DashboardTrendPoint[];
+  onRetryProfit: () => void;
+  onRetryRevenue: () => void;
 }) {
   return (
-    <section className="grid gap-4 xl:grid-cols-3">
-      <TrendChart items={trends} />
-      <TopProductChart items={topProducts} />
-      <PaymentMethodChart items={paymentMethods} />
+    <section className="grid gap-4 lg:grid-cols-2">
+      <TrendChart
+        dataKey="revenue"
+        description="Omzet bersih tujuh hari terakhir setelah koreksi retur."
+        isError={revenueError}
+        isLoading={revenueLoading}
+        items={revenueTrend}
+        onRetry={onRetryRevenue}
+        title="Tren Omzet 7 Hari"
+      />
+      {canViewFinancials ? (
+        <TrendChart
+          dataKey="profit"
+          description="Laba bersih tujuh hari terakhir dari detail transaksi historis."
+          isError={profitError}
+          isLoading={profitLoading}
+          items={profitTrend}
+          onRetry={onRetryProfit}
+          title="Tren Laba 7 Hari"
+        />
+      ) : null}
     </section>
   );
 }
 
-function TrendChart({ items }: { items: DashboardTrendItem[] }) {
+function TrendChart({
+  dataKey,
+  description,
+  isError,
+  isLoading,
+  items,
+  onRetry,
+  title,
+}: {
+  dataKey: 'revenue' | 'profit';
+  description: string;
+  isError: boolean;
+  isLoading: boolean;
+  items: DashboardTrendPoint[];
+  onRetry: () => void;
+  title: string;
+}) {
   const data = items.map((item) => ({
     ...item,
-    dateLabel: formatCompactDate(item.date),
+    dateLabel: formatDate(item.date),
   }));
+  const color = dataKey === 'revenue' ? '#059669' : '#2563eb';
+  const total = data.reduce(
+    (sum, item) => sum + Number((item as Record<string, unknown>)[dataKey] ?? 0),
+    0,
+  );
 
   return (
-    <Card className="xl:col-span-2">
+    <Card>
       <SectionTitle
         icon={Activity}
-        title="Trend 14 Hari"
-        description="Omzet dan laba bersih setelah koreksi retur."
+        title={title}
+        description={description}
       />
-      {data.length ? (
-        <div className="mt-4 h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
-              <defs>
-                <linearGradient id="netRevenue" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="5%" stopColor="#059669" stopOpacity={0.24} />
-                  <stop offset="95%" stopColor="#059669" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="dateLabel"
-                tick={{ fill: '#64748b', fontSize: 12 }}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: '#64748b', fontSize: 12 }}
-                tickFormatter={formatCompactNumber}
-                tickLine={false}
-                width={56}
-              />
-              <Tooltip
-                formatter={(value, name) => [
-                  formatRupiah(Number(value)),
-                  name === 'netRevenue' ? 'Omzet bersih' : 'Laba bersih',
-                ]}
-                labelFormatter={(label) => `Tanggal ${label}`}
-              />
-              <Area
-                dataKey="netRevenue"
-                fill="url(#netRevenue)"
-                name="Omzet bersih"
-                stroke="#059669"
-                strokeWidth={2}
-                type="monotone"
-              />
-              <Line
-                dataKey="netProfit"
-                dot={false}
-                name="Laba bersih"
-                stroke="#2563eb"
-                strokeWidth={2}
-                type="monotone"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      ) : (
+      {isLoading ? (
+        <ChartSkeleton />
+      ) : isError ? (
         <div className="mt-4">
-          <EmptyState
-            title="Belum ada trend"
-            message="Grafik akan terisi setelah transaksi atau retur tercatat."
-          />
+          <DashboardSectionError onRetry={onRetry} />
         </div>
-      )}
-    </Card>
-  );
-}
-
-function TopProductChart({ items }: { items: DashboardTopProduct[] }) {
-  const data = items.map((item) => ({
-    ...item,
-    shortName:
-      item.productName.length > 18
-        ? `${item.productName.slice(0, 18)}...`
-        : item.productName,
-  }));
-
-  return (
-    <Card>
-      <SectionTitle
-        icon={BarChart3}
-        title="Produk Terlaris"
-        description="Top 5 produk berdasarkan qty base 7 hari terakhir."
-      />
-      {data.length ? (
-        <div className="mt-4 h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16 }}>
-              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" horizontal={false} />
-              <XAxis
-                tick={{ fill: '#64748b', fontSize: 12 }}
-                tickFormatter={formatCompactNumber}
-                type="number"
-              />
-              <YAxis
-                dataKey="shortName"
-                tick={{ fill: '#64748b', fontSize: 12 }}
-                tickLine={false}
-                type="category"
-                width={98}
-              />
-              <Tooltip
-                formatter={(value, name) => [
-                  name === 'revenue'
-                    ? formatRupiah(Number(value))
-                    : formatCompactNumber(Number(value)),
-                  name === 'revenue' ? 'Omzet' : 'Qty base',
-                ]}
-              />
-              <Bar dataKey="qtyBase" fill="#0f766e" name="Qty base" radius={[0, 6, 6, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <div className="mt-4">
-          <EmptyState
-            title="Belum ada produk terlaris"
-            message="Ranking akan muncul setelah penjualan tercatat."
-          />
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function PaymentMethodChart({ items }: { items: DashboardPaymentMethod[] }) {
-  return (
-    <Card>
-      <SectionTitle
-        icon={Wallet}
-        title="Metode Pembayaran"
-        description="Komposisi omzet bersih 7 hari terakhir."
-      />
-      {items.length ? (
-        <>
-          <div className="mt-4 h-52">
+      ) : data.length && total !== 0 ? (
+        <div>
+          <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="text-xs font-medium uppercase text-slate-500">
+              Total 7 hari
+            </div>
+            <div className="mt-1 text-lg font-bold text-slate-950">
+              {formatRupiah(total)}
+            </div>
+          </div>
+          <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={items}
-                  dataKey="netRevenue"
-                  innerRadius={48}
-                  nameKey="paymentMethod"
-                  outerRadius={78}
-                  paddingAngle={2}
-                >
-                  {items.map((item, index) => (
-                    <Cell
-                      key={item.paymentMethod}
-                      fill={paymentColors[index % paymentColors.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value) => [formatRupiah(Number(value)), 'Omzet bersih']}
+              <ComposedChart data={data} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
+                <defs>
+                  <linearGradient id={dataKey} x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="5%" stopColor={color} stopOpacity={0.22} />
+                    <stop offset="95%" stopColor={color} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="dateLabel"
+                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  tickLine={false}
                 />
-              </PieChart>
+                <YAxis
+                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  tickFormatter={(value) => formatRupiah(Number(value))}
+                  tickLine={false}
+                  width={56}
+                />
+                <Tooltip
+                  formatter={(value, name) => [
+                    formatRupiah(Number(value)),
+                    name === 'revenue' ? 'Omzet bersih' : 'Laba bersih',
+                  ]}
+                  labelFormatter={(label) => `Tanggal ${label}`}
+                />
+                <Area
+                  dataKey={dataKey}
+                  fill={`url(#${dataKey})`}
+                  name={dataKey === 'revenue' ? 'Omzet bersih' : 'Laba bersih'}
+                  stroke={color}
+                  strokeWidth={2}
+                  type="monotone"
+                />
+                <Line
+                  dataKey={dataKey}
+                  dot={false}
+                  name={dataKey === 'revenue' ? 'Omzet bersih' : 'Laba bersih'}
+                  stroke={color}
+                  strokeWidth={2}
+                  type="monotone"
+                />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
-          <div className="mt-3 space-y-2">
-            {items.map((item, index) => (
-              <div
-                key={item.paymentMethod}
-                className="flex items-center justify-between gap-3 rounded-md bg-slate-50 px-3 py-2 text-sm"
-              >
-                <span className="flex items-center gap-2 font-medium text-slate-800">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: paymentColors[index % paymentColors.length] }}
-                  />
-                  {item.paymentMethod}
-                </span>
-                <span className="text-slate-600">{formatRupiah(item.netRevenue)}</span>
-              </div>
-            ))}
-          </div>
-        </>
+        </div>
       ) : (
         <div className="mt-4">
-          <EmptyState
-            title="Belum ada pembayaran"
-            message="Komposisi metode bayar akan muncul setelah transaksi tercatat."
+          <DashboardEmptyState
+            title={`${title} kosong`}
+            message="Grafik akan terisi setelah backend memiliki data pada periode ini."
           />
         </div>
       )}
@@ -490,7 +668,19 @@ function PaymentMethodChart({ items }: { items: DashboardPaymentMethod[] }) {
   );
 }
 
-function LowStockSection({ items }: { items: LowStockItem[] }) {
+function LowStockSection({
+  canViewStockAction,
+  isError,
+  isLoading,
+  items,
+  onRetry,
+}: {
+  canViewStockAction: boolean;
+  isError: boolean;
+  isLoading: boolean;
+  items: LowStockProduct[];
+  onRetry: () => void;
+}) {
   return (
     <Card>
       <SectionTitle
@@ -498,45 +688,106 @@ function LowStockSection({ items }: { items: LowStockItem[] }) {
         title="Stok Kritis"
         description="Produk dengan stok tersedia <= stok minimum."
       />
-      {items.length ? (
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
         <div className="mt-4">
-          <DataTable<LowStockItem>
+          <DashboardSectionError onRetry={onRetry} />
+        </div>
+      ) : items.length ? (
+        <div className="mt-4">
+          <ResponsiveDataView<LowStockProduct>
             data={items.slice(0, 8)}
             columns={[
               {
-                key: 'name',
+                key: 'productName',
                 header: 'Produk',
                 render: (row) => (
                   <div>
-                    <div className="font-medium text-slate-900">{row.name}</div>
-                    <div className="text-xs text-slate-500">{row.code}</div>
+                    <div className="font-medium text-slate-900">{row.productName}</div>
+                    <div className="text-xs text-slate-500">{row.baseUnitName}</div>
                   </div>
                 ),
               },
               {
-                key: 'category',
-                header: 'Kategori',
-                render: (row) => row.category.name,
+                key: 'baseUnitName',
+                header: 'Satuan dasar',
               },
               {
-                key: 'stockAvailableBase',
-                header: 'Stok',
-                render: (row) =>
-                  formatQty(row.stockAvailableBase, row.baseUnit.symbol ?? row.baseUnit.name),
+                key: 'currentStockBase',
+                header: 'Stok saat ini',
+                render: (row) => formatQty(row.currentStockBase, row.baseUnitName),
               },
               {
-                key: 'minStockBase',
+                key: 'minimumStockBase',
                 header: 'Minimum',
-                render: (row) =>
-                  formatQty(row.minStockBase, row.baseUnit.symbol ?? row.baseUnit.name),
+                render: (row) => formatQty(row.minimumStockBase, row.baseUnitName),
               },
+              {
+                key: 'shortage',
+                header: 'Selisih',
+                render: (row) => formatQty(row.shortage, row.baseUnitName),
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (row) => <StockStatusBadge item={row} />,
+              },
+              ...(canViewStockAction
+                ? [
+                    {
+                      key: 'action',
+                      header: 'Aksi',
+                      render: (row: LowStockProduct) => (
+                        <Link
+                          className="font-semibold text-emerald-700 hover:text-emerald-800"
+                          to={`/stok?productId=${row.productId}`}
+                        >
+                          Lihat stok
+                        </Link>
+                      ),
+                    },
+                  ]
+                : []),
+            ]}
+            getCardTitle={(row) => row.productName}
+            getCardSubtitle={(row) => row.baseUnitName}
+            getCardRows={(row) => [
+              {
+                label: 'Stok saat ini',
+                value: formatQty(row.currentStockBase, row.baseUnitName),
+              },
+              {
+                label: 'Minimum',
+                value: formatQty(row.minimumStockBase, row.baseUnitName),
+              },
+              {
+                label: 'Selisih',
+                value: formatQty(row.shortage, row.baseUnitName),
+              },
+              { label: 'Status', value: <StockStatusBadge item={row} /> },
+              ...(canViewStockAction
+                ? [
+                    {
+                      label: 'Aksi',
+                      value: (
+                        <Link
+                          className="font-semibold text-emerald-700 hover:text-emerald-800"
+                          to={`/stok?productId=${row.productId}`}
+                        >
+                          Lihat stok
+                        </Link>
+                      ),
+                    },
+                  ]
+                : []),
             ]}
           />
         </div>
       ) : (
         <div className="mt-4">
-          <EmptyState
-            title="Tidak ada stok kritis"
+          <DashboardEmptyState
+            title="Tidak ada produk dengan stok rendah."
             message="Semua stok aktif masih berada di atas batas minimum."
           />
         </div>
@@ -545,7 +796,17 @@ function LowStockSection({ items }: { items: LowStockItem[] }) {
   );
 }
 
-function ExpiredBatchSection({ items }: { items: ExpiredBatchItem[] }) {
+function ExpiredBatchSection({
+  isError,
+  isLoading,
+  items,
+  onRetry,
+}: {
+  isError: boolean;
+  isLoading: boolean;
+  items: ExpiringBatchItem[];
+  onRetry: () => void;
+}) {
   return (
     <Card>
       <SectionTitle
@@ -553,42 +814,67 @@ function ExpiredBatchSection({ items }: { items: ExpiredBatchItem[] }) {
         title="Batch Mendekati Expired"
         description="Batch aktif dengan stok tersisa dan masa expired dekat."
       />
-      {items.length ? (
-        <div className="mt-4 space-y-3">
-          {items.slice(0, 8).map((item) => (
-            <div
-              key={item.batchId}
-              className="rounded-md border border-amber-200 bg-amber-50 p-3"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="font-medium text-slate-950">{item.productName}</div>
-                  <div className="mt-1 text-xs text-slate-600">
-                    Batch {item.batchNumber} - {item.categoryName}
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <div className="mt-4">
+          <DashboardSectionError onRetry={onRetry} />
+        </div>
+      ) : items.length ? (
+        <div className="mt-4">
+          <ResponsiveDataView<ExpiringBatchItem>
+            data={items.slice(0, 8)}
+            columns={[
+              {
+                key: 'productName',
+                header: 'Produk',
+                render: (row) => (
+                  <div>
+                    <div className="font-medium text-slate-900">{row.productName}</div>
+                    <div className="text-xs text-slate-500">{row.baseUnitName}</div>
                   </div>
-                </div>
-                <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-amber-700">
-                  {item.daysUntilExpired} hari
-                </span>
-              </div>
-              <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
-                <span>Expired {formatDate(item.expiredDate)}</span>
-                <span>
-                  Stok{' '}
-                  {formatQty(
-                    item.currentStockBase,
-                    item.baseUnit.symbol ?? item.baseUnit.name,
-                  )}
-                </span>
-                <span>Supplier {item.supplierName ?? '-'}</span>
-              </div>
-            </div>
-          ))}
+                ),
+              },
+              { key: 'batchNumber', header: 'No. batch' },
+              {
+                key: 'expiredDate',
+                header: 'Expired',
+                render: (row) => formatDate(row.expiredDate),
+              },
+              {
+                key: 'daysRemaining',
+                header: 'Sisa hari',
+                render: (row) => formatNumber(row.daysRemaining),
+              },
+              {
+                key: 'currentStockBase',
+                header: 'Stok batch',
+                render: (row) =>
+                  formatQty(row.currentStockBase, row.baseUnitName),
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (row) => <ExpiredStatusBadge status={row.status} />,
+              },
+            ]}
+            getCardTitle={(row) => row.productName}
+            getCardSubtitle={(row) => `${row.baseUnitName} - Batch ${row.batchNumber}`}
+            getCardRows={(row) => [
+              { label: 'Expired', value: formatDate(row.expiredDate) },
+              { label: 'Sisa hari', value: formatNumber(row.daysRemaining) },
+              {
+                label: 'Stok batch',
+                value: formatQty(row.currentStockBase, row.baseUnitName),
+              },
+              { label: 'Status', value: <ExpiredStatusBadge status={row.status} /> },
+            ]}
+          />
         </div>
       ) : (
         <div className="mt-4">
-          <EmptyState
-            title="Tidak ada batch mendekati expired"
+          <DashboardEmptyState
+            title="Tidak ada batch yang mendekati expired."
             message="Belum ada batch aktif yang masuk periode alert."
           />
         </div>
@@ -597,7 +883,17 @@ function ExpiredBatchSection({ items }: { items: ExpiredBatchItem[] }) {
   );
 }
 
-function RecentTransactionSection({ items }: { items: RecentTransaction[] }) {
+function RecentTransactionSection({
+  isError,
+  isLoading,
+  items,
+  onRetry,
+}: {
+  isError: boolean;
+  isLoading: boolean;
+  items: LatestSaleItem[];
+  onRetry: () => void;
+}) {
   return (
     <Card>
       <SectionTitle
@@ -605,64 +901,285 @@ function RecentTransactionSection({ items }: { items: RecentTransaction[] }) {
         title="Transaksi Terbaru"
         description="Daftar transaksi penjualan terakhir dari backend."
       />
-      {items.length ? (
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
         <div className="mt-4">
-          <DataTable<RecentTransaction>
+          <DashboardSectionError onRetry={onRetry} />
+        </div>
+      ) : items.length ? (
+        <div className="mt-4">
+          <ResponsiveDataView<LatestSaleItem>
             data={items}
             columns={[
               {
+                key: 'saleTime',
+                header: 'Waktu',
+                render: (row) => formatDateTimeWita(row.saleTime),
+              },
+              {
                 key: 'saleNumber',
-                header: 'Nomor',
+                header: 'No. transaksi',
                 render: (row) => (
-                  <div>
-                    <div className="font-medium text-slate-900">{row.saleNumber}</div>
-                    <div className="text-xs text-slate-500">
-                      {formatDateTimeWita(row.createdAt)}
-                    </div>
-                  </div>
+                  <span className="font-medium text-slate-900">{row.saleNumber}</span>
                 ),
               },
               {
-                key: 'cashier',
+                key: 'cashierName',
                 header: 'Kasir',
-                render: (row) => row.cashier.name,
+                render: (row) => row.cashierName,
               },
               {
                 key: 'paymentMethod',
                 header: 'Bayar',
               },
               {
-                key: 'grandTotal',
+                key: 'total',
                 header: 'Total',
-                render: (row) => formatRupiah(row.grandTotal),
+                render: (row) => formatRupiah(row.total),
               },
               {
-                key: 'returnTotal',
-                header: 'Retur',
-                render: (row) => formatRupiah(row.returnTotal),
+                key: 'status',
+                header: 'Status',
+                render: (row) => <Badge tone="emerald">{row.status}</Badge>,
               },
-              {
-                key: 'netTotal',
-                header: 'Net',
-                render: (row) => (
-                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
-                    <ArrowDownRight size={14} />
-                    {formatRupiah(row.netTotal)}
-                  </span>
-                ),
-              },
+            ]}
+            getCardTitle={(row) => row.saleNumber}
+            getCardSubtitle={(row) => formatDateTimeWita(row.saleTime)}
+            getCardRows={(row) => [
+              { label: 'Kasir', value: row.cashierName },
+              { label: 'Bayar', value: row.paymentMethod },
+              { label: 'Total', value: formatRupiah(row.total) },
+              { label: 'Status', value: <Badge tone="emerald">{row.status}</Badge> },
             ]}
           />
         </div>
       ) : (
         <div className="mt-4">
-          <EmptyState
-            title="Belum ada transaksi"
+          <DashboardEmptyState
+            title="Belum ada transaksi terbaru."
             message="Transaksi terbaru akan tampil setelah checkout berhasil."
           />
         </div>
       )}
     </Card>
+  );
+}
+
+function PurchaseSummarySection({
+  isError,
+  isLoading,
+  onRetry,
+  summary,
+}: {
+  isError: boolean;
+  isLoading: boolean;
+  onRetry: () => void;
+  summary: PurchaseOrderSummary | undefined;
+}) {
+  const hasActivePurchaseOrder = Boolean(
+    summary &&
+      (summary.draft > 0 ||
+        summary.sent > 0 ||
+        summary.partiallyReceived > 0 ||
+        summary.received > 0 ||
+        (summary.cancelled ?? 0) > 0 ||
+        (summary.todayPurchases ?? 0) > 0),
+  );
+  const cards = [
+    {
+      label: 'PO Draft',
+      value: summary?.draft ?? 0,
+    },
+    {
+      label: 'PO Terkirim / Menunggu',
+      value: summary?.sent ?? 0,
+    },
+    {
+      label: 'PO Sebagian Diterima',
+      value: summary?.partiallyReceived ?? 0,
+    },
+    {
+      label: 'PO Selesai',
+      value: summary?.received ?? 0,
+    },
+    {
+      label: 'Pembelian Hari Ini',
+      value: summary?.todayPurchases ?? 0,
+    },
+  ];
+
+  return (
+    <Card>
+      <SectionTitle
+        icon={ClipboardList}
+        title="PO dan Pembelian"
+        description="PO adalah rencana pemesanan; stok hanya bertambah setelah pembelian final."
+      />
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <div className="mt-4">
+          <DashboardSectionError onRetry={onRetry} />
+        </div>
+      ) : hasActivePurchaseOrder ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {cards.map((item) => (
+            <MetricPill key={item.label} label={item.label} value={item.value} />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4">
+          <DashboardEmptyState
+            title="Belum ada pemesanan aktif."
+            message="Ringkasan PO akan tampil setelah pemesanan tercatat."
+          />
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function ServiceSummarySection({
+  isError,
+  isLoading,
+  onRetry,
+  summary,
+}: {
+  isError: boolean;
+  isLoading: boolean;
+  onRetry: () => void;
+  summary: PrescriptionSummary | undefined;
+}) {
+  const hasActivePrescription = Boolean(
+    summary && (summary.newPrescription > 0 || summary.readyForPayment > 0),
+  );
+  const cards = [
+    {
+      label: 'Resep Baru',
+      value: summary?.newPrescription ?? 0,
+    },
+    {
+      label: 'Resep Siap Bayar',
+      value: summary?.readyForPayment ?? 0,
+    },
+    {
+      label: 'Resep Selesai',
+      value: summary?.completed ?? 0,
+    },
+    {
+      label: 'Konseling Hari Ini',
+      value: summary?.todayCounseling ?? 0,
+    },
+  ];
+
+  return (
+    <Card>
+      <SectionTitle
+        icon={Stethoscope}
+        title="Resep dan Konseling"
+        description="Resep dan konseling tidak mengurangi stok sebelum checkout kasir berhasil."
+      />
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <div className="mt-4">
+          <DashboardSectionError onRetry={onRetry} />
+        </div>
+      ) : hasActivePrescription ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {cards.map((item) => (
+            <MetricPill key={item.label} label={item.label} value={item.value} />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4">
+          <DashboardEmptyState
+            title="Belum ada resep aktif."
+            message="Ringkasan resep akan tampil setelah pelayanan resep tercatat."
+          />
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function AuditLogSection({
+  isError,
+  isLoading,
+  items,
+  onRetry,
+}: {
+  isError: boolean;
+  isLoading: boolean;
+  items: RecentActivity[];
+  onRetry: () => void;
+}) {
+  return (
+    <Card>
+      <SectionTitle
+        icon={History}
+        title="Aktivitas Terakhir"
+        description="Maksimal lima aktivitas audit terbaru dari backend."
+      />
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <div className="mt-4">
+          <DashboardSectionError onRetry={onRetry} />
+        </div>
+      ) : items.length ? (
+        <div className="mt-4">
+          <ResponsiveDataView<RecentActivity>
+            data={items}
+            columns={[
+              {
+                key: 'createdAt',
+                header: 'Waktu',
+                render: (row) => formatDateTimeWita(row.createdAt),
+              },
+              {
+                key: 'actorName',
+                header: 'User',
+                render: (row) => row.actorName,
+              },
+              { key: 'action', header: 'Aksi' },
+              { key: 'entityType', header: 'Entitas' },
+              {
+                key: 'summary',
+                header: 'Ringkasan perubahan',
+                render: (row) => row.summary,
+              },
+            ]}
+            getCardTitle={(row) => row.action}
+            getCardSubtitle={(row) => formatDateTimeWita(row.createdAt)}
+            getCardRows={(row) => [
+              { label: 'User', value: row.actorName },
+              { label: 'Entitas', value: row.entityType },
+              { label: 'Ringkasan', value: row.summary },
+            ]}
+          />
+        </div>
+      ) : (
+        <div className="mt-4">
+          <DashboardEmptyState
+            title="Belum ada aktivitas terbaru."
+            message="Audit log akan tampil setelah backend mencatat aktivitas penting."
+          />
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function MetricPill({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="text-sm font-medium text-slate-600">{label}</div>
+      <div className="mt-2 text-2xl font-bold leading-tight text-slate-950">
+        {formatNumber(value)}
+      </div>
+    </div>
   );
 }
 
@@ -680,7 +1197,7 @@ function SectionTitle({
       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-700">
         <Icon size={20} />
       </div>
-      <div>
+      <div className="min-w-0">
         <h2 className="text-base font-semibold text-slate-950">{title}</h2>
         <p className="mt-1 text-sm text-slate-600">{description}</p>
       </div>
@@ -688,17 +1205,15 @@ function SectionTitle({
   );
 }
 
-function formatCompactDate(value: string) {
-  return new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    timeZone: 'Asia/Makassar',
-  }).format(new Date(value));
+function StockStatusBadge({ item }: { item: LowStockProduct }) {
+  if (item.status === 'HABIS') return <Badge tone="red">Habis</Badge>;
+  if (item.status === 'RENDAH') return <Badge tone="amber">Rendah</Badge>;
+  return <Badge tone="emerald">Aman</Badge>;
 }
 
-function formatCompactNumber(value: number) {
-  return new Intl.NumberFormat('id-ID', {
-    maximumFractionDigits: 1,
-    notation: 'compact',
-  }).format(value);
+function ExpiredStatusBadge({ status }: { status: ExpiringBatchItem['status'] }) {
+  if (status === 'EXPIRED') return <Badge tone="red">Expired</Badge>;
+  if (status === 'KRITIS') return <Badge tone="red">Kritis</Badge>;
+  if (status === 'WASPADA') return <Badge tone="amber">Waspada</Badge>;
+  return <Badge tone="emerald">Aman</Badge>;
 }

@@ -33,7 +33,12 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['MANAGER'] },
+  {
+    label: 'Dashboard',
+    path: '/dashboard',
+    icon: LayoutDashboard,
+    roles: ['APOTEKER', 'MANAGER', 'PEMILIK'],
+  },
   { label: 'Kasir', path: '/kasir', icon: ShoppingCart, roles: ['KASIR', 'MANAGER'] },
   {
     label: 'Riwayat Transaksi',

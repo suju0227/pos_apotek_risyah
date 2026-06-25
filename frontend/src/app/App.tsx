@@ -31,6 +31,7 @@ import { UsersPage } from '../features/users/UsersPage';
 import type { RoleName } from '../features/auth/auth.types';
 
 const managerOnly: RoleName[] = ['MANAGER'];
+const dashboardRoles: RoleName[] = ['KASIR', 'APOTEKER', 'MANAGER', 'PEMILIK'];
 const cashierAndManager: RoleName[] = ['KASIR', 'MANAGER'];
 const pharmacistAndManager: RoleName[] = ['APOTEKER', 'MANAGER'];
 
@@ -50,7 +51,7 @@ export function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute allowedRoles={managerOnly}>
+              <ProtectedRoute allowedRoles={dashboardRoles}>
                 <DashboardPage />
               </ProtectedRoute>
             }

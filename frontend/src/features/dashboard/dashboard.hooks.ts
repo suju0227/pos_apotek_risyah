@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { dashboardApi } from './dashboard.api';
+import { dashboardApi } from './services/dashboard.api';
 
 const realtimeDashboardQuery = {
   refetchInterval: 15_000,
@@ -17,48 +17,71 @@ export function useDashboardSummary() {
 
 export function useLowStock() {
   return useQuery({
-    queryKey: ['dashboard', 'low-stock'],
-    queryFn: dashboardApi.lowStock,
+    queryKey: ['dashboard', 'low-stock', 10],
+    queryFn: () => dashboardApi.lowStock(10),
     ...realtimeDashboardQuery,
   });
 }
 
-export function useExpiredBatches() {
+export function useExpiredBatches(enabled: boolean) {
   return useQuery({
-    queryKey: ['dashboard', 'expired-batches'],
-    queryFn: dashboardApi.expiredBatches,
+    enabled,
+    queryKey: ['dashboard', 'expiring-batches', 10],
+    queryFn: () => dashboardApi.expiringBatches(10),
     ...realtimeDashboardQuery,
   });
 }
 
-export function useRecentTransactions() {
+export function useRecentTransactions(enabled: boolean) {
   return useQuery({
-    queryKey: ['dashboard', 'recent-transactions'],
-    queryFn: dashboardApi.recentTransactions,
+    enabled,
+    queryKey: ['dashboard', 'latest-sales', 5],
+    queryFn: () => dashboardApi.latestSales(5),
     ...realtimeDashboardQuery,
   });
 }
 
-export function useDashboardTrends() {
+export function useDashboardRevenueTrend(enabled: boolean) {
   return useQuery({
-    queryKey: ['dashboard', 'trends', 14],
-    queryFn: () => dashboardApi.trends(14),
+    enabled,
+    queryKey: ['dashboard', 'revenue-trend', '7d'],
+    queryFn: dashboardApi.revenueTrend,
     ...realtimeDashboardQuery,
   });
 }
 
-export function useDashboardTopProducts() {
+export function useDashboardProfitTrend(enabled: boolean) {
   return useQuery({
-    queryKey: ['dashboard', 'top-products', 7, 5],
-    queryFn: () => dashboardApi.topProducts(7, 5),
+    enabled,
+    queryKey: ['dashboard', 'profit-trend', '7d'],
+    queryFn: dashboardApi.profitTrend,
     ...realtimeDashboardQuery,
   });
 }
 
-export function useDashboardPaymentMethods() {
+export function useDashboardPurchaseOrderSummary(enabled: boolean) {
   return useQuery({
-    queryKey: ['dashboard', 'payment-methods', 7],
-    queryFn: () => dashboardApi.paymentMethods(7),
+    enabled,
+    queryKey: ['dashboard', 'purchase-order-summary'],
+    queryFn: dashboardApi.purchaseOrderSummary,
+    ...realtimeDashboardQuery,
+  });
+}
+
+export function useDashboardPrescriptionSummary(enabled: boolean) {
+  return useQuery({
+    enabled,
+    queryKey: ['dashboard', 'prescription-summary'],
+    queryFn: dashboardApi.prescriptionSummary,
+    ...realtimeDashboardQuery,
+  });
+}
+
+export function useDashboardRecentActivities(enabled: boolean) {
+  return useQuery({
+    enabled,
+    queryKey: ['dashboard', 'recent-activities', 5],
+    queryFn: () => dashboardApi.recentActivities(5),
     ...realtimeDashboardQuery,
   });
 }

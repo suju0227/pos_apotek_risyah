@@ -22,12 +22,14 @@ const defaultPathByRole: Record<RoleName, string> = {
   KASIR: '/kasir',
   APOTEKER: '/pelayanan/resep',
   MANAGER: '/dashboard',
+  PEMILIK: '/dashboard',
 };
 
 const allowedPathPrefixesByRole: Record<RoleName, string[]> = {
   KASIR: ['/kasir', '/riwayat-transaksi', '/retur-penjualan'],
-  APOTEKER: ['/pelayanan/resep', '/pelayanan/konseling', '/pemesanan'],
+  APOTEKER: ['/dashboard', '/pelayanan/resep', '/pelayanan/konseling', '/pemesanan'],
   MANAGER: ['/'],
+  PEMILIK: ['/dashboard'],
 };
 
 function resolvePostLoginPath(role: RoleName, requestedPath: string) {

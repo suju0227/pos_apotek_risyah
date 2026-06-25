@@ -9,7 +9,7 @@
 | Versi dokumen | 0.2.0 |
 | Status dokumen | Final Smoke V1 Tervalidasi Lokal |
 | Tanggal dibuat | 2026-06-05 |
-| Tanggal terakhir diperbarui | 2026-06-15 |
+| Tanggal terakhir diperbarui | 2026-06-25 |
 | Penyusun | Codex GPT |
 | Dokumen rujukan | `01_PRD_POS_APOTEK.md`, `02_SRS_POS_APOTEK.md`, `03_SDD_SYSTEM_DESIGN_POS_APOTEK.md`, `04_UI_UX_FLOW_POS_APOTEK.md`, `05_TASK_BREAKDOWN_POS_APOTEK.md`, `06_FRONTEND_POS_APOTEK.md`, `07_BACKEND_POS_APOTEK.md` |
 
@@ -198,7 +198,7 @@ temporary smoke users deactivated
 | Phase 6C | Pelayanan Resep dan Konseling | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Backend resep/konseling teruji; UI resep, integrasi kasir resep siap bayar, dan UI konseling tersedia. |
 | Phase 7 | Diskon & Pembayaran | Selesai Terverifikasi Backend | Unit/integration test diskon dan pembayaran lulus. |
 | Phase 8 | Retur | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Retur penjualan dan retur pembelian memiliki UI; backend tetap sumber mutasi stok. |
-| Phase 9 | Dashboard & Laporan | Selesai Build-Level Real-Time, Perlu Runtime Smoke Ulang | Dashboard Manager memiliki polling 15 detik, trend 14 hari, top produk, metode pembayaran, stok kritis, expired batch, dan transaksi terbaru; host frontend/backend build lulus, Docker rebuild terbaru terblokir Docker Desktop/buildx EOF. |
+| Phase 9 | Dashboard & Laporan | Selesai Tervalidasi Lokal | Dashboard Manager/Pemilik memiliki polling 15 detik, KPI role-aware, trend omzet/laba 7 hari, stok rendah, batch expired/90 hari, transaksi terbaru, ringkasan PO/pembelian, ringkasan resep/konseling, audit ringkas, serta grafik laporan penjualan/laba; focused tests, frontend Docker build, dan smoke lokal lulus. |
 | Phase 10 | Export | Selesai Terverifikasi Backend, Frontend Selesai Build-Level | Export xlsx/pdf teruji dan UI download laporan tersedia. |
 | Phase 11 | User, Settings, Responsive & UX Polish | Selesai Build-Level, Perlu Smoke Manual | UI users, settings, dan audit log Manager tersedia; validasi ringan frontend perlu dijalankan setelah polish. |
 | Phase 12 | Testing | Selesai Terverifikasi Lokal | Backend regression lulus pada PostgreSQL test terpisah, concurrent sale eksplisit lulus, smoke role `MANAGER`/`APOTEKER`/`KASIR` lulus, dan browser UI click-through penuh lulus pada Docker aktif. |
@@ -247,7 +247,7 @@ temporary smoke users deactivated
 | 36 | TASK-BE-016 | DiscountService | Phase 7 | Discount service. | Discount unit tests lulus. | Selesai. |
 | 37 | TASK-BE-018 | Sales Return Service | Phase 8 | Sales returns module/service. | Sales Returns API tests lulus. | Selesai. |
 | 38 | TASK-BE-020 | Purchase return | Phase 8 | Purchase returns module/service. | Purchase Returns API tests lulus. | Selesai walau MVP table menyebut bisa menyusul. |
-| 39 | TASK-BE-021 | Dashboard API | Phase 9 | Dashboard module/service/controller, termasuk endpoint trend, top produk, dan metode pembayaran. | Backend build lulus; focused dashboard test ditambahkan tetapi eksekusi host terblokir `postgres:5432` internal Docker. | Selesai implementasi, perlu test DB host/compose test untuk verifikasi ulang endpoint baru. |
+| 39 | TASK-BE-021 | Dashboard API | Phase 9 | Dashboard module/service/controller, termasuk endpoint trend 7 hari dan expired batch sampai 90 hari/expired untuk status dashboard. | Dashboard integration spec lulus pada PostgreSQL test terpisah. | Selesai tervalidasi lokal. |
 | 40 | TASK-BE-022 | Sales Report | Phase 9 | Reports sales endpoint/service. | Reports API tests lulus. | Selesai. |
 | 41 | TASK-BE-023 | Profit Report | Phase 9 | Reports profit endpoint/service. | Reports API tests lulus. | Selesai. |
 | 42 | TASK-BE-024 | ExportService | Phase 10 | Export service xlsx/pdf endpoints. | Exports API tests lulus. | Selesai walau MVP table menyebut bisa menyusul. |
@@ -264,9 +264,9 @@ temporary smoke users deactivated
 | 53 | TASK-FE-007 | Batch UI | Phase 4 | BatchPage tersambung ke `/batch` dengan create batch, harga jual per satuan aktif, search, filter status/expired, detail batch, mutasi stok batch, dan deactivate. | Frontend build lulus. | Selesai. |
 | 54 | TASK-FE-PO-001 | UI PO obat | Phase 4D | PurchaseOrderPage tersambung ke `/pemesanan` dengan create PO, item produk/satuan, list, status, mark sent, cancel, print preview, dan convert draft pembelian. | Frontend build lulus. | Selesai. |
 | 55 | TASK-FE-PO-002 | UI convert PO ke pembelian | Phase 4D | Tombol Convert memanggil `/api/purchase-orders/:id/convert-to-purchase` dan menampilkan draft pembelian dari backend. | Frontend build lulus. | Selesai awal; integrasi ke halaman pembelian final menunggu UI pembelian. |
-| 56 | TASK-FE-017 | Dashboard UI | Phase 9 | DashboardPage real-time dengan polling 15 detik, KPI, chart trend, top produk, metode pembayaran, alert stok/expired, dan transaksi terbaru. | Frontend build lulus. | Selesai build-level; browser smoke Docker terbaru menunggu buildx stabil. |
-| 57 | TASK-FE-018 | Laporan penjualan UI | Phase 9 | SalesReportPage tersedia. | Frontend build lulus. | Selesai build-level. |
-| 58 | TASK-FE-019 | Laporan laba UI | Phase 9 | ProfitReportPage tersedia. | Frontend build lulus. | Selesai build-level. |
+| 56 | TASK-FE-017 | Dashboard UI | Phase 9 | DashboardPage real-time dengan polling 15 detik, KPI role-aware, chart omzet/laba 7 hari, stok rendah, batch expired, transaksi terbaru, ringkasan PO/pembelian, ringkasan resep/konseling, dan audit ringkas. | Frontend Docker build lulus; HTTP/API dashboard smoke lulus pada stack validasi sementara. | Selesai tervalidasi lokal. |
+| 57 | TASK-FE-018 | Laporan penjualan UI | Phase 9 | SalesReportPage tersedia dengan summary, chart tren penjualan, chart metode pembayaran, tabel, pagination, dan export. | Frontend build lulus. | Selesai build-level. |
+| 58 | TASK-FE-019 | Laporan laba UI | Phase 9 | ProfitReportPage tersedia dengan summary, chart tren laba, chart top produk laba, tabel, pagination, dan export. | Frontend build lulus. | Selesai build-level. |
 | 59 | TASK-FE-008 | Pembelian UI | Phase 4 | PurchasePage tersambung ke `/pembelian` dengan daftar pembelian, filter client-side, form pembelian manual, item dinamis, batch, expired date, harga beli, diskon, harga jual manual, dan detail pembelian. | Frontend build lulus. | Selesai build-level; smoke test operasional dengan backend hidup masih perlu. |
 | 60 | TASK-FE-PUR-REV-001 | UI pembelian faktur, diskon, PPN | Phase 4D | PurchasePage mendukung faktur supplier, tanggal faktur, mode PPN, total faktur input, pembulatan/koreksi, catatan selisih, diskon item, dan pembelian dari PO. | Frontend build lulus. | Selesai build-level; final stock mutation tetap backend. |
 | 61 | TASK-DEPLOY-001 | Setup environment deployment | Phase 13 | Docker Full Local Mode, `/api/health`, CORS env, compose lokal, frontend Nginx proxy, dan dokumentasi local network deployment. | Build/checkpoint Docker sudah dilakukan pada sesi deployment sebelumnya. | Selesai parsial untuk local mode; production checklist dan restore formal masih pending. |
@@ -334,3 +334,5 @@ temporary smoke users deactivated
 | 2026-06-14 | Menjalankan final validation lokal: menambahkan role APOTEKER ke seed, menyediakan PostgreSQL test terpisah, backend regression lulus, smoke role Manager/Apoteker/Kasir lulus, dan skenario bisnis kritis V1 lulus pada Docker aktif. | TASK-DB-001, TASK-TEST-006, TASK-DEPLOY-001 | Concurrent sale eksplisit masih belum terbukti; temporary smoke users dinonaktifkan setelah test. |
 | 2026-06-14 | Menutup gap terakhir: push baseline validasi, menambahkan test concurrent sale eksplisit, menjalankan backend regression 79 test, rebuild frontend Docker image terbaru, dan menjalankan browser UI click-through 51 checks. | TASK-TEST-006, TASK-TEST-007, TASK-DEPLOY-001 | Browser/Chrome plugin runtime gagal bootstrap di sesi ini sehingga click-through dilakukan dengan Playwright headless temporary di luar repo; user smoke `ui_*` dinonaktifkan setelah test. |
 | 2026-06-15 | Menambahkan dashboard Manager real-time berbasis polling TanStack Query, endpoint agregat trend/top produk/metode pembayaran, dan chart Recharts. | TASK-BE-021, TASK-FE-017 | `npm.cmd --prefix frontend run build` dan `npm.cmd --prefix backend run build` lulus; focused dashboard test host terblokir DB `postgres:5432`, Docker rebuild terbaru terblokir Docker Desktop/buildx EOF sehingga runtime browser smoke perlu diulang setelah Docker build stabil. |
+| 2026-06-22 | Menambahkan grafik laporan penjualan dan laba berbasis agregasi backend historis. | TASK-FE-018, TASK-FE-019, TASK-BE-022, TASK-BE-023 | Backend reports integration spec lulus pada PostgreSQL test terpisah; frontend Docker builder build lulus. |
+| 2026-06-25 | Memisahkan commit laporan dan dashboard, lalu memvalidasi dashboard operasional. | TASK-BE-021, TASK-FE-017 | Dashboard integration spec lulus 5 test, frontend Docker build lulus, dan smoke HTTP/API `/dashboard` lulus pada stack validasi sementara; browser MCP sedang gagal pada sisi tool Node REPL sehingga smoke visual penuh belum diulang. |

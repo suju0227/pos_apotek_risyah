@@ -159,6 +159,8 @@ Atau gunakan script Windows:
 scripts\start-local.bat
 ```
 
+Saat pertama kali dijalankan, backend container akan menjalankan Prisma migration dan seed otomatis. Tunggu sampai backend selesai start sebelum mengecek health endpoint; selama beberapa detik awal Nginx bisa menampilkan `502 Bad Gateway` karena backend masih migration/seed.
+
 Service yang berjalan:
 
 - Frontend Nginx + proxy `/api`: `http://localhost`
@@ -179,10 +181,32 @@ Cek health API:
 Invoke-RestMethod http://localhost/api/health
 ```
 
+Jika hasilnya `status: ok` dan `database: connected`, backend dan database sudah siap.
+
+Akun seed awal:
+
+```text
+username: manager
+password: ChangeMe123!
+role: MANAGER
+```
+
 Melihat log:
 
 ```powershell
 docker compose -f docker-compose.local.yml logs -f
+```
+
+Log backend saja:
+
+```powershell
+docker compose -f docker-compose.local.yml logs -f backend
+```
+
+Atau:
+
+```powershell
+scripts\logs-backend.bat
 ```
 
 Mematikan service:
@@ -197,11 +221,31 @@ Atau:
 scripts\stop-local.bat
 ```
 
-Log backend:
+Menjalankan ulang setelah perubahan kode:
 
 ```powershell
-scripts\logs-backend.bat
+docker compose -f docker-compose.local.yml up -d --build
 ```
+
+Jika hanya backend berubah:
+
+```powershell
+docker compose -f docker-compose.local.yml build backend
+docker compose -f docker-compose.local.yml up -d backend frontend
+```
+
+Jika hanya frontend berubah:
+
+```powershell
+docker compose -f docker-compose.local.yml build frontend
+docker compose -f docker-compose.local.yml up -d frontend
+```
+
+Catatan port:
+
+- Local production memakai port host `80`.
+- Jika port `80` sudah dipakai aplikasi lain, hentikan aplikasi tersebut atau ubah mapping `frontend.ports` di `docker-compose.local.yml`, misalnya `"8080:80"`, lalu buka `http://localhost:8080`.
+- Jangan expose backend `3000` atau PostgreSQL `5432` ke LAN untuk operasional kasir.
 
 Migration dan seed dari container backend:
 
@@ -261,6 +305,28 @@ cd frontend
 npm.cmd run build
 npm.cmd run preview:lan
 ```
+
+Catatan: jika `npm.cmd` tidak dikenali di PowerShell, install Node.js untuk mode development manual, atau gunakan Docker Full Local Mode di atas yang tidak membutuhkan Node.js di host.
+
+## Validasi Setelah Menjalankan Project
+
+Jalankan dari root repository:
+
+```powershell
+docker compose -f docker-compose.local.yml ps
+Invoke-RestMethod http://localhost/api/health
+Invoke-WebRequest http://localhost/login -UseBasicParsing
+```
+
+Status yang diharapkan:
+
+- `pos_apotek_postgres` running dan `healthy`.
+- `pos_apotek_backend` running.
+- `pos_apotek_frontend` running dan publish `0.0.0.0:80->80/tcp`.
+- Health API mengembalikan `status: ok`, `timezone: Asia/Makassar`, dan `database: connected`.
+- `/login` mengembalikan HTTP `200`.
+
+Backend regression test dapat dijalankan pada sesi testing khusus. Gunakan database test terpisah agar data operasional tidak tercampur data test.
 
 ## Workflow Pengembangan Saat Ini
 

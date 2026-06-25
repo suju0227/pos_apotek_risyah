@@ -199,3 +199,17 @@ Wajib uji:
 - Jangan menulis secret ke repository.
 - Jangan mengubah scope V1 tanpa memperbarui dokumen terkait.
 - Jika requirement belum jelas, cari di PRD, SRS, SDD, Frontend, Backend, UI/UX, dan Task Breakdown terlebih dahulu.
+
+## 12. Ponytail Project Rules
+
+Ponytail aktif sebagai aturan minimalisme untuk proyek ini. Ikuti `.agents/rules/ponytail.md`:
+- mulai dari YAGNI;
+- gunakan standard library, fitur native platform, dan dependency yang sudah ada;
+- jangan membuat abstraksi, dependency, boilerplate, atau scaffolding yang tidak diminta;
+- pilih perubahan paling kecil, boring, dan reviewable yang memenuhi dokumen POS Apotek.
+
+Ponytail tidak boleh mengurangi correctness POS Apotek. Jangan sederhanakan:
+- transaksi database untuk sales, purchases, returns, stock adjustments, dan stock mutations;
+- FEFO backend, split batch, batch-level stock, HPP/laba historis, alokasi diskon, dan idempotency;
+- RBAC, sanitasi data kasir, auth, refresh token, password hashing, dan authorization endpoint;
+- validasi trust boundary, error handling, loading/empty/error state, aksesibilitas dasar, dan focused tests untuk logic non-trivial.

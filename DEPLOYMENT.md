@@ -20,11 +20,31 @@ Dokumen ini hanya penanda bahwa deployment cloud seperti Vercel, Railway, atau p
 Gunakan deployment LAN:
 
 ```powershell
-docker compose up -d --build
+docker compose -f docker-compose.local.yml up -d --build
 ```
 
 Client dalam jaringan lokal membuka:
 
 ```text
-http://IP_SERVER:5173
+http://IP_SERVER
 ```
+
+Server lokal dapat membuka:
+
+```text
+http://localhost
+```
+
+Cek backend melalui Nginx proxy:
+
+```powershell
+Invoke-RestMethod http://localhost/api/health
+```
+
+Hasil sehat harus memuat `status: ok`, `timezone: Asia/Makassar`, dan `database: connected`.
+
+Catatan:
+
+- Port host yang dibuka untuk local production hanya `80`.
+- Backend `3000` dan PostgreSQL `5432` tetap internal di Docker network.
+- Port `5173` hanya untuk mode development Vite, bukan deployment LAN V1.

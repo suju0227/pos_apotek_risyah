@@ -59,9 +59,26 @@ export type SalesReportRow = {
   }[];
 };
 
+export type SalesReportCharts = {
+  daily: {
+    date: string;
+    transactionCount: number;
+    grossRevenue: number;
+    discountTotal: number;
+    returnTotal: number;
+    netRevenue: number;
+  }[];
+  paymentMethods: {
+    paymentMethod: string;
+    transactionCount: number;
+    netRevenue: number;
+  }[];
+};
+
 export type SalesReportResponse = {
   filters: Record<string, unknown>;
   summary: SalesReportSummary;
+  charts: SalesReportCharts;
   pagination: Pagination;
   data: SalesReportRow[];
 };
@@ -113,9 +130,27 @@ export type ProfitReportRow = {
   profitDisplay: number;
 };
 
+export type ProfitReportCharts = {
+  daily: {
+    date: string;
+    grossRevenue: number;
+    netRevenue: number;
+    netHpp: number;
+    netProfit: number;
+    returnProfit: number;
+  }[];
+  topProducts: {
+    productId: string;
+    productName: string;
+    netRevenue: number;
+    netProfit: number;
+  }[];
+};
+
 export type ProfitReportResponse = {
   filters: Record<string, unknown>;
   summary: ProfitReportSummary;
+  charts: ProfitReportCharts;
   pagination: Pagination;
   data: ProfitReportRow[];
 };

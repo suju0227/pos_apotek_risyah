@@ -112,6 +112,23 @@ describe('Reports API', () => {
       total: 2,
       totalPages: 2,
     });
+    expect(response.body.charts.daily).toEqual([
+      {
+        date: todayString(),
+        transactionCount: 2,
+        grossRevenue: 1500,
+        discountTotal: 100,
+        returnTotal: 300,
+        netRevenue: 1100,
+      },
+    ]);
+    expect(response.body.charts.paymentMethods).toEqual([
+      {
+        paymentMethod: 'CASH',
+        transactionCount: 2,
+        netRevenue: 1100,
+      },
+    ]);
     expect(response.body.data).toHaveLength(1);
     expect(response.body.data[0]).toMatchObject({
       paymentMethod: 'CASH',
@@ -239,6 +256,24 @@ describe('Reports API', () => {
       total: 2,
       totalPages: 2,
     });
+    expect(response.body.charts.daily).toEqual([
+      {
+        date: todayString(),
+        grossRevenue: 1300,
+        netRevenue: 1300,
+        netHpp: 550,
+        netProfit: 750,
+        returnProfit: 0,
+      },
+    ]);
+    expect(response.body.charts.topProducts).toEqual([
+      {
+        productId: fixture.productA.id,
+        productName: fixture.productA.name,
+        netRevenue: 1300,
+        netProfit: 750,
+      },
+    ]);
     expect(response.body.data).toHaveLength(1);
     expect(response.body.data[0].categoryId).toBe(fixture.categoryA.id);
   });

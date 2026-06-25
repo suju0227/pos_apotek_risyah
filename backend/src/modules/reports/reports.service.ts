@@ -73,6 +73,7 @@ export class ReportsService {
     return {
       filters: this.filtersResponse(query, dateFilter),
       summary,
+      charts: this.salesCharts(allSales),
       pagination: this.paginationResponse(page, limit, total),
       data: sales.map((sale) => this.saleRow(sale)),
     };
@@ -103,6 +104,7 @@ export class ReportsService {
     return {
       filters: this.filtersResponse(query, dateFilter),
       summary,
+      charts: this.profitCharts(allAllocations),
       pagination: this.paginationResponse(page, limit, total),
       data: allocations.map((allocation) => this.profitRow(allocation)),
     };
@@ -172,6 +174,62 @@ export class ReportsService {
     };
   }
 
+  private salesCharts(sales: ReportSale[]) {
+    const daily = new Map<
+      string,
+      {
+        date: string;
+        transactionCount: number;
+        grossRevenue: number;
+        discountTotal: number;
+        returnTotal: number;
+        netRevenue: number;
+      }
+    >();
+    const paymentMethods = new Map<
+      string,
+      { paymentMethod: string; transactionCount: number; netRevenue: number }
+    >();
+
+    for (const sale of sales) {
+      const date = sale.createdAt.toISOString().slice(0, 10);
+      const returnTotal = this.sum(sale.salesReturns, (salesReturn) =>
+        Number(salesReturn.totalRefund),
+      );
+      const netRevenue = Number(sale.grandTotal) - returnTotal;
+      const day = daily.get(date) ?? {
+        date,
+        transactionCount: 0,
+        grossRevenue: 0,
+        discountTotal: 0,
+        returnTotal: 0,
+        netRevenue: 0,
+      };
+      day.transactionCount += 1;
+      day.grossRevenue += Number(sale.subtotal);
+      day.discountTotal += Number(sale.discountTotal);
+      day.returnTotal += returnTotal;
+      day.netRevenue += netRevenue;
+      daily.set(date, day);
+
+      const method = paymentMethods.get(sale.paymentMethod) ?? {
+        paymentMethod: sale.paymentMethod,
+        transactionCount: 0,
+        netRevenue: 0,
+      };
+      method.transactionCount += 1;
+      method.netRevenue += netRevenue;
+      paymentMethods.set(sale.paymentMethod, method);
+    }
+
+    return {
+      daily: [...daily.values()].sort((a, b) => a.date.localeCompare(b.date)),
+      paymentMethods: [...paymentMethods.values()].sort(
+        (a, b) => b.netRevenue - a.netRevenue,
+      ),
+    };
+  }
+
   private profitSummary(allocations: ProfitAllocation[]) {
     const grossRevenue = this.sum(allocations, (allocation) =>
       Number(allocation.subtotal),
@@ -226,6 +284,71 @@ export class ReportsService {
     };
   }
 
+  private profitCharts(allocations: ProfitAllocation[]) {
+    const daily = new Map<
+      string,
+      {
+        date: string;
+        grossRevenue: number;
+        netRevenue: number;
+        netHpp: number;
+        netProfit: number;
+        returnProfit: number;
+      }
+    >();
+    const products = new Map<
+      string,
+      {
+        productId: string;
+        productName: string;
+        netRevenue: number;
+        netProfit: number;
+      }
+    >();
+
+    for (const allocation of allocations) {
+      const metrics = this.profitChartMetrics(allocation);
+      const date = allocation.saleItem.sale.createdAt.toISOString().slice(0, 10);
+      const day = daily.get(date) ?? {
+        date,
+        grossRevenue: 0,
+        netRevenue: 0,
+        netHpp: 0,
+        netProfit: 0,
+        returnProfit: 0,
+      };
+      day.grossRevenue += Number(allocation.subtotal);
+      day.netRevenue += metrics.netRevenue;
+      day.netHpp = this.roundInternal(day.netHpp + metrics.netHpp);
+      day.netProfit = this.roundInternal(day.netProfit + metrics.netProfit);
+      day.returnProfit = this.roundInternal(
+        day.returnProfit + metrics.returnProfit,
+      );
+      daily.set(date, day);
+
+      const product =
+        products.get(allocation.saleItem.productId) ??
+        {
+          productId: allocation.saleItem.productId,
+          productName: allocation.saleItem.productName,
+          netRevenue: 0,
+          netProfit: 0,
+      };
+      product.netRevenue += metrics.netRevenue;
+      product.netProfit = this.roundInternal(
+        product.netProfit + metrics.netProfit,
+      );
+      products.set(allocation.saleItem.productId, product);
+    }
+
+    return {
+      daily: [...daily.values()].sort((a, b) => a.date.localeCompare(b.date)),
+      topProducts: [...products.values()]
+        .sort((a, b) => b.netProfit - a.netProfit)
+        .slice(0, 5),
+    };
+  }
+
   private saleRow(sale: ReportSale) {
     const returnTotal = this.sum(sale.salesReturns, (salesReturn) =>
       Number(salesReturn.totalRefund),
@@ -265,22 +388,16 @@ export class ReportsService {
   }
 
   private profitRow(allocation: ProfitAllocation) {
-    const hppAmount = this.roundInternal(
-      Number(allocation.qtyBase) * Number(allocation.hppBaseSnapshot),
-    );
-    const returnRevenue = this.sum(allocation.salesReturnItems, (item) =>
-      Number(item.refundAmount),
-    );
-    const returnHpp = this.roundInternal(
-      this.sum(allocation.salesReturnItems, (item) => Number(item.hppReversed)),
-    );
-    const returnProfit = this.roundInternal(
-      this.sum(allocation.salesReturnItems, (item) =>
-        Number(item.profitReversed),
-      ),
-    );
+    const {
+      hppAmount,
+      returnRevenue,
+      returnHpp,
+      returnProfit,
+      netRevenue,
+      netHpp,
+      netProfit,
+    } = this.profitChartMetrics(allocation);
     const grossProfit = Number(allocation.profitAmount);
-    const netProfit = this.roundInternal(grossProfit - returnProfit);
 
     return {
       allocationId: allocation.id,
@@ -308,10 +425,42 @@ export class ReportsService {
       returnRevenue,
       returnHpp,
       returnProfit,
-      netRevenue: Number(allocation.subtotal) - returnRevenue,
-      netHpp: this.roundInternal(hppAmount - returnHpp),
+      netRevenue,
+      netHpp,
       netProfit,
       profitDisplay: Math.round(netProfit),
+    };
+  }
+
+  private profitChartMetrics(allocation: ProfitAllocation) {
+    const hppAmount = this.roundInternal(
+      Number(allocation.qtyBase) * Number(allocation.hppBaseSnapshot),
+    );
+    const returnRevenue = this.sum(allocation.salesReturnItems, (item) =>
+      Number(item.refundAmount),
+    );
+    const returnHpp = this.roundInternal(
+      this.sum(allocation.salesReturnItems, (item) => Number(item.hppReversed)),
+    );
+    const returnProfit = this.roundInternal(
+      this.sum(allocation.salesReturnItems, (item) =>
+        Number(item.profitReversed),
+      ),
+    );
+    const netRevenue = Number(allocation.subtotal) - returnRevenue;
+    const netHpp = this.roundInternal(hppAmount - returnHpp);
+    const netProfit = this.roundInternal(
+      Number(allocation.profitAmount) - returnProfit,
+    );
+
+    return {
+      hppAmount,
+      returnRevenue,
+      returnHpp,
+      returnProfit,
+      netRevenue,
+      netHpp,
+      netProfit,
     };
   }
 

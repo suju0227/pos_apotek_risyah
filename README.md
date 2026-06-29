@@ -107,6 +107,16 @@ DATABASE_URL=postgresql://postgres:postgres@postgres:5432/pos_apotek?schema=publ
 CORS_ORIGIN=http://localhost,http://127.0.0.1,http://localhost:5173,http://192.168.1.10,http://192.168.1.10:5173
 ```
 
+Jika memakai ZeroTier dan backend diakses langsung dari browser saat development, tambahkan origin ZeroTier tanpa menghapus origin lokal yang sudah ada:
+
+```env
+APP_URL=http://ZERO_TIER_IP_SERVER
+FRONTEND_URL=http://ZERO_TIER_IP_SERVER
+CORS_ORIGIN=http://localhost,http://127.0.0.1,http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.10,http://192.168.1.10:5173,http://ZERO_TIER_IP_SERVER
+```
+
+Untuk local production Docker lewat Nginx, CORS ZeroTier biasanya tidak diperlukan karena browser membuka `http://ZERO_TIER_IP_SERVER` dan API tetap dipanggil same-origin melalui `/api`.
+
 Frontend penting:
 
 ```env
@@ -132,6 +142,40 @@ IPv4 Address . . . . . . . . . . : 192.168.1.10
 
 Untuk operasional harian, gunakan DHCP reservation di router atau IP statis yang stabil. Jika IP berubah, client hanya perlu membuka URL server yang baru, misalnya `http://IP_SERVER`. Local production tetap memakai `VITE_API_BASE_URL=/api` karena request API diproxy oleh Nginx pada origin yang sama.
 
+## Akses Privat via ZeroTier
+
+ZeroTier dipakai sebagai jaringan privat antar perangkat. Aplikasi tidak perlu dependency ZeroTier dan tidak perlu membuka backend atau database ke internet publik.
+
+Langkah setup:
+
+1. Buat private network di ZeroTier Central.
+2. Install ZeroTier di PC server POS dan join ke Network ID tersebut.
+3. Authorize perangkat server di ZeroTier Central, lalu catat managed IP server.
+4. Install ZeroTier di perangkat kasir/manager yang boleh akses, join network yang sama, lalu authorize perangkat tersebut.
+5. Client authorized membuka aplikasi melalui:
+
+```text
+http://ZERO_TIER_IP_SERVER
+```
+
+Untuk local production Docker, biarkan frontend memakai:
+
+```env
+VITE_API_BASE_URL=/api
+```
+
+Frontend Nginx tetap menjadi satu pintu akses pada port `80`, lalu proxy `/api` ke backend internal. Jangan menyimpan Network ID, token ZeroTier, IP asli, atau detail akun ZeroTier ke repository.
+
+Checklist firewall Windows server:
+
+```powershell
+Get-NetConnectionProfile | Where-Object "InterfaceAlias" -like "Zero*"
+Get-NetConnectionProfile | Where-Object "InterfaceAlias" -like "Zero*" | Set-NetConnectionProfile -NetworkCategory Private
+New-NetFirewallRule -DisplayName "POS Apotek ZeroTier HTTP" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 80 -Profile Private
+```
+
+Tetap jangan expose port `3000` backend atau `5432` PostgreSQL ke perangkat client. Akses user dicabut dengan deauthorize device dari ZeroTier Central.
+
 ## Local Production Dengan Docker Compose
 
 Prasyarat host:
@@ -147,7 +191,7 @@ Dari root repository:
 docker compose up -d --build
 ```
 
-Perintah eksplisit yang sama:
+Perintah setara:
 
 ```powershell
 docker compose -f docker-compose.local.yml up -d --build
@@ -159,20 +203,27 @@ Atau gunakan script Windows:
 scripts\start-local.bat
 ```
 
-Saat pertama kali dijalankan, backend container akan menjalankan Prisma migration dan seed otomatis. Tunggu sampai backend selesai start sebelum mengecek health endpoint; selama beberapa detik awal Nginx bisa menampilkan `502 Bad Gateway` karena backend masih migration/seed.
+Saat pertama kali dijalankan, container backend akan menjalankan Prisma migration dan seed otomatis. Tunggu sampai backend selesai startup sebelum mengecek health endpoint. Selama beberapa detik awal, Nginx dapat menampilkan `502 Bad Gateway` karena backend masih melakukan migration/seed.
 
 Service yang berjalan:
 
 - Frontend Nginx + proxy `/api`: `http://localhost`
 - Backend API internal: `backend:3000`
 - PostgreSQL internal: `postgres:5432`
+- Redis cache internal: `redis:6379`
 
-Backend dan PostgreSQL tidak diekspos langsung ke LAN pada local production. Client kasir/manager cukup mengakses frontend pada port 80, lalu frontend memanggil API melalui `/api`.
+Backend, PostgreSQL, dan Redis tidak diekspos langsung ke LAN pada local production. Client kasir/manager cukup mengakses frontend pada port `80`, lalu frontend memanggil API melalui `/api`.
 
 Client dalam LAN membuka:
 
 ```text
 http://IP_SERVER
+```
+
+Client melalui ZeroTier membuka:
+
+```text
+http://ZERO_TIER_IP_SERVER
 ```
 
 Cek health API:
@@ -349,7 +400,7 @@ Workflow git:
 Izinkan port berikut pada PC server lokal:
 
 | Port | Fungsi |
-|---:|---|
+| ---: | --- |
 | 80 | Aplikasi web via Nginx local production |
 | 3000 | Backend API jika tanpa reverse proxy |
 | 5173 | Frontend Vite dev LAN, hanya development |
@@ -400,8 +451,12 @@ Backup minimal harian, mingguan, bulanan, sebelum update aplikasi, dan simpan sa
 
 - Server dapat membuka `http://localhost`.
 - Client dapat membuka `http://IP_SERVER`.
+- Client ZeroTier authorized dapat membuka `http://ZERO_TIER_IP_SERVER`.
 - Client dapat login.
 - Client dapat memanggil `http://IP_SERVER/api/health`.
+- Client ZeroTier authorized dapat memanggil `http://ZERO_TIER_IP_SERVER/api/health`.
+- Device ZeroTier yang belum authorized tidak dapat mengakses aplikasi.
+- Client tidak memakai akses langsung ke port `3000` atau `5432`.
 - Indikator koneksi menampilkan server terhubung.
 - Jika backend dimatikan, frontend menampilkan pesan server lokal tidak terhubung.
 - Dua client kasir tidak dapat membuat stok batch negatif.

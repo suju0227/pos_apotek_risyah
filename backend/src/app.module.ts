@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { appConfig } from './config/app.config';
 import { databaseConfig } from './config/database.config';
 import { envSchema } from './config/env.schema';
+import { CacheModule } from './common/modules/cache.module';
 import { PrismaModule } from './database/prisma.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -34,6 +35,7 @@ import { UsersModule } from './modules/users/users.module';
       load: [appConfig, databaseConfig],
       validationSchema: envSchema,
     }),
+    CacheModule,
     HealthModule,
     PrismaModule,
     AuditLogsModule,

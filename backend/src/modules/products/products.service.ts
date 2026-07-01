@@ -9,6 +9,7 @@ import {
   isPrismaUniqueError,
 } from '../../common/utils/prisma-error';
 import { PrismaService } from '../../database/prisma.service';
+import { CacheService } from '../../common/services/cache.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateProductUnitDto } from './dto/create-product-unit.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -31,9 +32,35 @@ type ProductUnitWithUnit = ProductUnit & { unit: Unit };
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly cacheKey = 'products:all';
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   async findAll(search?: string) {
+    // Don't cache search results
+    if (search) {
+      return this.queryProducts(search);
+    }
+
+    // Try to get from cache
+    const cached = await this.cacheService.get<any>(this.cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Query database
+    const products = await this.queryProducts();
+
+    // Store in cache
+    await this.cacheService.set(this.cacheKey, products);
+
+    return products;
+  }
+
+  private async queryProducts(search?: string) {
     const products = await this.prisma.product.findMany({
       where: {
         deletedAt: null,
@@ -68,6 +95,9 @@ export class ProductsService {
         include: productInclude,
       });
 
+      // Invalidate cache
+      await this.cacheService.del(this.cacheKey);
+
       return this.toProductResponse(product);
     } catch (error) {
       if (isPrismaUniqueError(error)) {
@@ -87,6 +117,9 @@ export class ProductsService {
         data: dto,
         include: productInclude,
       });
+
+      // Invalidate cache
+      await this.cacheService.del(this.cacheKey);
 
       return this.toProductResponse(product);
     } catch (error) {
@@ -120,6 +153,9 @@ export class ProductsService {
         },
         include: productInclude,
       });
+
+      // Invalidate cache
+      await this.cacheService.del(this.cacheKey);
 
       return this.toProductResponse(product);
     } catch (error) {
@@ -170,6 +206,8 @@ export class ProductsService {
         });
       });
 
+      await this.cacheService.del(this.cacheKey);
+
       return this.toProductUnitResponse(productUnit);
     } catch (error) {
       if (isPrismaUniqueError(error)) {
@@ -217,6 +255,8 @@ export class ProductsService {
         });
       });
 
+      await this.cacheService.del(this.cacheKey);
+
       return this.toProductUnitResponse(productUnit);
     } catch (error) {
       if (isPrismaNotFoundError(error)) {
@@ -244,6 +284,8 @@ export class ProductsService {
         },
         include: { unit: true },
       });
+
+      await this.cacheService.del(this.cacheKey);
 
       return this.toProductUnitResponse(productUnit);
     } catch (error) {
@@ -323,5 +365,4 @@ export class ProductsService {
       minSaleQty: Number(productUnit.minSaleQty),
     };
   }
-
 }

@@ -2,19 +2,35 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { AppSetting } from '@prisma/client';
 import { AuthUser } from '../../common/types/auth-user';
 import { PrismaService } from '../../database/prisma.service';
+import { CacheService } from '../../common/services/cache.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 
 @Injectable()
 export class SettingsService {
+  private readonly cacheKey = 'settings:app';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly cacheService: CacheService,
   ) {}
 
   async get() {
+    // Try to get from cache (30-minute TTL for settings)
+    const cached = await this.cacheService.get<any>(this.cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Get or create settings
     const settings = await this.getOrCreateSettings();
-    return this.toResponse(settings);
+    const response = this.toResponse(settings);
+
+    // Store in cache for 30 minutes
+    await this.cacheService.set(this.cacheKey, response, 30 * 60);
+
+    return response;
   }
 
   async update(dto: UpdateSettingsDto, user: AuthUser) {
@@ -42,6 +58,9 @@ export class SettingsService {
       oldValue: this.toResponse(current),
       newValue: this.toResponse(updated),
     });
+
+    // Invalidate cache
+    await this.cacheService.del(this.cacheKey);
 
     return this.toResponse(updated);
   }

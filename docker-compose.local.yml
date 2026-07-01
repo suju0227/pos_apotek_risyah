@@ -37,6 +37,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - pos_apotek_network
 
@@ -54,6 +56,22 @@ services:
       - backend
     networks:
       - pos_apotek_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: pos_apotek_redis
+    restart: unless-stopped
+    volumes:
+      - pos_apotek_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - pos_apotek_network
+    command: redis-server --appendonly yes
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -73,6 +91,7 @@ services:
 
 volumes:
   pos_apotek_pgdata:
+  pos_apotek_redis_data:
 
 networks:
   pos_apotek_network:

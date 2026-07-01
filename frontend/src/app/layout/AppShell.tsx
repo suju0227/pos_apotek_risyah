@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Boxes,
+  ChevronDown,
   ClipboardList,
   FileDown,
   FileText,
@@ -32,78 +33,133 @@ type NavItem = {
   roles: RoleName[];
 };
 
-const navItems: NavItem[] = [
+type NavGroup = {
+  label: string;
+  items: NavItem[];
+};
+
+const navGroups: NavGroup[] = [
   {
-    label: 'Dashboard',
-    path: '/dashboard',
-    icon: LayoutDashboard,
-    roles: ['APOTEKER', 'MANAGER', 'PEMILIK'],
-  },
-  { label: 'Kasir', path: '/kasir', icon: ShoppingCart, roles: ['KASIR', 'MANAGER'] },
-  {
-    label: 'Riwayat Transaksi',
-    path: '/riwayat-transaksi',
-    icon: Receipt,
-    roles: ['KASIR', 'MANAGER'],
-  },
-  {
-    label: 'Retur Penjualan',
-    path: '/retur-penjualan',
-    icon: Undo2,
-    roles: ['KASIR', 'MANAGER'],
-  },
-  { label: 'Produk', path: '/produk', icon: Package, roles: ['MANAGER'] },
-  { label: 'Kategori', path: '/kategori', icon: Boxes, roles: ['MANAGER'] },
-  { label: 'Supplier', path: '/supplier', icon: Warehouse, roles: ['MANAGER'] },
-  { label: 'Satuan', path: '/satuan', icon: ClipboardList, roles: ['MANAGER'] },
-  { label: 'Batch', path: '/batch', icon: Boxes, roles: ['MANAGER'] },
-  { label: 'Pemesanan', path: '/pemesanan', icon: FileText, roles: ['APOTEKER', 'MANAGER'] },
-  { label: 'Pembelian', path: '/pembelian', icon: ClipboardList, roles: ['MANAGER'] },
-  { label: 'Retur Pembelian', path: '/retur-pembelian', icon: Undo2, roles: ['MANAGER'] },
-  { label: 'Stok', path: '/stok', icon: Warehouse, roles: ['MANAGER'] },
-  { label: 'Mutasi Stok', path: '/mutasi-stok', icon: BarChart3, roles: ['MANAGER'] },
-  {
-    label: 'Resep',
-    path: '/pelayanan/resep',
-    icon: Stethoscope,
-    roles: ['APOTEKER', 'MANAGER'],
+    label: 'Utama',
+    items: [
+      {
+        label: 'Dashboard',
+        path: '/dashboard',
+        icon: LayoutDashboard,
+        roles: ['APOTEKER', 'MANAGER', 'PEMILIK'],
+      },
+      { label: 'Kasir', path: '/kasir', icon: ShoppingCart, roles: ['KASIR', 'MANAGER'] },
+    ],
   },
   {
-    label: 'Konseling',
-    path: '/pelayanan/konseling',
-    icon: Stethoscope,
-    roles: ['APOTEKER', 'MANAGER'],
+    label: 'Transaksi',
+    items: [
+      {
+        label: 'Riwayat Transaksi',
+        path: '/riwayat-transaksi',
+        icon: Receipt,
+        roles: ['KASIR', 'MANAGER'],
+      },
+      {
+        label: 'Retur Penjualan',
+        path: '/retur-penjualan',
+        icon: Undo2,
+        roles: ['KASIR', 'MANAGER'],
+      },
+    ],
   },
   {
-    label: 'Laporan Penjualan',
-    path: '/laporan/penjualan',
-    icon: BarChart3,
-    roles: ['MANAGER'],
+    label: 'Pelayanan',
+    items: [
+      {
+        label: 'Resep',
+        path: '/pelayanan/resep',
+        icon: Stethoscope,
+        roles: ['APOTEKER', 'MANAGER'],
+      },
+      {
+        label: 'Konseling',
+        path: '/pelayanan/konseling',
+        icon: Stethoscope,
+        roles: ['APOTEKER', 'MANAGER'],
+      },
+    ],
   },
   {
-    label: 'Laporan Laba',
-    path: '/laporan/laba',
-    icon: BarChart3,
-    roles: ['MANAGER'],
+    label: 'Master Data',
+    items: [
+      { label: 'Produk', path: '/produk', icon: Package, roles: ['MANAGER'] },
+      { label: 'Kategori', path: '/kategori', icon: Boxes, roles: ['MANAGER'] },
+      { label: 'Satuan', path: '/satuan', icon: ClipboardList, roles: ['MANAGER'] },
+      { label: 'Supplier', path: '/supplier', icon: Warehouse, roles: ['MANAGER'] },
+    ],
   },
-  { label: 'Export', path: '/export', icon: FileDown, roles: ['MANAGER'] },
-  { label: 'Users', path: '/users', icon: Users, roles: ['MANAGER'] },
-  { label: 'Audit Log', path: '/audit-log', icon: FileText, roles: ['MANAGER'] },
-  { label: 'Settings', path: '/settings', icon: Settings, roles: ['MANAGER'] },
+  {
+    label: 'Stok',
+    items: [
+      { label: 'Batch', path: '/batch', icon: Boxes, roles: ['MANAGER'] },
+      { label: 'Stok', path: '/stok', icon: Warehouse, roles: ['MANAGER'] },
+      { label: 'Mutasi Stok', path: '/mutasi-stok', icon: BarChart3, roles: ['MANAGER'] },
+    ],
+  },
+  {
+    label: 'Pembelian',
+    items: [
+      { label: 'Pemesanan', path: '/pemesanan', icon: FileText, roles: ['APOTEKER', 'MANAGER'] },
+      { label: 'Pembelian', path: '/pembelian', icon: ClipboardList, roles: ['MANAGER'] },
+      { label: 'Retur Pembelian', path: '/retur-pembelian', icon: Undo2, roles: ['MANAGER'] },
+    ],
+  },
+  {
+    label: 'Laporan',
+    items: [
+      {
+        label: 'Laporan Penjualan',
+        path: '/laporan/penjualan',
+        icon: BarChart3,
+        roles: ['MANAGER'],
+      },
+      {
+        label: 'Laporan Laba',
+        path: '/laporan/laba',
+        icon: BarChart3,
+        roles: ['MANAGER'],
+      },
+      { label: 'Export', path: '/export', icon: FileDown, roles: ['MANAGER'] },
+    ],
+  },
+  {
+    label: 'Admin',
+    items: [
+      { label: 'Users', path: '/users', icon: Users, roles: ['MANAGER'] },
+      { label: 'Audit Log', path: '/audit-log', icon: FileText, roles: ['MANAGER'] },
+      { label: 'Settings', path: '/settings', icon: Settings, roles: ['MANAGER'] },
+    ],
+  },
 ];
 
 export function AppShell() {
   const [open, setOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(navGroups.map((group) => [group.label, true])),
+  );
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const connection = useConnectionStatus();
-  const allowedItems = navItems.filter((item) =>
-    user ? item.roles.includes(user.role) : false,
-  );
+  const allowedGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => (user ? item.roles.includes(user.role) : false)),
+    }))
+    .filter((group) => group.items.length > 0);
 
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
+  };
+
+  const toggleGroup = (label: string) => {
+    setOpenGroups((current) => ({ ...current, [label]: !current[label] }));
   };
 
   return (
@@ -152,26 +208,45 @@ export function AppShell() {
           </button>
         </div>
         <nav className="flex h-[calc(100vh-4rem)] flex-col gap-1 overflow-y-auto p-3">
-          {allowedItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={() => setOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-                    isActive
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
-                  }`
-                }
+          {allowedGroups.map((group) => (
+            <div key={group.label} className="space-y-1">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between px-3 pt-3 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400 first:pt-0"
+                onClick={() => toggleGroup(group.label)}
+                aria-expanded={openGroups[group.label]}
+                aria-label={`Buka/tutup grup ${group.label}`}
               >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </NavLink>
-            );
-          })}
+                <span>{group.label}</span>
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform ${openGroups[group.label] ? '' : '-rotate-90'}`}
+                />
+              </button>
+              {openGroups[group.label]
+                ? group.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => setOpen(false)}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+                            isActive
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+                          }`
+                        }
+                      >
+                        <Icon size={18} />
+                        <span>{item.label}</span>
+                      </NavLink>
+                    );
+                  })
+                : null}
+            </div>
+          ))}
           <div className="mt-auto border-t border-slate-200 pt-3">
             <div className="mb-3 px-3 text-xs text-slate-500">
               <div className="font-medium text-slate-700">{user?.name}</div>

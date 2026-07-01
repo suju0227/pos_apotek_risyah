@@ -21,6 +21,11 @@ export const envSchema = Joi.object({
   CORS_ALLOW_LOCAL_NETWORK: Joi.boolean().truthy('true').falsy('false').default(false),
   LOCAL_NETWORK_MODE: Joi.boolean().truthy('true').falsy('false').default(false),
   LOCAL_SERVER_IP: Joi.string().ip({ version: ['ipv4'] }).optional(),
+  REDIS_HOST: Joi.string().default('redis'),
+  REDIS_PORT: Joi.number().port().default(6379),
+  REDIS_PASSWORD: Joi.string().allow('').optional(),
+  REDIS_DB: Joi.number().integer().min(0).default(0),
+  REDIS_TTL_SECONDS: Joi.number().integer().min(1).default(300),
   APP_TIMEZONE: Joi.string().valid('Asia/Makassar').default('Asia/Makassar'),
   EXPORT_DIR: Joi.string().default('storage/exports'),
 });

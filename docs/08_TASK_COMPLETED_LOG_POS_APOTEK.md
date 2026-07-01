@@ -184,6 +184,37 @@ return=2949c095-a09b-4732-b49a-6c0c8fd1648d
 temporary smoke users deactivated
 ```
 
+## 2C. Hasil Validasi Docker Local Setelah Rapih Optimasi 2026-06-29
+
+Validasi ini dijalankan setelah perubahan optimasi Docker lokal dikurasi ulang: dokumentasi/stack monitoring spekulatif dihapus, `backend/.dockerignore` diperbaiki agar `tsconfig.json` tetap masuk build context, TypeScript backend dipin ke versi stabil sesuai lockfile, dan healthcheck frontend disesuaikan dengan BusyBox `wget`.
+
+```text
+docker compose -f docker-compose.local.yml build --no-cache backend frontend
+backend image built successfully
+frontend image built successfully
+
+docker compose -f docker-compose.local.yml up -d
+pos_apotek_postgres started and healthy
+pos_apotek_backend started
+pos_apotek_frontend started
+
+Invoke-RestMethod http://localhost/api/health
+status: ok
+mode: local-network
+timezone: Asia/Makassar
+database: connected
+
+docker compose -f docker-compose.local.yml ps
+pos_apotek_frontend Up healthy 0.0.0.0:80->80/tcp
+pos_apotek_backend Up 3000/tcp internal
+pos_apotek_postgres Up healthy 5432/tcp internal
+
+git diff --check
+no whitespace errors
+```
+
+Catatan batas validasi: sesi ini hanya memvalidasi build bersih Docker, health API, healthcheck frontend, dan exposure port local production. Smoke operasional role penuh tidak diulang pada sesi ini.
+
 ## 3. Ringkasan Progres Per Fase
 
 | Fase | Nama Fase | Status Audit | Catatan |
@@ -301,7 +332,7 @@ temporary smoke users deactivated
 | TASK-TEST-007 | Test concurrent sale | Selesai Terverifikasi Lokal | `sales.integration.spec.ts` menembak dua checkout paralel yang melebihi stok; satu berhasil, satu gagal aman, stok batch tidak negatif, dan allocation tidak melewati stok. |
 | TASK-DEPLOY-001 | Setup environment deployment | Selesai Terverifikasi Lokal | Docker local stack aktif; `http://localhost/api/health` mengembalikan `status: ok`, `mode: local-network`, dan database connected. |
 | TASK-DEPLOY-002 | Setup backup dan recovery | Selesai Terverifikasi Lokal | Backup dari `pos_apotek_postgres` berhasil dibuat dan restore ke container PostgreSQL test bersih menghasilkan 30 tabel. |
-| TASK-DEPLOY-003 | Final production checklist | Belum Dikerjakan | Menunggu UI, audit log/settings, E2E, dan deployment. |
+| TASK-DEPLOY-003 | Final production checklist | Selesai Parsial - Docker Local Terbaru | Build bersih backend/frontend, health API, healthcheck frontend, dan exposure port local production lulus pada 2026-06-29; smoke operasional role penuh tidak diulang pada sesi ini. |
 | TASK-DOC-001 | Review traceability penuh | Sedang Dikerjakan | Audit progres sudah dibuat, traceability detail penuh belum selesai. |
 | TASK-DOC-002 | Dokumentasi penggunaan internal | Selesai Draft Internal | Panduan role Manager, Apoteker, dan Kasir tersedia di `docs/10_PANDUAN_PENGGUNA_INTERNAL_POS_APOTEK.md`. |
 
@@ -336,3 +367,5 @@ temporary smoke users deactivated
 | 2026-06-15 | Menambahkan dashboard Manager real-time berbasis polling TanStack Query, endpoint agregat trend/top produk/metode pembayaran, dan chart Recharts. | TASK-BE-021, TASK-FE-017 | `npm.cmd --prefix frontend run build` dan `npm.cmd --prefix backend run build` lulus; focused dashboard test host terblokir DB `postgres:5432`, Docker rebuild terbaru terblokir Docker Desktop/buildx EOF sehingga runtime browser smoke perlu diulang setelah Docker build stabil. |
 | 2026-06-22 | Menambahkan grafik laporan penjualan dan laba berbasis agregasi backend historis. | TASK-FE-018, TASK-FE-019, TASK-BE-022, TASK-BE-023 | Backend reports integration spec lulus pada PostgreSQL test terpisah; frontend Docker builder build lulus. |
 | 2026-06-25 | Memisahkan commit laporan dan dashboard, lalu memvalidasi dashboard operasional. | TASK-BE-021, TASK-FE-017 | Dashboard integration spec lulus 5 test, frontend Docker build lulus, dan smoke HTTP/API `/dashboard` lulus pada stack validasi sementara; browser MCP sedang gagal pada sisi tool Node REPL sehingga smoke visual penuh belum diulang. |
+| 2026-06-29 | Merapikan perubahan optimasi Docker lokal dan memvalidasi ulang Docker Full Local Mode. | TASK-DEPLOY-001, TASK-DEPLOY-003 | Build bersih backend/frontend lulus, `/api/health` lulus, frontend healthy, hanya frontend expose port `80`, backend/PostgreSQL tetap internal; Kubernetes/monitoring advanced tidak dimasukkan ke scope V1. |
+| 2026-06-30 | Mengaktifkan Redis sebagai cache backend internal untuk master data read-heavy. | TASK-DEPLOY-001, TASK-BE-004, TASK-BE-005, TASK-BE-006 | Redis berjalan internal di Docker tanpa expose port host; backend log menunjukkan `Cache service initialized (redis redis:6379)`, `/api/health` lulus, `git diff --check` lulus, CacheService unit spec lulus, dan master-data integration spec lulus termasuk invalidasi cache product-unit. |

@@ -15,6 +15,7 @@ import { Card } from '../../shared/components/Card';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
+import { Select } from '../../shared/components/Select';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import { useConnectionStatus } from '../../shared/hooks/useConnectionStatus';
@@ -644,25 +645,20 @@ function PaymentPanel({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
-              Jenis diskon
-            </span>
-            <select
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-50"
-              value={discountType}
-              disabled={isSubmitting}
-              onChange={(event) =>
-                onDiscountTypeChange(event.target.value as DiscountType)
-              }
-            >
-              {discountTypes.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Jenis diskon"
+            value={discountType}
+            disabled={isSubmitting}
+            onChange={(event) =>
+              onDiscountTypeChange(event.target.value as DiscountType)
+            }
+          >
+            {discountTypes.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </Select>
           <Input
             label={discountType === 'PERCENT' ? 'Diskon persen' : 'Diskon nominal'}
             type="number"

@@ -6,6 +6,7 @@ import { DataTable } from '../../shared/components/DataTable';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
+import { Select } from '../../shared/components/Select';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import { formatDateTimeWita, formatQty } from '../../shared/utils/formatters';
@@ -249,39 +250,33 @@ function PrescriptionItemEditor({
 
   return (
     <div className="grid gap-3 rounded-md border border-slate-200 p-3 lg:grid-cols-[1.3fr_1fr_120px_1fr_1fr_auto]">
-      <label className="block">
-        <span className="mb-1 block text-sm font-medium text-slate-700">Produk {index + 1}</span>
-        <select
-          className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
-          value={item.productId}
-          onChange={(event) =>
-            onChange({ ...item, productId: event.target.value, productUnitId: '' })
-          }
-        >
-          <option value="">Pilih produk</option>
-          {products.map((product) => (
-            <option key={product.id} value={product.id}>
-              {product.name} ({product.code})
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="block">
-        <span className="mb-1 block text-sm font-medium text-slate-700">Satuan jual</span>
-        <select
-          className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
-          value={item.productUnitId}
-          onChange={(event) => onChange({ ...item, productUnitId: event.target.value })}
-          disabled={!selectedProduct}
-        >
-          <option value="">Pilih satuan</option>
-          {saleUnits.map((unit) => (
-            <option key={unit.id} value={unit.id}>
-              {unit.unit.symbol ?? unit.unit.name} - min {formatQty(unit.minSaleQty)}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        label={`Produk ${index + 1}`}
+        value={item.productId}
+        onChange={(event) =>
+          onChange({ ...item, productId: event.target.value, productUnitId: '' })
+        }
+      >
+        <option value="">Pilih produk</option>
+        {products.map((product) => (
+          <option key={product.id} value={product.id}>
+            {product.name} ({product.code})
+          </option>
+        ))}
+      </Select>
+      <Select
+        label="Satuan jual"
+        value={item.productUnitId}
+        onChange={(event) => onChange({ ...item, productUnitId: event.target.value })}
+        disabled={!selectedProduct}
+      >
+        <option value="">Pilih satuan</option>
+        {saleUnits.map((unit) => (
+          <option key={unit.id} value={unit.id}>
+            {unit.unit.symbol ?? unit.unit.name} - min {formatQty(unit.minSaleQty)}
+          </option>
+        ))}
+      </Select>
       <Input label="Qty" type="number" min={0.0001} step="0.0001" value={item.qtySaleUnit} onChange={(event) => onChange({ ...item, qtySaleUnit: Number(event.target.value) })} />
       <Input label="Aturan pakai" value={item.instruction ?? ''} onChange={(event) => onChange({ ...item, instruction: event.target.value })} />
       <Input label="Catatan item" value={item.note ?? ''} onChange={(event) => onChange({ ...item, note: event.target.value })} />

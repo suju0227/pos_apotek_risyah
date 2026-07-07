@@ -8,6 +8,7 @@ import { DataTable } from '../../shared/components/DataTable';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
+import { Select } from '../../shared/components/Select';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import {
@@ -467,48 +468,30 @@ export function ProductsPage() {
             error={form.formState.errors.name?.message}
           />
           <Input label="Nama generik" {...form.register('genericName')} />
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
-              Kategori
-            </span>
-            <select
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              {...form.register('categoryId')}
-            >
-              <option value="">Pilih kategori</option>
-              {categoryOptions.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-            {form.formState.errors.categoryId?.message ? (
-              <span className="mt-1 block text-xs text-red-600">
-                {form.formState.errors.categoryId.message}
-              </span>
-            ) : null}
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
-              Satuan dasar
-            </span>
-            <select
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              {...form.register('baseUnitId')}
-            >
-              <option value="">Pilih satuan</option>
-              {unitOptions.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name}
-                </option>
-              ))}
-            </select>
-            {form.formState.errors.baseUnitId?.message ? (
-              <span className="mt-1 block text-xs text-red-600">
-                {form.formState.errors.baseUnitId.message}
-              </span>
-            ) : null}
-          </label>
+          <Select
+            label="Kategori"
+            error={form.formState.errors.categoryId?.message}
+            {...form.register('categoryId')}
+          >
+            <option value="">Pilih kategori</option>
+            {categoryOptions.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label="Satuan dasar"
+            error={form.formState.errors.baseUnitId?.message}
+            {...form.register('baseUnitId')}
+          >
+            <option value="">Pilih satuan</option>
+            {unitOptions.map((unit) => (
+              <option key={unit.id} value={unit.id}>
+                {unit.name}
+              </option>
+            ))}
+          </Select>
           <Input
             label="Stok minimum"
             type="number"
@@ -629,23 +612,18 @@ export function ProductsPage() {
             className="grid gap-4 lg:grid-cols-[1fr_1fr_1fr_1fr] xl:grid-cols-[1fr_1fr_1fr_1fr_1.3fr_auto]"
             onSubmit={onSubmitProductUnit}
           >
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Satuan
-              </span>
-              <select
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                {...productUnitForm.register('unitId')}
-              >
-                <option value="">Pilih satuan</option>
-                {unitOptions.map((unit) => (
-                  <option key={unit.id} value={unit.id}>
-                    {unit.name}
-                  </option>
-                ))}
-              </select>
-              <FieldError message={productUnitForm.formState.errors.unitId?.message} />
-            </label>
+            <Select
+              label="Satuan"
+              error={productUnitForm.formState.errors.unitId?.message}
+              {...productUnitForm.register('unitId')}
+            >
+              <option value="">Pilih satuan</option>
+              {unitOptions.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name}
+                </option>
+              ))}
+            </Select>
             <Input
               label="Konversi ke dasar"
               type="number"

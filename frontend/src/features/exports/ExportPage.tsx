@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button } from '../../shared/components/Button';
 import { Card } from '../../shared/components/Card';
 import { Input } from '../../shared/components/Input';
+import { Select } from '../../shared/components/Select';
 import { useToastStore } from '../../shared/components/toast.store';
 import { downloadReport, type ExportFormat, type ExportKind } from './export.api';
 
@@ -56,22 +57,28 @@ export function ExportPage() {
           halaman ini, sehingga laporan laba dan HPP tetap aman.
         </div>
         <div className="grid gap-4 lg:grid-cols-4">
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">Jenis laporan</span>
-            <select className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" value={kind} onChange={(event) => setKind(event.target.value as ExportKind)}>
-              {reportKinds.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">Format</span>
-            <select className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" value={format} onChange={(event) => setFormat(event.target.value as ExportFormat)}>
-              {formats.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Jenis laporan"
+            value={kind}
+            onChange={(event) => setKind(event.target.value as ExportKind)}
+          >
+            {reportKinds.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label="Format"
+            value={format}
+            onChange={(event) => setFormat(event.target.value as ExportFormat)}
+          >
+            {formats.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
           <Input label="Tanggal awal" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
           <Input label="Tanggal akhir" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
         </div>

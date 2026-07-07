@@ -8,6 +8,7 @@ import { DataTable } from '../../shared/components/DataTable';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
+import { Select } from '../../shared/components/Select';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import {
@@ -220,45 +221,32 @@ export function BatchPage() {
       <Card>
         <form className="space-y-5" onSubmit={onSubmit}>
           <div className="grid gap-4 lg:grid-cols-3">
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Produk
-              </span>
-              <select
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                {...form.register('productId', {
-                  onChange: (event) => setSelectedProductId(event.target.value),
-                })}
-              >
-                <option value="">Pilih produk</option>
-                {(products.data ?? []).map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}
-                  </option>
-                ))}
-              </select>
-              {form.formState.errors.productId?.message ? (
-                <span className="mt-1 block text-xs text-red-600">
-                  {form.formState.errors.productId.message}
-                </span>
-              ) : null}
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Supplier
-              </span>
-              <select
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                {...form.register('supplierId')}
-              >
-                <option value="">Tanpa supplier</option>
-                {(suppliers.data ?? []).map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Select
+              label="Produk"
+              error={form.formState.errors.productId?.message}
+              {...form.register('productId', {
+                onChange: (event) => setSelectedProductId(event.target.value),
+              })}
+            >
+              <option value="">Pilih produk</option>
+              {(products.data ?? []).map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Supplier"
+              error={form.formState.errors.supplierId?.message}
+              {...form.register('supplierId')}
+            >
+              <option value="">Tanpa supplier</option>
+              {(suppliers.data ?? []).map((supplier) => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </option>
+              ))}
+            </Select>
             <Input
               label="Nomor batch"
               {...form.register('batchNumber')}
@@ -357,37 +345,27 @@ export function BatchPage() {
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Produk, batch, atau supplier"
           />
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
-              Status
-            </span>
-            <select
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option value="">Semua status</option>
-              <option value="ACTIVE">Aktif</option>
-              <option value="OUT_OF_STOCK">Stok habis</option>
-              <option value="EXPIRED">Expired</option>
-              <option value="INACTIVE">Nonaktif</option>
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
-              Expired
-            </span>
-            <select
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              value={expiryFilter}
-              onChange={(event) => setExpiryFilter(event.target.value)}
-            >
-              <option value="">Semua expiry</option>
-              <option value="soon">Mendekati expired</option>
-              <option value="expired">Expired</option>
-              <option value="valid">Masih aman</option>
-            </select>
-          </label>
+          <Select
+            label="Status"
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+          >
+            <option value="">Semua status</option>
+            <option value="ACTIVE">Aktif</option>
+            <option value="OUT_OF_STOCK">Stok habis</option>
+            <option value="EXPIRED">Expired</option>
+            <option value="INACTIVE">Nonaktif</option>
+          </Select>
+          <Select
+            label="Expired"
+            value={expiryFilter}
+            onChange={(event) => setExpiryFilter(event.target.value)}
+          >
+            <option value="">Semua expiry</option>
+            <option value="soon">Mendekati expired</option>
+            <option value="expired">Expired</option>
+            <option value="valid">Masih aman</option>
+          </Select>
         </div>
       </Card>
 

@@ -9,6 +9,7 @@ import { DataTable } from '../../shared/components/DataTable';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
+import { Select } from '../../shared/components/Select';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import { formatDate, formatQty } from '../../shared/utils/formatters';
@@ -173,22 +174,18 @@ export function PurchaseOrderPage() {
 
       <Card className="space-y-5">
         <form className="grid gap-4 lg:grid-cols-3" onSubmit={submitPo}>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
-              Supplier
-            </span>
-            <select
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              {...poForm.register('supplierId')}
-            >
-              <option value="">Pilih supplier</option>
-              {(suppliers.data ?? []).map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Supplier"
+            error={poForm.formState.errors.supplierId?.message}
+            {...poForm.register('supplierId')}
+          >
+            <option value="">Pilih supplier</option>
+            {(suppliers.data ?? []).map((supplier) => (
+              <option key={supplier.id} value={supplier.id}>
+                {supplier.name}
+              </option>
+            ))}
+          </Select>
           <Input
             label="Tanggal PO"
             type="date"
@@ -201,40 +198,32 @@ export function PurchaseOrderPage() {
         <div className="rounded-lg border border-slate-200 p-4">
           <h2 className="mb-3 text-base font-semibold text-slate-950">Item PO</h2>
           <form className="grid gap-4 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]" onSubmit={addItem}>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Produk
-              </span>
-              <select
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                {...itemForm.register('productId', {
-                  onChange: (event) => setItemProductId(event.target.value),
-                })}
-              >
-                <option value="">Pilih produk</option>
-                {(products.data ?? []).map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Satuan
-              </span>
-              <select
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                {...itemForm.register('productUnitId')}
-              >
-                <option value="">Pilih satuan</option>
-                {saleUnits.map((productUnit) => (
-                  <option key={productUnit.id} value={productUnit.id}>
-                    {productUnit.unit.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Select
+              label="Produk"
+              error={itemForm.formState.errors.productId?.message}
+              {...itemForm.register('productId', {
+                onChange: (event) => setItemProductId(event.target.value),
+              })}
+            >
+              <option value="">Pilih produk</option>
+              {(products.data ?? []).map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Satuan"
+              error={itemForm.formState.errors.productUnitId?.message}
+              {...itemForm.register('productUnitId')}
+            >
+              <option value="">Pilih satuan</option>
+              {saleUnits.map((productUnit) => (
+                <option key={productUnit.id} value={productUnit.id}>
+                  {productUnit.unit.name}
+                </option>
+              ))}
+            </Select>
             <Input
               label="Qty pesan"
               type="number"

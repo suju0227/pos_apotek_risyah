@@ -839,12 +839,22 @@ function ExpiredBatchSection({
               {
                 key: 'expiredDate',
                 header: 'Expired',
-                render: (row) => formatDate(row.expiredDate),
+                render: (row) => (
+                  <span className="font-medium text-slate-900">
+                    {formatDate(row.expiredDate)}
+                  </span>
+                ),
               },
               {
                 key: 'daysRemaining',
                 header: 'Sisa hari',
-                render: (row) => formatNumber(row.daysRemaining),
+                render: (row) => {
+                  const days = Math.round(row.daysRemaining);
+                  if (days < 0) {
+                    return <span className="font-semibold text-rose-600">{days} hari</span>;
+                  }
+                  return <span className="font-medium text-slate-700">{days} hari</span>;
+                },
               },
               {
                 key: 'currentStockBase',
@@ -860,15 +870,23 @@ function ExpiredBatchSection({
             ]}
             getCardTitle={(row) => row.productName}
             getCardSubtitle={(row) => `${row.baseUnitName} - Batch ${row.batchNumber}`}
-            getCardRows={(row) => [
-              { label: 'Expired', value: formatDate(row.expiredDate) },
-              { label: 'Sisa hari', value: formatNumber(row.daysRemaining) },
-              {
-                label: 'Stok batch',
-                value: formatQty(row.currentStockBase, row.baseUnitName),
-              },
-              { label: 'Status', value: <ExpiredStatusBadge status={row.status} /> },
-            ]}
+            getCardRows={(row) => {
+              const days = Math.round(row.daysRemaining);
+              const daysValue = days < 0 ? (
+                <span className="font-semibold text-rose-600">{days} hari</span>
+              ) : (
+                <span>{days} hari</span>
+              );
+              return [
+                { label: 'Expired', value: formatDate(row.expiredDate) },
+                { label: 'Sisa hari', value: daysValue },
+                {
+                  label: 'Stok batch',
+                  value: formatQty(row.currentStockBase, row.baseUnitName),
+                },
+                { label: 'Status', value: <ExpiredStatusBadge status={row.status} /> },
+              ];
+            }}
           />
         </div>
       ) : (

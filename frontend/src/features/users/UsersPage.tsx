@@ -5,6 +5,7 @@ import { DataTable } from '../../shared/components/DataTable';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
+import { Select } from '../../shared/components/Select';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import { formatDateTimeWita } from '../../shared/utils/formatters';
@@ -120,20 +121,17 @@ export function UsersPage() {
             value={form.password}
             onChange={(event) => setForm({ ...form, password: event.target.value })}
           />
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">Role</span>
-            <select
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
-              value={form.roleName}
-              onChange={(event) =>
-                setForm({ ...form, roleName: event.target.value as RoleName })
-              }
-            >
-              <option value="KASIR">KASIR</option>
-              <option value="APOTEKER">APOTEKER</option>
-              <option value="MANAGER">MANAGER</option>
-            </select>
-          </label>
+          <Select
+            label="Role"
+            value={form.roleName}
+            onChange={(event) =>
+              setForm({ ...form, roleName: event.target.value as RoleName })
+            }
+          >
+            <option value="KASIR">KASIR</option>
+            <option value="APOTEKER">APOTEKER</option>
+            <option value="MANAGER">MANAGER</option>
+          </Select>
           <div className="flex items-end">
             <Button type="button" onClick={handleCreate} disabled={createUser.isPending}>
               {createUser.isPending ? 'Menyimpan...' : 'Simpan User'}
@@ -159,15 +157,16 @@ export function UsersPage() {
               key: 'role',
               header: 'Role',
               render: (row) => (
-                <select
-                  className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm"
+                <Select
+                  label=""
+                  className="!h-9 rounded-lg border border-slate-200/85 px-2 text-xs"
                   value={row.role}
                   onChange={(event) => handleRoleChange(row, event.target.value as RoleName)}
                 >
                   <option value="KASIR">KASIR</option>
                   <option value="APOTEKER">APOTEKER</option>
                   <option value="MANAGER">MANAGER</option>
-                </select>
+                </Select>
               ),
             },
             {

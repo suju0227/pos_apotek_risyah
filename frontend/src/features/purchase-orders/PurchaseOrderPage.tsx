@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { Button } from '../../shared/components/Button';
 import { Card } from '../../shared/components/Card';
@@ -22,7 +23,6 @@ import type {
 } from './purchaseOrder.types';
 import {
   useCancelPurchaseOrder,
-  useConvertPurchaseOrder,
   useCreatePurchaseOrder,
   useMarkPurchaseOrderSent,
   usePrintPurchaseOrderPreview,
@@ -88,10 +88,10 @@ function FormError({ error }: { error?: unknown }) {
 
 export function PurchaseOrderPage() {
   const toast = useToastStore((state) => state.show);
+  const navigate = useNavigate();
   const [items, setItems] = useState<CreatePurchaseOrderItemPayload[]>([]);
   const [itemProductId, setItemProductId] = useState('');
   const [previewText, setPreviewText] = useState('');
-  const [draftText, setDraftText] = useState('');
 
   const suppliers = useSuppliers();
   const products = useProducts('');
@@ -101,7 +101,6 @@ export function PurchaseOrderPage() {
   const markSent = useMarkPurchaseOrderSent();
   const cancelPo = useCancelPurchaseOrder();
   const printPreview = usePrintPurchaseOrderPreview();
-  const convertPo = useConvertPurchaseOrder();
 
   const poForm = useForm<PoForm>({
     resolver: zodResolver(poSchema),
@@ -378,7 +377,6 @@ export function PurchaseOrderPage() {
                     onClick={async () => {
                       const preview = await printPreview.mutateAsync(row.id);
                       setPreviewText(JSON.stringify(preview, null, 2));
-                      setDraftText('');
                     }}
                   >
                     Preview
@@ -387,12 +385,7 @@ export function PurchaseOrderPage() {
                     type="button"
                     variant="secondary"
                     disabled={row.status === 'CANCELLED'}
-                    onClick={async () => {
-                      const draft = await convertPo.mutateAsync(row.id);
-                      setDraftText(JSON.stringify(draft, null, 2));
-                      setPreviewText('');
-                      toast('Draft pembelian dari PO dibuat');
-                    }}
+                    onClick={() => navigate(`/pembelian/dari-po/${row.id}`)}
                   >
                     Convert
                   </Button>
@@ -402,14 +395,14 @@ export function PurchaseOrderPage() {
           ]}
         />
       ) : null}
-      <FormError error={markSent.error ?? cancelPo.error ?? printPreview.error ?? convertPo.error} />
-      {previewText || draftText ? (
+      <FormError error={markSent.error ?? cancelPo.error ?? printPreview.error} />
+      {previewText ? (
         <Card>
           <h2 className="mb-2 text-base font-semibold text-slate-950">
-            {previewText ? 'Print preview PO' : 'Draft pembelian dari PO'}
+            Print preview PO
           </h2>
           <pre className="max-h-96 overflow-auto rounded-md bg-slate-950 p-4 text-xs text-slate-50">
-            {previewText || draftText}
+            {previewText}
           </pre>
         </Card>
       ) : null}

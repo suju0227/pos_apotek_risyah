@@ -81,3 +81,35 @@ export type CashierSaleResponse = {
     totalAfterDiscount: number;
   }>;
 };
+
+export type ReadyPrescription = {
+  id: string;
+  prescriptionNumber: string;
+  patientName: string;
+  patientPhone: string | null;
+  doctorName: string | null;
+  prescriptionDate: string;
+  status: 'READY_FOR_PAYMENT';
+  note: string | null;
+  readyAt: string | null;
+  items: Array<{
+    id: string;
+    productId: string;
+    productUnitId: string;
+    productName: string;
+    unitName: string;
+    unitSymbol: string | null;
+    qtySaleUnit: number;
+    instruction: string | null;
+    note: string | null;
+  }>;
+};
+
+export type CreateSaleFromPrescriptionPayload = {
+  paymentMethod: PaymentMethod;
+  paidAmount: number;
+  discountType: DiscountType;
+  discountValue: number;
+  customerName?: string;
+  note?: string;
+};

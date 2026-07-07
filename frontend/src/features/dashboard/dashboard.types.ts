@@ -8,12 +8,12 @@ export type DashboardPeriodSummary = {
   salesTotal: number;
   salesReturnTotal: number;
   netRevenue: number;
-  totalHpp: number;
-  hppReversed: number;
-  netHpp: number;
-  totalProfit: number;
-  profitReversed: number;
-  netProfit: number;
+  totalHpp?: number;
+  hppReversed?: number;
+  netHpp?: number;
+  totalProfit?: number;
+  profitReversed?: number;
+  netProfit?: number;
 };
 
 export type DashboardSummary = {
@@ -24,6 +24,55 @@ export type DashboardSummary = {
   year: DashboardPeriodSummary;
   lowStockCount: number;
   expiredBatchCount: number;
+};
+
+export type DashboardTrendItem = {
+  date: string;
+  transactionCount: number;
+  returnCount: number;
+  subtotal: number;
+  discountTotal: number;
+  salesTotal: number;
+  salesReturnTotal: number;
+  netRevenue: number;
+  totalHpp?: number;
+  hppReversed?: number;
+  netHpp?: number;
+  totalProfit?: number;
+  profitReversed?: number;
+  netProfit?: number;
+};
+
+export type DashboardRevenueTrendItem = {
+  date: string;
+  transactionCount: number;
+  returnCount: number;
+  netRevenue: number;
+};
+
+export type DashboardProfitTrendItem = {
+  date: string;
+  transactionCount: number;
+  returnCount: number;
+  netProfit: number;
+};
+
+export type DashboardTopProduct = {
+  productId: string;
+  productName: string;
+  categoryName: string;
+  qtyBase: number;
+  revenue: number;
+  transactionCount: number;
+};
+
+export type DashboardPaymentMethod = {
+  paymentMethod: string;
+  transactionCount: number;
+  returnCount: number;
+  salesTotal: number;
+  returnTotal: number;
+  netRevenue: number;
 };
 
 export type LowStockItem = {
@@ -77,4 +126,39 @@ export type RecentTransaction = {
     username: string;
     role: string;
   };
+};
+
+export type DashboardPurchaseOrderSummary = {
+  draft: number;
+  sent: number;
+  partiallyReceived: number;
+  received: number;
+  purchasesToday: number;
+};
+
+export type DashboardPrescriptionSummary = {
+  newPrescriptions: number;
+  readyForPayment: number;
+  completed: number;
+  counselingToday: number;
+};
+
+export type DashboardActivityUser = {
+  id: string;
+  name: string;
+  username: string;
+  role: string;
+};
+
+export type DashboardActivity = {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  oldValue: unknown;
+  newValue: unknown;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  user: DashboardActivityUser | null;
 };

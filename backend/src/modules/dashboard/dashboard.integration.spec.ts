@@ -88,6 +88,63 @@ describe('Dashboard API', () => {
       expect(row).not.toHaveProperty('profitAmount');
       expect(row).not.toHaveProperty('hppBaseSnapshot');
     }
+
+    const trends = await request(app.getHttpServer())
+      .get('/api/dashboard/trends?days=7')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(200);
+
+    const trendRow = trends.body.find(
+      (row: { netRevenue: number; netProfit: number }) =>
+        row.netRevenue >= 750 && row.netProfit >= 300.01234567,
+    );
+    expect(trends.body).toHaveLength(7);
+    expect(trendRow).toMatchObject({
+      transactionCount: expect.any(Number),
+      returnCount: expect.any(Number),
+      netRevenue: expect.any(Number),
+      netProfit: expect.any(Number),
+    });
+    expect(trendRow.transactionCount).toBeGreaterThanOrEqual(1);
+    expect(trendRow.returnCount).toBeGreaterThanOrEqual(1);
+    expect(trendRow.netRevenue).toBeGreaterThanOrEqual(750);
+    expect(trendRow.netProfit).toBeGreaterThanOrEqual(300.01234567);
+
+    const topProducts = await request(app.getHttpServer())
+      .get('/api/dashboard/top-products?days=7&limit=20')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(200);
+
+    expect(topProducts.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          productId: sale.productId,
+          productName: sale.productName,
+          qtyBase: expect.any(Number),
+          revenue: expect.any(Number),
+        }),
+      ]),
+    );
+
+    const paymentMethods = await request(app.getHttpServer())
+      .get('/api/dashboard/payment-methods?days=7')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(200);
+
+    expect(paymentMethods.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          paymentMethod: 'CASH',
+          transactionCount: expect.any(Number),
+          returnCount: expect.any(Number),
+          netRevenue: expect.any(Number),
+        }),
+      ]),
+    );
+    const cashRow = paymentMethods.body.find(
+      (row: { paymentMethod: string }) => row.paymentMethod === 'CASH',
+    );
+    expect(cashRow.netRevenue).toBeGreaterThanOrEqual(750);
   });
 
   it('returns low stock based on active non-expired batch stock only', async () => {
@@ -152,19 +209,103 @@ describe('Dashboard API', () => {
     const batchIds = response.body.map((item: { batchId: string }) => item.batchId);
     expect(batchIds).toContain(active.batch.id);
     expect(batchIds).not.toContain(inactive.batch.id);
-    expect(batchIds).not.toContain(far.batch.id);
+    expect(batchIds).toContain(far.batch.id);
   });
 
-  it('restricts dashboard endpoints to manager', async () => {
-    await request(app.getHttpServer())
+  it('sanitizes operational dashboard data for cashier role', async () => {
+    const cashierSummary = await request(app.getHttpServer())
       .get('/api/dashboard/summary')
       .set('Authorization', `Bearer ${cashierToken}`)
-      .expect(403);
+      .expect(200);
+
+    expect(cashierSummary.body.today).not.toHaveProperty('totalHpp');
+    expect(cashierSummary.body.today).not.toHaveProperty('hppReversed');
+    expect(cashierSummary.body.today).not.toHaveProperty('netHpp');
+    expect(cashierSummary.body.today).not.toHaveProperty('totalProfit');
+    expect(cashierSummary.body.today).not.toHaveProperty('profitReversed');
+    expect(cashierSummary.body.today).not.toHaveProperty('netProfit');
 
     await request(app.getHttpServer())
       .get('/api/dashboard/low-stock')
       .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+
+    const revenueTrend = await request(app.getHttpServer())
+      .get('/api/dashboard/revenue-trend?period=7d')
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(200);
+
+    expect(revenueTrend.body[0]).toHaveProperty('netRevenue');
+    expect(revenueTrend.body[0]).not.toHaveProperty('netProfit');
+    expect(revenueTrend.body[0]).not.toHaveProperty('totalHpp');
+
+    await request(app.getHttpServer())
+      .get('/api/dashboard/profit-trend?period=7d')
+      .set('Authorization', `Bearer ${cashierToken}`)
       .expect(403);
+
+    await request(app.getHttpServer())
+      .get('/api/dashboard/top-products')
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get('/api/dashboard/payment-methods')
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(403);
+  });
+
+  it('returns dashboard v2 endpoint shapes with bounded lists', async () => {
+    await request(app.getHttpServer())
+      .get('/api/dashboard/latest-sales?limit=5')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.length).toBeLessThanOrEqual(5);
+      });
+
+    await request(app.getHttpServer())
+      .get('/api/dashboard/expiring-batches?limit=10')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.length).toBeLessThanOrEqual(10);
+      });
+
+    await request(app.getHttpServer())
+      .get('/api/dashboard/purchase-order-summary')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          draft: expect.any(Number),
+          sent: expect.any(Number),
+          partiallyReceived: expect.any(Number),
+          received: expect.any(Number),
+          purchasesToday: expect.any(Number),
+        });
+      });
+
+    await request(app.getHttpServer())
+      .get('/api/dashboard/prescription-summary')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          newPrescriptions: expect.any(Number),
+          readyForPayment: expect.any(Number),
+          completed: expect.any(Number),
+          counselingToday: expect.any(Number),
+        });
+      });
+
+    await request(app.getHttpServer())
+      .get('/api/dashboard/recent-activities?limit=5')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.length).toBeLessThanOrEqual(5);
+      });
   });
 
   async function getSummary() {
@@ -236,7 +377,11 @@ describe('Dashboard API', () => {
       },
     });
 
-    return sale;
+    return {
+      ...sale,
+      productId: fixture.product.id,
+      productName: fixture.product.name,
+    };
   }
 
   async function createProductWithBatch(

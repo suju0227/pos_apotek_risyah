@@ -5,7 +5,7 @@ type DataTableProps<T> = {
   data: T[];
 };
 
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T extends object>({
   columns,
   data,
 }: DataTableProps<T>) {
@@ -30,7 +30,12 @@ export function DataTable<T extends Record<string, unknown>>({
               <tr key={rowIndex}>
                 {columns.map((column) => (
                   <td key={String(column.key)} className="px-4 py-3 text-slate-700">
-                    {column.render ? column.render(row) : String(row[column.key] ?? '')}
+                    {column.render
+                      ? column.render(row)
+                      : String(
+                          (row as Record<string, unknown>)[String(column.key)] ??
+                            '',
+                        )}
                   </td>
                 ))}
               </tr>

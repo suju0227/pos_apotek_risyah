@@ -43,12 +43,13 @@ Backend:
 - PostgreSQL
 - Prisma ORM
 - Raw SQL untuk query stok kritis
+- Redis (sebagai cache master data read-heavy dengan fallback in-memory cache)
 - JWT + Refresh Token
 - Role-Based Access Control
 
 Deployment:
-- Docker
-- PostgreSQL container
+- Docker (Frontend Nginx reverse proxy, Backend NestJS, PostgreSQL, Redis)
+- PostgreSQL container & Redis container
 - Environment variable berbasis .env
 
 ## 4. Core Architecture Rules
@@ -66,6 +67,7 @@ Deployment:
 - PO/pemesanan obat tidak boleh menambah atau mengurangi stok; stok hanya bertambah setelah pembelian final disimpan.
 - Resep dasar bukan transaksi final dan tidak boleh mengurangi stok sebelum ditarik ke kasir lalu checkout berhasil.
 - Satuan dasar stok tidak otomatis menjadi satuan jual; Manager menentukan satuan jual aktif per produk.
+- Master data yang jarang berubah (seperti satuan, kategori, supplier, produk) menggunakan caching Redis di backend dengan invalidasi cache otomatis saat ada perubahan data.
 
 ## 5. Role and Security Rules
 
@@ -73,6 +75,7 @@ Role minimum V1:
 - KASIR
 - APOTEKER
 - MANAGER
+- PEMILIK (opsional pada V1, hanya monitoring via dashboard dan grafik performa, tidak memiliki aksi operasional seperti pembelian, koreksi stok, pengubahan harga, atau manajemen user)
 
 Kasir tidak boleh:
 - melihat harga modal;
@@ -85,6 +88,14 @@ Kasir tidak boleh:
 - melakukan koreksi stok;
 - membuka laporan laba;
 - mengakses endpoint Manager melalui URL langsung.
+
+Apoteker tidak boleh:
+- melihat harga modal/beli, HPP, laba, margin;
+- mengakses laporan penjualan/laba;
+- melakukan koreksi stok atau manajemen user.
+
+Pemilik tidak boleh:
+- melakukan aksi operasional seperti checkout kasir, pembuatan PO/pembelian, retur, koreksi stok, manajemen user, atau pengubahan pengaturan apotek.
 
 Frontend boleh menyembunyikan menu berdasarkan role, tetapi backend tetap wajib melakukan authorization.
 
@@ -120,6 +131,7 @@ Frontend route menggunakan Bahasa Indonesia:
 - /kasir
 - /riwayat-transaksi
 - /retur-penjualan
+- /retur-pembelian
 - /produk
 - /kategori
 - /supplier
@@ -130,12 +142,13 @@ Frontend route menggunakan Bahasa Indonesia:
 - /pembelian/dari-po/:poId
 - /pelayanan/resep
 - /pelayanan/konseling
-- /pelayanan/riwayat
 - /stok
 - /mutasi-stok
 - /laporan/penjualan
 - /laporan/laba
+- /export
 - /users
+- /audit-log
 - /settings
 
 Backend endpoint menggunakan Bahasa Inggris teknis dengan prefix /api:
@@ -151,6 +164,15 @@ Backend endpoint menggunakan Bahasa Inggris teknis dengan prefix /api:
 - GET /api/counseling-records
 - GET /api/reports/sales
 - GET /api/reports/profit
+- GET /api/dashboard/summary
+- GET /api/dashboard/trend
+- GET /api/dashboard/low-stock
+- GET /api/dashboard/expired-batches
+- GET /api/dashboard/recent-sales
+- GET /api/dashboard/stats
+- GET /api/audit-logs
+- GET /api/settings
+- POST /api/settings
 
 Jangan mencampur route frontend dan endpoint backend.
 
@@ -160,7 +182,7 @@ Ikuti urutan implementasi dari Task Breakdown:
 1. Setup project
 2. Database foundation
 3. Auth, RBAC, user, security
-4. Master data
+4. Master data & Caching
 5. Batch, PO, dan pembelian
 6. Stok dan mutasi
 7. Pelayanan resep dasar, kasir, dan transaksi
@@ -186,10 +208,12 @@ Wajib uji:
 - split batch;
 - transaksi kasir;
 - stok tidak negatif;
-- retur penjualan;
+- retur penjualan dan pembelian;
 - laporan laba;
 - idempotency checkout;
-- role sanitization agar kasir tidak menerima HPP/laba.
+- role sanitization agar kasir tidak menerima HPP/laba;
+- integrasi caching Redis dan invalidasi datanya;
+- pencatatan audit log otomatis untuk aksi krusial.
 
 ## 11. Coding Behavior
 
@@ -199,3 +223,17 @@ Wajib uji:
 - Jangan menulis secret ke repository.
 - Jangan mengubah scope V1 tanpa memperbarui dokumen terkait.
 - Jika requirement belum jelas, cari di PRD, SRS, SDD, Frontend, Backend, UI/UX, dan Task Breakdown terlebih dahulu.
+
+## 12. Ponytail Project Rules
+
+Ponytail aktif sebagai aturan minimalisme untuk proyek ini. Ikuti `.agents/rules/ponytail.md`:
+- mulai dari YAGNI;
+- gunakan standard library, fitur native platform, dan dependency yang sudah ada;
+- jangan membuat abstraksi, dependency, boilerplate, atau scaffolding yang tidak diminta;
+- pilih perubahan paling kecil, boring, dan reviewable yang memenuhi dokumen POS Apotek.
+
+Ponytail tidak boleh mengurangi correctness POS Apotek. Jangan sederhanakan:
+- transaksi database untuk sales, purchases, returns, stock adjustments, dan stock mutations;
+- FEFO backend, split batch, batch-level stock, HPP/laba historis, alokasi diskon, dan idempotency;
+- RBAC, sanitasi data kasir, auth, refresh token, password hashing, dan authorization endpoint;
+- validasi trust boundary, error handling, loading/empty/error state, aksesibilitas dasar, dan focused tests untuk logic non-trivial.

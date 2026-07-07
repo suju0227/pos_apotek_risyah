@@ -352,6 +352,65 @@ describe('Sales API', () => {
     );
   });
 
+  it('keeps batch stock non-negative when concurrent checkouts exceed available stock', async () => {
+    const fixture = await createProductFixture('concurrent-sale');
+    const batch = await createBatchWithPrice(
+      fixture.product.id,
+      fixture.baseProductUnit.id,
+      {
+        batchNumber: `CONCURRENT-SALE-${suffix}`,
+        expiredDays: 30,
+        stockBase: 3,
+        hppBase: 500,
+        sellingPrice: 1000,
+      },
+    );
+    const payload = {
+      paymentMethod: 'CASH',
+      paidAmount: 5000,
+      discountType: 'NONE',
+      discountValue: 0,
+      items: [
+        {
+          productId: fixture.product.id,
+          productUnitId: fixture.baseProductUnit.id,
+          qtySaleUnit: 2,
+        },
+      ],
+    };
+
+    const results = await Promise.allSettled([
+      postSale(cashierToken, `sale-concurrent-a-${suffix}`, payload),
+      postSale(cashierToken, `sale-concurrent-b-${suffix}`, payload),
+    ]);
+    const fulfilled = results.filter(
+      (result): result is PromiseFulfilledResult<unknown> =>
+        result.status === 'fulfilled',
+    );
+    const rejected = results.filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(String(rejected[0].reason.message)).toContain('expected 201');
+
+    const storedBatch = await prisma.productBatch.findUniqueOrThrow({
+      where: { id: batch.id },
+    });
+    expect(storedBatch.currentStockBase.toNumber()).toBe(1);
+    expect(storedBatch.currentStockBase.toNumber()).toBeGreaterThanOrEqual(0);
+
+    const allocations = await prisma.saleBatchAllocation.findMany({
+      where: { batchId: batch.id },
+    });
+    const allocatedQty = allocations.reduce(
+      (sum, allocation) => sum + allocation.qtyBase.toNumber(),
+      0,
+    );
+    expect(allocatedQty).toBe(2);
+  });
+
   it('accepts non-cash payments without change and rejects invalid payment method', async () => {
     const fixture = await createProductFixture('non-cash-payment');
     await createBatchWithPrice(fixture.product.id, fixture.baseProductUnit.id, {

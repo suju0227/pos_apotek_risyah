@@ -15,3 +15,4 @@ pnpm-debug.log*
 logs/
 *.log
 storage/exports/
+backups/

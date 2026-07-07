@@ -11,6 +11,7 @@ import { defaultReportFilters } from './report.defaults';
 import { downloadReport } from './report.api';
 import { useSalesReport } from './report.hooks';
 import { ReportPagination } from './ReportPagination';
+import { SalesCharts } from './ReportCharts';
 import { ReportToolbar } from './ReportToolbar';
 import type { ReportFilters, SalesReportRow } from './report.types';
 
@@ -84,6 +85,7 @@ export function SalesReportPage() {
               icon={Wallet}
             />
           </section>
+          <SalesCharts charts={report.data.charts} />
           {report.data.data.length ? (
             <>
               <DataTable<SalesReportRow>

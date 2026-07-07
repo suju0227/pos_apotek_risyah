@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -24,12 +24,17 @@ export class StockController {
   }
 
   @Post('adjustments')
-  adjustStock(@Body() dto: CreateStockAdjustmentDto, @CurrentUser() user: AuthUser) {
+  adjustStock(
+    @Body() dto: CreateStockAdjustmentDto,
+    @CurrentUser() user: AuthUser,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
     return this.stockService.adjustStock(
       dto.batchId,
       dto.newQtyBase,
       dto.reason,
       user.id,
+      idempotencyKey,
     );
   }
 }

@@ -111,7 +111,8 @@ export class AuthService {
         role: user.role.name,
       },
       {
-        secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+        secret: this.configService.get<string>('JWT_ACCESS_SECRET') ??
+          this.configService.getOrThrow<string>('JWT_SECRET'),
         expiresIn: accessExpiresIn,
       },
     );

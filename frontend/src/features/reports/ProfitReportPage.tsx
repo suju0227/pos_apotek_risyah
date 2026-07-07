@@ -16,6 +16,7 @@ import { defaultReportFilters } from './report.defaults';
 import { downloadReport } from './report.api';
 import { useProfitReport } from './report.hooks';
 import { ReportPagination } from './ReportPagination';
+import { ProfitCharts } from './ReportCharts';
 import { ReportToolbar } from './ReportToolbar';
 import type { ProfitReportRow, ReportFilters } from './report.types';
 
@@ -91,6 +92,7 @@ export function ProfitReportPage() {
               icon={LineChart}
             />
           </section>
+          <ProfitCharts charts={report.data.charts} />
           {report.data.data.length ? (
             <>
               <DataTable<ProfitReportRow>

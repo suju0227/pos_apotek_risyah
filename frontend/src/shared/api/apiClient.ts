@@ -1,6 +1,5 @@
 import { useAuthStore } from '../../features/auth/auth.store';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
+import { API_BASE_URL } from '../config';
 
 type RequestOptions = RequestInit & {
   skipAuth?: boolean;

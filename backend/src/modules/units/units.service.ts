@@ -8,23 +8,45 @@ import {
   isPrismaUniqueError,
 } from '../../common/utils/prisma-error';
 import { PrismaService } from '../../database/prisma.service';
+import { CacheService } from '../../common/services/cache.service';
 import { CreateUnitDto } from './dto/create-unit.dto';
 import { UpdateUnitDto } from './dto/update-unit.dto';
 
 @Injectable()
 export class UnitsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly cacheKey = 'units:all';
 
-  findAll() {
-    return this.prisma.unit.findMany({
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
+
+  async findAll() {
+    // Try to get from cache
+    const cached = await this.cacheService.get<any>(this.cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Query database
+    const units = await this.prisma.unit.findMany({
       where: { isActive: true },
       orderBy: { name: 'asc' },
     });
+
+    // Store in cache
+    await this.cacheService.set(this.cacheKey, units);
+    return units;
   }
 
   async create(dto: CreateUnitDto) {
     try {
-      return await this.prisma.unit.create({ data: dto });
+      const unit = await this.prisma.unit.create({ data: dto });
+
+      // Invalidate cache
+      await this.cacheService.del(this.cacheKey);
+
+      return unit;
     } catch (error) {
       if (isPrismaUniqueError(error)) {
         throw new BadRequestException('Nama satuan sudah digunakan');
@@ -35,10 +57,15 @@ export class UnitsService {
 
   async update(id: string, dto: UpdateUnitDto) {
     try {
-      return await this.prisma.unit.update({
+      const unit = await this.prisma.unit.update({
         where: { id },
         data: dto,
       });
+
+      // Invalidate cache
+      await this.cacheService.del(this.cacheKey);
+
+      return unit;
     } catch (error) {
       if (isPrismaNotFoundError(error)) {
         throw new NotFoundException('Satuan tidak ditemukan');

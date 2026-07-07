@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import ExcelJS from 'exceljs';
-import PDFDocument from 'pdfkit';
+import * as ExcelJS from 'exceljs';
+import PDFDocument = require('pdfkit');
 import { ProfitReportQueryDto } from '../reports/dto/profit-report-query.dto';
 import { SalesReportQueryDto } from '../reports/dto/sales-report-query.dto';
 import { ReportsService } from '../reports/reports.service';

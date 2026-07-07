@@ -88,6 +88,12 @@ describe('Master Data API', () => {
     expect(product.category.id).toBe(category.id);
     expect(product.baseUnit.id).toBe(baseUnit.id);
 
+    const cachedProductsBeforeUnit = await getManager('/api/products');
+    const cachedProductBeforeUnit = cachedProductsBeforeUnit.find(
+      (item: { id: string }) => item.id === product.id,
+    );
+    expect(cachedProductBeforeUnit.productUnits).toHaveLength(0);
+
     const defaultProductUnit = await postManager(`/api/products/${product.id}/units`, {
       unitId: baseUnit.id,
       conversionToBase: 1,
@@ -97,6 +103,13 @@ describe('Master Data API', () => {
       conversionToBase: 1,
       isDefaultSaleUnit: true,
     });
+
+    const productsAfterUnit = await getManager('/api/products');
+    const productAfterUnit = productsAfterUnit.find(
+      (item: { id: string }) => item.id === product.id,
+    );
+    expect(productAfterUnit.productUnits).toHaveLength(1);
+    expect(productAfterUnit.productUnits[0].id).toBe(defaultProductUnit.id);
 
     const boxProductUnit = await postManager(`/api/products/${product.id}/units`, {
       unitId: saleUnit.id,

@@ -67,6 +67,7 @@ describe('Stock API', () => {
     const adjustment = await request(app.getHttpServer())
       .post('/api/stock/adjustments')
       .set('Authorization', `Bearer ${managerToken}`)
+      .set('Idempotency-Key', `stock-adjustment-${suffix}`)
       .send({
         batchId: fixture.activeBatch.id,
         newQtyBase: 15,
@@ -122,6 +123,7 @@ describe('Stock API', () => {
     await request(app.getHttpServer())
       .post('/api/stock/adjustments')
       .set('Authorization', `Bearer ${managerToken}`)
+      .set('Idempotency-Key', `stock-adjustment-invalid-${suffix}`)
       .send({
         batchId: fixture.activeBatch.id,
         newQtyBase: -1,
@@ -132,6 +134,7 @@ describe('Stock API', () => {
     await request(app.getHttpServer())
       .post('/api/stock/adjustments')
       .set('Authorization', `Bearer ${managerToken}`)
+      .set('Idempotency-Key', `stock-adjustment-same-${suffix}`)
       .send({
         batchId: fixture.activeBatch.id,
         newQtyBase: 8,

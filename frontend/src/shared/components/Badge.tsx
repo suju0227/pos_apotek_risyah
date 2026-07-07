@@ -8,10 +8,10 @@ type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
 };
 
 const toneClasses: Record<BadgeTone, string> = {
-  amber: 'border-amber-200 bg-amber-50 text-amber-700',
-  emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  red: 'border-red-200 bg-red-50 text-red-700',
-  slate: 'border-slate-200 bg-slate-50 text-slate-700',
+  amber: 'border-amber-500/15 bg-amber-500/8 text-amber-700',
+  emerald: 'border-teal-500/15 bg-teal-500/8 text-teal-700',
+  red: 'border-rose-500/15 bg-rose-500/8 text-rose-700',
+  slate: 'border-slate-500/15 bg-slate-500/8 text-slate-700',
 };
 
 export function Badge({
@@ -22,7 +22,7 @@ export function Badge({
 }: BadgeProps) {
   return (
     <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toneClasses[tone]} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold tracking-wide ${toneClasses[tone]} ${className}`}
       {...props}
     >
       {children}

@@ -395,6 +395,8 @@ export function PurchaseOrderPage() {
                       const tpl = settings.data?.poPrintTemplate || defaultPoTemplate;
                       const html = renderTemplate(tpl, {
                         pharmacyName: settings.data?.pharmacyName || 'Apotek',
+                        pharmacyAddress: settings.data?.address || '',
+                        pharmacyPhone: settings.data?.phone || '',
                         poNumber: preview.purchaseOrder.poNumber,
                         supplierName: preview.purchaseOrder.supplier.name,
                         orderDate: formatDate(preview.purchaseOrder.orderDate),

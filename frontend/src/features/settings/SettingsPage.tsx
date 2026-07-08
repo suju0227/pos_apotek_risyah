@@ -111,7 +111,7 @@ export function SettingsPage() {
               Template Cetak Pemesanan (PO) - Format HTML
             </label>
             <p className="text-xs text-slate-500">
-              Gunakan placeholder: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{poNumber}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{supplierName}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{orderDate}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{itemsTable}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{pharmacyName}}`}</code>
+              Gunakan placeholder: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{poNumber}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{supplierName}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{orderDate}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{itemsTable}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{pharmacyName}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{pharmacyAddress}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{pharmacyPhone}}`}</code>
             </p>
             <textarea
               className="w-full h-64 rounded-md border border-slate-300 p-3 text-sm font-mono shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"

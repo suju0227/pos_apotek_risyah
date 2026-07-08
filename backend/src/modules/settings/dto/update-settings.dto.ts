@@ -21,4 +21,8 @@ export class UpdateSettingsDto {
   @IsString()
   @IsOptional()
   timezone?: string;
+
+  @IsString()
+  @IsOptional()
+  poPrintTemplate?: string | null;
 }

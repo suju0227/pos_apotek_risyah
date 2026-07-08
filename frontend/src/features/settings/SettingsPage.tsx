@@ -103,6 +103,25 @@ export function SettingsPage() {
           Zona waktu dan mata uang dikunci untuk V1. Perubahan profil dicatat di audit log
           backend.
         </p>
+
+        <div className="mt-6 border-t border-slate-200 pt-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Template Dokumen</h2>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700">
+              Template Cetak Pemesanan (PO) - Format HTML
+            </label>
+            <p className="text-xs text-slate-500">
+              Gunakan placeholder: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{poNumber}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{supplierName}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{orderDate}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{itemsTable}}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{`{{pharmacyName}}`}</code>
+            </p>
+            <textarea
+              className="w-full h-64 rounded-md border border-slate-300 p-3 text-sm font-mono shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="<html>...</html>"
+              value={form.poPrintTemplate ?? ''}
+              onChange={(e) => setForm({ ...form, poPrintTemplate: e.target.value })}
+            />
+          </div>
+        </div>
+
         <div className="mt-5">
           <Button type="button" onClick={handleSubmit} disabled={updateSettings.isPending}>
             {updateSettings.isPending ? 'Menyimpan...' : 'Simpan Pengaturan'}

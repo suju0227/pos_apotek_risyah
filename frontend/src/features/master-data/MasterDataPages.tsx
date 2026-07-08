@@ -204,6 +204,7 @@ export function CategoriesPage() {
               render: (row) => (
                 <Button
                   type="button"
+                  size="sm"
                   variant="secondary"
                   disabled={deactivateCategory.isPending || !row.isActive}
                   onClick={async () => {
@@ -284,6 +285,7 @@ export function SuppliersPage() {
               render: (row) => (
                 <Button
                   type="button"
+                  size="sm"
                   variant="secondary"
                   disabled={deactivateSupplier.isPending || !row.isActive}
                   onClick={async () => {
@@ -361,6 +363,7 @@ export function UnitsPage() {
                 <Button
                   type="button"
                   variant="secondary"
+                  size="sm"
                   disabled={deactivateUnit.isPending || !row.isActive}
                   onClick={async () => {
                     await deactivateUnit.mutateAsync(row.id);
@@ -559,9 +562,10 @@ export function ProductsPage() {
               key: 'actions',
               header: 'Aksi',
               render: (row) => (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-row items-center gap-1.5 whitespace-nowrap">
                   <Button
                     type="button"
+                    size="sm"
                     variant={
                       selectedProductId === row.id ? 'primary' : 'secondary'
                     }
@@ -571,6 +575,7 @@ export function ProductsPage() {
                   </Button>
                   <Button
                     type="button"
+                    size="sm"
                     variant="secondary"
                     disabled={deactivateProduct.isPending || !row.isActive}
                     onClick={async () => {

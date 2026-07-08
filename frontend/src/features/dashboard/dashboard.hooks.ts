@@ -7,10 +7,10 @@ const realtimeDashboardQuery = {
   staleTime: 10_000,
 };
 
-export function useDashboardSummary() {
+export function useDashboardSummary(startDate?: string, endDate?: string) {
   return useQuery({
-    queryKey: ['dashboard', 'summary'],
-    queryFn: dashboardApi.summary,
+    queryKey: ['dashboard', 'summary', startDate, endDate],
+    queryFn: () => dashboardApi.summary(startDate, endDate),
     ...realtimeDashboardQuery,
   });
 }
@@ -41,20 +41,29 @@ export function useRecentTransactions(enabled: boolean) {
   });
 }
 
-export function useDashboardRevenueTrend(enabled: boolean) {
+export function useDashboardRevenueTrend(enabled: boolean, startDate?: string, endDate?: string) {
   return useQuery({
     enabled,
-    queryKey: ['dashboard', 'revenue-trend', '7d'],
-    queryFn: dashboardApi.revenueTrend,
+    queryKey: ['dashboard', 'revenue-trend', '7d', startDate, endDate],
+    queryFn: () => dashboardApi.revenueTrend(startDate, endDate),
     ...realtimeDashboardQuery,
   });
 }
 
-export function useDashboardProfitTrend(enabled: boolean) {
+export function useDashboardProfitTrend(enabled: boolean, startDate?: string, endDate?: string) {
   return useQuery({
     enabled,
-    queryKey: ['dashboard', 'profit-trend', '7d'],
-    queryFn: dashboardApi.profitTrend,
+    queryKey: ['dashboard', 'profit-trend', '7d', startDate, endDate],
+    queryFn: () => dashboardApi.profitTrend(startDate, endDate),
+    ...realtimeDashboardQuery,
+  });
+}
+
+export function useTopProducts(enabled: boolean, days = 7, limit = 5, startDate?: string, endDate?: string) {
+  return useQuery({
+    enabled,
+    queryKey: ['dashboard', 'top-products', days, limit, startDate, endDate],
+    queryFn: () => dashboardApi.topProducts(days, limit, startDate, endDate),
     ...realtimeDashboardQuery,
   });
 }

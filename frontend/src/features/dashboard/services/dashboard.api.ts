@@ -9,6 +9,7 @@ import type {
   ExpiredBatchItem as ApiExpiringBatchItem,
   LowStockItem as ApiLowStockItem,
   RecentTransaction as ApiLatestSaleItem,
+  DashboardTopProduct as ApiTopProduct,
 } from '../dashboard.types';
 import type {
   DashboardSummary,
@@ -19,22 +20,44 @@ import type {
   PrescriptionSummary,
   PurchaseOrderSummary,
   RecentActivity,
+  TopProduct,
 } from '../types';
 
 export const dashboardApi = {
-  summary: async () => mapSummary(await apiClient.get<ApiDashboardSummary>('/dashboard/summary')),
-  revenueTrend: async () =>
-    (
+  summary: async (startDate?: string, endDate?: string) => {
+    const queryParams = startDate && endDate ? `?startDate=${startDate}&endDate=${endDate}` : '';
+    return mapSummary(await apiClient.get<ApiDashboardSummary>(`/dashboard/summary${queryParams}`));
+  },
+  revenueTrend: async (startDate?: string, endDate?: string) => {
+    const queryParams = startDate && endDate 
+      ? `?startDate=${startDate}&endDate=${endDate}` 
+      : '?period=7d';
+    return (
       await apiClient.get<DashboardRevenueTrendItem[]>(
-        '/dashboard/revenue-trend?period=7d',
+        `/dashboard/revenue-trend${queryParams}`,
       )
-    ).map(mapRevenueTrendPoint),
-  profitTrend: async () =>
-    (
+    ).map(mapRevenueTrendPoint);
+  },
+  profitTrend: async (startDate?: string, endDate?: string) => {
+    const queryParams = startDate && endDate 
+      ? `?startDate=${startDate}&endDate=${endDate}` 
+      : '?period=7d';
+    return (
       await apiClient.get<DashboardProfitTrendItem[]>(
-        '/dashboard/profit-trend?period=7d',
+        `/dashboard/profit-trend${queryParams}`,
       )
-    ).map(mapProfitTrendPoint),
+    ).map(mapProfitTrendPoint);
+  },
+  topProducts: async (days = 7, limit = 5, startDate?: string, endDate?: string) => {
+    const queryParams = startDate && endDate 
+      ? `?startDate=${startDate}&endDate=${endDate}&limit=${limit}` 
+      : `?days=${days}&limit=${limit}`;
+    return (
+      await apiClient.get<ApiTopProduct[]>(
+        `/dashboard/top-products${queryParams}`,
+      )
+    ).map(mapTopProduct);
+  },
   latestSales: async (limit = 5) =>
     (
       await apiClient.get<ApiLatestSaleItem[]>(
@@ -79,6 +102,7 @@ function mapSummary(summary: ApiDashboardSummary): DashboardSummary {
     todayTransactionCount: summary.today.transactionCount,
     lowStockCount: summary.lowStockCount,
     expiringBatchCount: summary.expiredBatchCount,
+    customPeriod: (summary as any).customPeriod ? (summary as any).customPeriod : undefined,
   };
 }
 
@@ -186,4 +210,15 @@ function summarizeActivity(item: ApiActivity) {
   if (item.newValue) return 'Data baru tercatat';
   if (item.oldValue) return 'Data lama berubah';
   return '-';
+}
+
+function mapTopProduct(item: ApiTopProduct): TopProduct {
+  return {
+    productId: item.productId,
+    productName: item.productName,
+    categoryName: item.categoryName,
+    qtyBase: item.qtyBase,
+    revenue: item.revenue,
+    transactionCount: item.transactionCount,
+  };
 }

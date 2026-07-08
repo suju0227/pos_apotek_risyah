@@ -37,7 +37,7 @@ export function SalesCharts({ charts }: { charts: SalesReportCharts }) {
     <section className="grid gap-4 xl:grid-cols-2">
       <ChartCard title="Tren Penjualan Harian">
         {charts.daily.length ? (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="99%" height={280} minWidth={1} minHeight={1}>
             <ComposedChart data={charts.daily}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis
@@ -81,7 +81,7 @@ export function SalesCharts({ charts }: { charts: SalesReportCharts }) {
       </ChartCard>
       <ChartCard title="Metode Pembayaran">
         {charts.paymentMethods.length ? (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="99%" height={280} minWidth={1} minHeight={1}>
             <BarChart data={charts.paymentMethods}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="paymentMethod" tick={{ fill: '#64748b', fontSize: 12 }} />
@@ -111,7 +111,7 @@ export function ProfitCharts({ charts }: { charts: ProfitReportCharts }) {
     <section className="grid gap-4 xl:grid-cols-2">
       <ChartCard title="Tren Laba Harian">
         {charts.daily.length ? (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="99%" height={280} minWidth={1} minHeight={1}>
             <ComposedChart data={charts.daily}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis
@@ -146,7 +146,7 @@ export function ProfitCharts({ charts }: { charts: ProfitReportCharts }) {
       </ChartCard>
       <ChartCard title="Produk Laba Tertinggi">
         {charts.topProducts.length ? (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="99%" height={280} minWidth={1} minHeight={1}>
             <BarChart data={charts.topProducts} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis

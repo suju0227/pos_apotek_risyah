@@ -60,6 +60,7 @@ model AppSetting {
   expiredAlertDays Int      @default(30) @map("expired_alert_days")
   timezone         String   @default("Asia/Makassar") @db.VarChar(100)
   currency         String   @default("IDR") @db.VarChar(20)
+  poPrintTemplate  String?  @map("po_print_template") @db.Text
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
 

@@ -31,12 +31,19 @@ export function formatRupiah(value: number) {
   return rupiahFormatter.format(value).replace(/\s+/g, ' ');
 }
 
-export function formatDate(value: string | Date) {
-  return dateFormatter.format(new Date(value));
+export function formatDate(value: string | Date | null | undefined) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return '-';
+  return dateFormatter.format(date);
 }
 
-export function formatDateTimeWita(value: string | Date) {
-  const parts = dateTimeFormatter.formatToParts(new Date(value));
+export function formatDateTimeWita(value: string | Date | null | undefined) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return '-';
+  
+  const parts = dateTimeFormatter.formatToParts(date);
   const part = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((item) => item.type === type)?.value ?? '';
 

@@ -3,12 +3,14 @@ import type { ButtonHTMLAttributes } from 'react';
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'ghost';
   fullWidth?: boolean;
+  size?: 'sm' | 'md';
 };
 
 export function Button({
   className = '',
   variant = 'primary',
   fullWidth,
+  size = 'md',
   ...props
 }: ButtonProps) {
   const variants = {
@@ -17,11 +19,16 @@ export function Button({
     ghost: 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98]',
   };
 
+  const sizes = {
+    sm: 'h-8 px-3 text-xs gap-1.5 rounded-md',
+    md: 'h-10 px-4 text-sm gap-2 rounded-lg',
+  };
+
   return (
     <button
-      className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-all duration-200 ease-out select-none focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:pointer-events-none ${
+      className={`inline-flex items-center justify-center font-semibold transition-all duration-200 ease-out select-none focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:pointer-events-none ${
         variants[variant]
-      } ${fullWidth ? 'w-full' : ''} ${className}`}
+      } ${sizes[size]} ${fullWidth ? 'w-full' : ''} ${className}`}
       {...props}
     />
   );

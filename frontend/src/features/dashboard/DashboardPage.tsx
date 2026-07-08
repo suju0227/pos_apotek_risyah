@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import { ComponentType, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -6,6 +6,7 @@ import {
   ClipboardList,
   History,
   LineChart as LineChartIcon,
+  Lock,
   PackageSearch,
   ReceiptText,
   RefreshCw,
@@ -63,6 +64,7 @@ import {
   useExpiredBatches,
   useLowStock,
   useRecentTransactions,
+  useTopProducts,
 } from './dashboard.hooks';
 import type {
   DashboardTrendPoint,
@@ -73,37 +75,44 @@ import type {
   PurchaseOrderSummary,
   RecentActivity,
   DashboardSummary,
+  TopProduct,
 } from './types';
 
 type SummaryTone = 'amber' | 'blue' | 'emerald' | 'red' | 'slate' | 'violet';
 
 const summaryToneClasses: Record<
   SummaryTone,
-  { border: string; icon: string }
+  { border: string; icon: string; shadow: string }
 > = {
   amber: {
     border: 'border-l-amber-500',
     icon: 'bg-amber-50 text-amber-700',
+    shadow: 'hover:shadow-amber-100/50 hover:border-l-amber-600',
   },
   blue: {
     border: 'border-l-blue-500',
     icon: 'bg-blue-50 text-blue-700',
+    shadow: 'hover:shadow-blue-100/50 hover:border-l-blue-600',
   },
   emerald: {
     border: 'border-l-emerald-500',
     icon: 'bg-emerald-50 text-emerald-700',
+    shadow: 'hover:shadow-emerald-100/50 hover:border-l-emerald-600',
   },
   red: {
     border: 'border-l-red-500',
     icon: 'bg-red-50 text-red-700',
+    shadow: 'hover:shadow-red-100/50 hover:border-l-red-600',
   },
   slate: {
     border: 'border-l-slate-400',
     icon: 'bg-slate-100 text-slate-700',
+    shadow: 'hover:shadow-slate-200/50 hover:border-l-slate-500',
   },
   violet: {
     border: 'border-l-violet-500',
     icon: 'bg-violet-50 text-violet-700',
+    shadow: 'hover:shadow-violet-100/50 hover:border-l-violet-600',
   },
 };
 
@@ -122,9 +131,14 @@ export function DashboardPage() {
   const showPrescriptionSummary = canViewPrescriptionSummary(role);
   const showAudit = canViewAuditSummary(role);
   const showCashierShortcut = canViewCashierShortcut(role);
-  const summary = useDashboardSummary();
-  const revenueTrend = useDashboardRevenueTrend(showRevenue);
-  const profitTrend = useDashboardProfitTrend(canViewFinancials);
+
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const summary = useDashboardSummary(startDate || undefined, endDate || undefined);
+  const revenueTrend = useDashboardRevenueTrend(showRevenue, startDate || undefined, endDate || undefined);
+  const profitTrend = useDashboardProfitTrend(canViewFinancials, startDate || undefined, endDate || undefined);
+  const topProducts = useTopProducts(canViewFinancials, 7, 5, startDate || undefined, endDate || undefined);
   const lowStock = useLowStock();
   const expiredBatches = useExpiredBatches(showExpired);
   const recentTransactions = useRecentTransactions(showRecentSales);
@@ -142,6 +156,7 @@ export function DashboardPage() {
     purchaseOrderSummary,
     prescriptionSummary,
     recentActivities,
+    topProducts,
   ];
 
   const isFetching = queries.some((query) => query.isFetching);
@@ -160,6 +175,12 @@ export function DashboardPage() {
           generatedAt={null}
           isFetching={isFetching}
           onRefresh={refreshAll}
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={(start, end) => {
+            setStartDate(start);
+            setEndDate(end);
+          }}
         />
         <DashboardSectionError onRetry={() => void summary.refetch()} />
       </div>
@@ -173,7 +194,38 @@ export function DashboardPage() {
         generatedAt={null}
         isFetching={isFetching}
         onRefresh={refreshAll}
+        startDate={startDate}
+        endDate={endDate}
+        onDateChange={(start, end) => {
+          setStartDate(start);
+          setEndDate(end);
+        }}
       />
+      {/* Quick Actions Bar */}
+      <div className="flex flex-wrap gap-2.5 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
+        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider w-full mb-1">Aksi Cepat</span>
+        <Link to="/kasir">
+          <Button size="sm" className="gap-1.5">
+            <ShoppingCart size={14} />
+            + Transaksi Baru
+          </Button>
+        </Link>
+        <Link to="/pelayanan/resep">
+          <Button size="sm" variant="secondary" className="gap-1.5">
+            <Stethoscope size={14} />
+            + Input Resep
+          </Button>
+        </Link>
+        {role === 'MANAGER' || role === 'APOTEKER' ? (
+          <Link to="/pemesanan">
+            <Button size="sm" variant="secondary" className="gap-1.5">
+              <ClipboardList size={14} />
+              + Buat PO
+            </Button>
+          </Link>
+        ) : null}
+      </div>
+
       {showCashierShortcut ? <CashierShortcut /> : null}
       {summary.isLoading ? (
         <SummarySkeleton />
@@ -226,14 +278,24 @@ export function DashboardPage() {
           />
         ) : null}
       </section>
-      {showExpired ? (
-        <ExpiredBatchSection
-          isError={expiredBatches.isError}
-          isLoading={expiredBatches.isLoading}
-          items={expiredBatches.data ?? []}
-          onRetry={() => void expiredBatches.refetch()}
-        />
-      ) : null}
+      <section className="grid gap-4 lg:grid-cols-2">
+        {showExpired ? (
+          <ExpiredBatchSection
+            isError={expiredBatches.isError}
+            isLoading={expiredBatches.isLoading}
+            items={expiredBatches.data ?? []}
+            onRetry={() => void expiredBatches.refetch()}
+          />
+        ) : null}
+        {canViewFinancials ? (
+          <TopProductsSection
+            isError={topProducts.isError}
+            isLoading={topProducts.isLoading}
+            items={topProducts.data ?? []}
+            onRetry={() => void topProducts.refetch()}
+          />
+        ) : null}
+      </section>
       <section className="grid gap-4 lg:grid-cols-2">
         {showPurchaseSummary ? (
           <PurchaseSummarySection
@@ -269,11 +331,17 @@ function DashboardHeader({
   generatedAt,
   isFetching,
   onRefresh,
+  startDate,
+  endDate,
+  onDateChange,
 }: {
   connectionStatus: ReturnType<typeof useConnectionStatus>['status'];
   generatedAt: string | null;
   isFetching: boolean;
   onRefresh: () => void;
+  startDate: string;
+  endDate: string;
+  onDateChange: (start: string, end: string) => void;
 }) {
   const today = formatDate(new Date());
 
@@ -298,12 +366,45 @@ function DashboardHeader({
             </p>
           ) : null}
         </div>
-        <Button type="button" variant="secondary" onClick={onRefresh}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2 rounded-lg border border-slate-200 p-1.5 bg-slate-50 text-xs">
+            <span className="font-semibold text-slate-500 px-1">Saring:</span>
+            <input
+              id="startDate"
+              name="startDate"
+              aria-label="Tanggal Mulai"
+              type="date"
+              className="bg-transparent border-0 p-0 text-slate-800 focus:ring-0 font-medium w-[125px]"
+              value={startDate}
+              onChange={(e) => onDateChange(e.target.value, endDate)}
+            />
+            <span className="text-slate-500 font-medium">s/d</span>
+            <input
+              id="endDate"
+              name="endDate"
+              aria-label="Tanggal Akhir"
+              type="date"
+              className="bg-transparent border-0 p-0 text-slate-800 focus:ring-0 font-medium w-[125px]"
+              value={endDate}
+              onChange={(e) => onDateChange(startDate, e.target.value)}
+            />
+            {startDate || endDate ? (
+              <button
+                type="button"
+                className="text-slate-400 hover:text-rose-600 font-bold px-1"
+                onClick={() => onDateChange('', '')}
+              >
+                ✕
+              </button>
+            ) : null}
+          </div>
+          <Button type="button" variant="secondary" onClick={onRefresh}>
           <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
           Muat Ulang
         </Button>
       </div>
     </div>
+  </div>
   );
 }
 
@@ -386,9 +487,7 @@ function TableSkeleton() {
       <LoadingSkeleton rows={5} />
     </div>
   );
-}
-
-function SummaryGrid({
+}function SummaryGrid({
   canViewFinancials,
   canViewExpiringBatchSummary,
   canViewRevenue,
@@ -403,21 +502,24 @@ function SummaryGrid({
   canViewTransactions: boolean;
   summary: DashboardSummary;
 }) {
+  const isCustom = Boolean(summary.customPeriod);
   const cards = [
     canViewRevenue
       ? {
-          label: 'Omzet Hari Ini',
-          value: formatRupiah(summary.todayRevenue),
-          helper: `${formatNumber(summary.todayTransactionCount)} transaksi`,
+          label: isCustom ? 'Omzet Periode Terpilih' : 'Omzet Hari Ini',
+          value: formatRupiah(isCustom ? summary.customPeriod!.netRevenue : summary.todayRevenue),
+          helper: isCustom
+            ? `${formatNumber(summary.customPeriod!.transactionCount)} transaksi`
+            : `${formatNumber(summary.todayTransactionCount)} transaksi`,
           icon: Wallet,
           tone: 'emerald' as const,
         }
       : null,
     canViewTransactions
       ? {
-          label: 'Jumlah Transaksi Hari Ini',
-          value: formatNumber(summary.todayTransactionCount),
-          helper: 'Checkout berhasil hari ini',
+          label: isCustom ? 'Jumlah Transaksi Periode Terpilih' : 'Jumlah Transaksi Hari Ini',
+          value: formatNumber(isCustom ? summary.customPeriod!.transactionCount : summary.todayTransactionCount),
+          helper: isCustom ? 'Checkout berhasil periode terpilih' : 'Checkout berhasil hari ini',
           icon: ReceiptText,
           tone: 'blue' as const,
         }
@@ -444,10 +546,11 @@ function SummaryGrid({
         }
       : null,
   ].filter((card): card is NonNullable<typeof card> => Boolean(card));
+
   const financialCards = [
     {
-      label: 'Laba Hari Ini',
-      value: formatRupiah(summary.todayProfit ?? 0),
+      label: isCustom ? 'Laba Periode Terpilih' : 'Laba Hari Ini',
+      value: formatRupiah(isCustom ? (summary.customPeriod!.netProfit ?? 0) : (summary.todayProfit ?? 0)),
       helper: 'Khusus manager/pemilik',
       icon: LineChartIcon,
       tone: 'violet' as const,
@@ -474,8 +577,11 @@ function SummaryGrid({
       tone: 'violet' as const,
     },
   ];
+
+  const visibleFinancialCards = isCustom ? [financialCards[0]] : financialCards;
+
   const visibleCards = canViewFinancials
-    ? [cards[0], ...financialCards, ...cards.slice(1)].filter(
+    ? [cards[0], ...visibleFinancialCards, ...cards.slice(1)].filter(
         (card): card is NonNullable<typeof card> => Boolean(card),
       )
     : cards;
@@ -488,7 +594,7 @@ function SummaryGrid({
         return (
           <Card
             key={card.label}
-            className={`min-h-32 border-l-4 ${toneClasses.border}`}
+            className={`min-h-32 border-l-4 transition-all duration-300 hover:-translate-y-1 ${toneClasses.border} ${toneClasses.shadow} bg-white/80 backdrop-blur-xs group`}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -496,7 +602,16 @@ function SummaryGrid({
                 <p className="mt-3 text-2xl font-bold leading-tight text-slate-950">
                   {card.value}
                 </p>
-                <p className="mt-2 text-xs text-slate-500">{card.helper}</p>
+                <p className="mt-2 text-xs text-slate-500 min-h-[1.25rem]">
+                  {card.helper === 'Khusus manager/pemilik' ? (
+                    <span className="inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-help" title="Khusus manager/pemilik">
+                      <Lock size={12} className="text-slate-400" />
+                      <span>Manajer/Pemilik</span>
+                    </span>
+                  ) : (
+                    card.helper
+                  )}
+                </p>
               </div>
               <div
                 className={`grid h-10 w-10 shrink-0 place-items-center rounded-md ${toneClasses.icon}`}
@@ -558,6 +673,23 @@ function TrendChartGrid({
   );
 }
 
+function CustomTooltip({ active, payload, label }: any) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-md">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+        <p className="mt-1 text-sm font-black text-slate-950">
+          {formatRupiah(payload[0].value)}
+        </p>
+        <p className="text-[10px] font-medium text-slate-500 mt-0.5">
+          {payload[0].name}
+        </p>
+      </div>
+    );
+  }
+  return null;
+}
+
 function TrendChart({
   dataKey,
   description,
@@ -608,8 +740,8 @@ function TrendChart({
               {formatRupiah(total)}
             </div>
           </div>
-          <div className="mt-4 h-72">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="mt-4 h-72 w-full">
+            <ResponsiveContainer width="99%" height="100%" minWidth={1} minHeight={1}>
               <ComposedChart data={data} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
                 <defs>
                   <linearGradient id={dataKey} x1="0" x2="0" y1="0" y2="1">
@@ -629,13 +761,7 @@ function TrendChart({
                   tickLine={false}
                   width={56}
                 />
-                <Tooltip
-                  formatter={(value, name) => [
-                    formatRupiah(Number(value)),
-                    name === 'revenue' ? 'Omzet bersih' : 'Laba bersih',
-                  ]}
-                  labelFormatter={(label) => `Tanggal ${label}`}
-                />
+                <Tooltip content={<CustomTooltip />} />
                 <Area
                   dataKey={dataKey}
                   fill={`url(#${dataKey})`}
@@ -643,6 +769,7 @@ function TrendChart({
                   stroke={color}
                   strokeWidth={2}
                   type="monotone"
+                  activeDot={{ r: 5, stroke: '#fff', strokeWidth: 1.5, fill: color }}
                 />
                 <Line
                   dataKey={dataKey}
@@ -651,6 +778,7 @@ function TrendChart({
                   stroke={color}
                   strokeWidth={2}
                   type="monotone"
+                  activeDot={{ r: 5, stroke: '#fff', strokeWidth: 1.5, fill: color }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -716,7 +844,14 @@ function LowStockSection({
               {
                 key: 'currentStockBase',
                 header: 'Stok saat ini',
-                render: (row) => formatQty(row.currentStockBase, row.baseUnitName),
+                render: (row) => {
+                  const isZero = row.currentStockBase <= 0;
+                  return (
+                    <span className={isZero ? 'font-bold text-rose-600' : 'font-medium text-slate-700'}>
+                      {formatQty(row.currentStockBase, row.baseUnitName)}
+                    </span>
+                  );
+                },
               },
               {
                 key: 'minimumStockBase',
@@ -726,7 +861,11 @@ function LowStockSection({
               {
                 key: 'shortage',
                 header: 'Selisih',
-                render: (row) => formatQty(row.shortage, row.baseUnitName),
+                render: (row) => (
+                  <span className="font-semibold text-rose-600">
+                    {formatQty(row.shortage, row.baseUnitName)}
+                  </span>
+                ),
               },
               {
                 key: 'status',
@@ -752,36 +891,47 @@ function LowStockSection({
             ]}
             getCardTitle={(row) => row.productName}
             getCardSubtitle={(row) => row.baseUnitName}
-            getCardRows={(row) => [
-              {
-                label: 'Stok saat ini',
-                value: formatQty(row.currentStockBase, row.baseUnitName),
-              },
-              {
-                label: 'Minimum',
-                value: formatQty(row.minimumStockBase, row.baseUnitName),
-              },
-              {
-                label: 'Selisih',
-                value: formatQty(row.shortage, row.baseUnitName),
-              },
-              { label: 'Status', value: <StockStatusBadge item={row} /> },
-              ...(canViewStockAction
-                ? [
-                    {
-                      label: 'Aksi',
-                      value: (
-                        <Link
-                          className="font-semibold text-emerald-700 hover:text-emerald-800"
-                          to={`/stok?productId=${row.productId}`}
-                        >
-                          Lihat stok
-                        </Link>
-                      ),
-                    },
-                  ]
-                : []),
-            ]}
+            getCardRows={(row) => {
+              const isZero = row.currentStockBase <= 0;
+              return [
+                {
+                  label: 'Stok saat ini',
+                  value: (
+                    <span className={isZero ? 'font-bold text-rose-600' : ''}>
+                      {formatQty(row.currentStockBase, row.baseUnitName)}
+                    </span>
+                  ),
+                },
+                {
+                  label: 'Minimum',
+                  value: formatQty(row.minimumStockBase, row.baseUnitName),
+                },
+                {
+                  label: 'Selisih',
+                  value: (
+                    <span className="font-semibold text-rose-600">
+                      {formatQty(row.shortage, row.baseUnitName)}
+                    </span>
+                  ),
+                },
+                { label: 'Status', value: <StockStatusBadge item={row} /> },
+                ...(canViewStockAction
+                  ? [
+                      {
+                        label: 'Aksi',
+                        value: (
+                          <Link
+                            className="font-semibold text-emerald-700 hover:text-emerald-800"
+                            to={`/stok?productId=${row.productId}`}
+                          >
+                            Lihat stok
+                          </Link>
+                        ),
+                      },
+                    ]
+                  : []),
+              ];
+            }}
           />
         </div>
       ) : (
@@ -851,7 +1001,13 @@ function ExpiredBatchSection({
                 render: (row) => {
                   const days = Math.round(row.daysRemaining);
                   if (days < 0) {
-                    return <span className="font-semibold text-rose-600">{days} hari</span>;
+                    return <span className="font-semibold text-rose-600">{days} hari (Expired)</span>;
+                  }
+                  if (days <= 30) {
+                    return <span className="font-semibold text-rose-600">{days} hari (Kritis)</span>;
+                  }
+                  if (days <= 90) {
+                    return <span className="font-medium text-amber-600">{days} hari (Waspada)</span>;
                   }
                   return <span className="font-medium text-slate-700">{days} hari</span>;
                 },
@@ -873,7 +1029,11 @@ function ExpiredBatchSection({
             getCardRows={(row) => {
               const days = Math.round(row.daysRemaining);
               const daysValue = days < 0 ? (
-                <span className="font-semibold text-rose-600">{days} hari</span>
+                <span className="font-semibold text-rose-600">{days} hari (Expired)</span>
+              ) : days <= 30 ? (
+                <span className="font-semibold text-rose-600">{days} hari (Kritis)</span>
+              ) : days <= 90 ? (
+                <span className="font-medium text-amber-600">{days} hari (Waspada)</span>
               ) : (
                 <span>{days} hari</span>
               );
@@ -1183,6 +1343,82 @@ function AuditLogSection({
           <DashboardEmptyState
             title="Belum ada aktivitas terbaru."
             message="Audit log akan tampil setelah backend mencatat aktivitas penting."
+          />
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function TopProductsSection({
+  isError,
+  isLoading,
+  items,
+  onRetry,
+}: {
+  isError: boolean;
+  isLoading: boolean;
+  items: TopProduct[];
+  onRetry: () => void;
+}) {
+  return (
+    <Card>
+      <SectionTitle
+        icon={LineChartIcon}
+        title="Produk Terlaris (Fast-Moving)"
+        description="5 produk dengan penjualan tertinggi periode ini."
+      />
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <div className="mt-4">
+          <DashboardSectionError onRetry={onRetry} />
+        </div>
+      ) : items.length ? (
+        <div className="mt-4">
+          <ResponsiveDataView<TopProduct>
+            data={items}
+            columns={[
+              {
+                key: 'productName',
+                header: 'Produk',
+                render: (row) => (
+                  <div>
+                    <div className="font-medium text-slate-900">{row.productName}</div>
+                    <div className="text-xs text-slate-500">{row.categoryName}</div>
+                  </div>
+                ),
+              },
+              {
+                key: 'qtyBase',
+                header: 'Volume Terjual',
+                render: (row) => `${row.qtyBase} unit`,
+              },
+              {
+                key: 'revenue',
+                header: 'Total Omzet',
+                render: (row) => formatRupiah(row.revenue),
+              },
+              {
+                key: 'transactionCount',
+                header: 'Transaksi',
+                render: (row) => `${row.transactionCount} kali`,
+              },
+            ]}
+            getCardTitle={(row) => row.productName}
+            getCardSubtitle={(row) => row.categoryName}
+            getCardRows={(row) => [
+              { label: 'Volume Terjual', value: `${row.qtyBase} unit` },
+              { label: 'Total Omzet', value: formatRupiah(row.revenue) },
+              { label: 'Transaksi', value: `${row.transactionCount} kali` },
+            ]}
+          />
+        </div>
+      ) : (
+        <div className="mt-4">
+          <DashboardEmptyState
+            title="Belum ada produk terlaris."
+            message="Data akan muncul setelah ada penjualan tercatat."
           />
         </div>
       )}

@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuthUser } from '../../common/types/auth-user';
 import {
+  DashboardDateRangeQueryDto,
   DashboardDaysQueryDto,
   DashboardLimitQueryDto,
   DashboardPeriodQueryDto,
@@ -19,8 +20,11 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('summary')
-  summary(@CurrentUser() user: AuthUser) {
-    return this.dashboardService.summary(user);
+  summary(
+    @CurrentUser() user: AuthUser,
+    @Query() query: DashboardDateRangeQueryDto,
+  ) {
+    return this.dashboardService.summary(user, query.startDate, query.endDate);
   }
 
   @Get('low-stock')
@@ -46,13 +50,13 @@ export class DashboardController {
 
   @Get('revenue-trend')
   revenueTrend(@Query() query: DashboardPeriodQueryDto) {
-    return this.dashboardService.revenueTrend(query.period);
+    return this.dashboardService.revenueTrend(query.period, query.startDate, query.endDate);
   }
 
   @Get('profit-trend')
   @Roles('MANAGER', 'PEMILIK')
   profitTrend(@Query() query: DashboardPeriodQueryDto) {
-    return this.dashboardService.profitTrend(query.period);
+    return this.dashboardService.profitTrend(query.period, query.startDate, query.endDate);
   }
 
   @Get('latest-sales')
@@ -86,7 +90,7 @@ export class DashboardController {
   @Get('top-products')
   @Roles('MANAGER', 'PEMILIK')
   topProducts(@Query() query: DashboardTopProductsQueryDto) {
-    return this.dashboardService.topProducts(query.days, query.limit);
+    return this.dashboardService.topProducts(query.days, query.limit, query.startDate, query.endDate);
   }
 
   @Get('payment-methods')

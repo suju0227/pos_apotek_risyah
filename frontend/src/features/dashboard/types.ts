@@ -1,3 +1,21 @@
+export type PeriodSummary = {
+  startAt: string;
+  endAt: string;
+  transactionCount: number;
+  returnCount: number;
+  subtotal: number;
+  discountTotal: number;
+  salesTotal: number;
+  salesReturnTotal: number;
+  netRevenue: number;
+  totalHpp?: number;
+  hppReversed?: number;
+  netHpp?: number;
+  totalProfit?: number;
+  profitReversed?: number;
+  netProfit?: number;
+};
+
 export type DashboardSummary = {
   todayRevenue: number;
   todayProfit?: number;
@@ -8,6 +26,7 @@ export type DashboardSummary = {
   lowStockCount: number;
   expiringBatchCount: number;
   outOfStockCount?: number;
+  customPeriod?: PeriodSummary;
 };
 
 export type DashboardTrendPoint = {
@@ -70,4 +89,13 @@ export type RecentActivity = {
   action: string;
   entityType: string;
   summary: string;
+};
+
+export type TopProduct = {
+  productId: string;
+  productName: string;
+  categoryName: string;
+  qtyBase: number;
+  revenue: number;
+  transactionCount: number;
 };

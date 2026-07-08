@@ -36,7 +36,17 @@ export function SalesHistoryPage() {
           <DataTable<Sale & Record<string, unknown>>
             data={data as (Sale & Record<string, unknown>)[]}
             columns={[
-              { key: 'saleNumber', header: 'No. Transaksi' },
+              {
+                key: 'saleNumber',
+                header: 'No. Transaksi',
+                render: (row) => (
+                  <span className="font-mono text-xs" title={row.saleNumber}>
+                    {row.saleNumber.length > 15
+                      ? `${row.saleNumber.slice(0, 12)}...${row.saleNumber.slice(-6)}`
+                      : row.saleNumber}
+                  </span>
+                ),
+              },
               {
                 key: 'createdAt',
                 header: 'Waktu',

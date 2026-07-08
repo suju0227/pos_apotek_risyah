@@ -47,13 +47,14 @@ type DashboardPaymentReturnRow = {
   returnTotal: Prisma.Decimal | null;
 };
 
+
 @Injectable()
 export class DashboardService {
   private readonly makassarOffsetMs = 8 * 60 * 60 * 1000;
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async summary(user?: AuthUser) {
+  async summary(user?: AuthUser, startDate?: string, endDate?: string) {
     const now = new Date();
     const windows = {
       today: this.todayWindow(now),
@@ -62,15 +63,33 @@ export class DashboardService {
       year: this.yearWindow(now),
     };
 
-    const [today, week, month, year, lowStock, expiredBatches] =
-      await Promise.all([
-        this.periodSummary(windows.today),
-        this.periodSummary(windows.week),
-        this.periodSummary(windows.month),
-        this.periodSummary(windows.year),
-        this.lowStock(),
-        this.expiredBatches(),
-      ]);
+    const promises: Promise<any>[] = [
+      this.periodSummary(windows.today),
+      this.periodSummary(windows.week),
+      this.periodSummary(windows.month),
+      this.periodSummary(windows.year),
+      this.lowStock(),
+      this.expiredBatches(),
+    ];
+
+    let customPeriodPromise: Promise<any> | null = null;
+    if (startDate && endDate) {
+      const [sy, sm, sd] = startDate.split('-').map(Number);
+      const [ey, em, ed] = endDate.split('-').map(Number);
+      const start = this.operationalDateToUtc(sy, sm - 1, sd);
+      const end = this.operationalDateToUtc(ey, em - 1, ed + 1);
+      customPeriodPromise = this.periodSummary({ start, end });
+      promises.push(customPeriodPromise);
+    }
+
+    const results = await Promise.all(promises);
+    const today = results[0];
+    const week = results[1];
+    const month = results[2];
+    const year = results[3];
+    const lowStock = results[4];
+    const expiredBatches = results[5];
+    const customPeriod = customPeriodPromise ? results[6] : undefined;
 
     const summary = {
       generatedAt: now.toISOString(),
@@ -78,6 +97,7 @@ export class DashboardService {
       week,
       month,
       year,
+      customPeriod,
       lowStockCount: lowStock.length,
       expiredBatchCount: expiredBatches.length,
     };
@@ -236,8 +256,8 @@ export class DashboardService {
     });
   }
 
-  async trends(days = 14) {
-    const window = this.daysWindow(days);
+  async trends(daysOrWindow: number | { start: Date; end: Date; days: number } = 14) {
+    const window = typeof daysOrWindow === 'number' ? this.daysWindow(daysOrWindow) : daysOrWindow;
     const [salesRows, returnRows] = await Promise.all([
       this.prisma.$queryRaw<DashboardTrendSalesRow[]>(Prisma.sql`
         SELECT
@@ -306,8 +326,11 @@ export class DashboardService {
     });
   }
 
-  async revenueTrend(period: '7d' = '7d') {
-    const trends = await this.trends(this.daysFromPeriod(period));
+  async revenueTrend(period: string = '7d', startDate?: string, endDate?: string) {
+    const window = (startDate && endDate)
+      ? this.customWindow(startDate, endDate)
+      : this.daysWindow(this.daysFromPeriod(period));
+    const trends = await this.trends(window);
     return trends.map((item) => ({
       date: item.date,
       transactionCount: item.transactionCount,
@@ -316,8 +339,11 @@ export class DashboardService {
     }));
   }
 
-  async profitTrend(period: '7d' = '7d') {
-    const trends = await this.trends(this.daysFromPeriod(period));
+  async profitTrend(period: string = '7d', startDate?: string, endDate?: string) {
+    const window = (startDate && endDate)
+      ? this.customWindow(startDate, endDate)
+      : this.daysWindow(this.daysFromPeriod(period));
+    const trends = await this.trends(window);
     return trends.map((item) => ({
       date: item.date,
       transactionCount: item.transactionCount,
@@ -419,8 +445,10 @@ export class DashboardService {
     }));
   }
 
-  async topProducts(days = 7, limit = 5) {
-    const window = this.daysWindow(days);
+  async topProducts(days = 7, limit = 5, startDate?: string, endDate?: string) {
+    const window = (startDate && endDate)
+      ? this.customWindow(startDate, endDate)
+      : this.daysWindow(days);
     const normalizedLimit = Math.min(Math.max(limit, 1), 20);
 
     const rows = await this.prisma.$queryRaw<DashboardTopProductRow[]>(Prisma.sql`
@@ -451,6 +479,15 @@ export class DashboardService {
       revenue: Number(row.revenue ?? 0),
       transactionCount: Number(row.transactionCount),
     }));
+  }
+
+  private customWindow(startDate: string, endDate: string) {
+    const [sy, sm, sd] = startDate.split('-').map(Number);
+    const [ey, em, ed] = endDate.split('-').map(Number);
+    const start = this.operationalDateToUtc(sy, sm - 1, sd);
+    const end = this.operationalDateToUtc(ey, em - 1, ed + 1);
+    const days = this.daysBetween(start, end);
+    return { start, end, days };
   }
 
   async paymentMethods(days = 7) {
@@ -678,15 +715,16 @@ export class DashboardService {
     return user?.role === 'MANAGER' || user?.role === 'PEMILIK';
   }
 
-  private sanitizeSummary<T extends { today: unknown; week: unknown; month: unknown; year: unknown }>(
-    summary: T,
-  ) {
+  private sanitizeSummary(summary: any) {
     return {
-      ...summary,
+      generatedAt: summary.generatedAt,
       today: this.sanitizePeriodSummary(summary.today),
       week: this.sanitizePeriodSummary(summary.week),
       month: this.sanitizePeriodSummary(summary.month),
       year: this.sanitizePeriodSummary(summary.year),
+      customPeriod: summary.customPeriod ? this.sanitizePeriodSummary(summary.customPeriod) : undefined,
+      lowStockCount: summary.lowStockCount,
+      expiredBatchCount: summary.expiredBatchCount,
     };
   }
 
@@ -703,7 +741,7 @@ export class DashboardService {
     return safePeriod;
   }
 
-  private daysFromPeriod(period: '7d') {
+  private daysFromPeriod(period: string) {
     if (period === '7d') return 7;
     return 7;
   }

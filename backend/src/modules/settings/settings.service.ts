@@ -47,6 +47,7 @@ export class SettingsService {
         phone: dto.phone,
         expiredAlertDays: dto.expiredAlertDays,
         timezone: dto.timezone,
+        poPrintTemplate: dto.poPrintTemplate,
       },
     });
 
@@ -91,6 +92,7 @@ export class SettingsService {
       expiredAlertDays: settings.expiredAlertDays,
       timezone: settings.timezone,
       currency: settings.currency,
+      poPrintTemplate: settings.poPrintTemplate,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
     };

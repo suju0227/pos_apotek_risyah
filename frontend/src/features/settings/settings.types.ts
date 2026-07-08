@@ -6,6 +6,7 @@ export type AppSettings = {
   expiredAlertDays: number;
   timezone: string;
   currency: string;
+  poPrintTemplate: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -16,4 +17,5 @@ export type UpdateSettingsPayload = {
   phone?: string | null;
   expiredAlertDays?: number;
   timezone?: string;
+  poPrintTemplate?: string | null;
 };

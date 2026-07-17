@@ -133,15 +133,21 @@ export class PurchaseReturnsService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        let finalPurchaseId = dto.purchaseId;
         if (dto.purchaseId) {
+          const isIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.purchaseId);
           const purchase = await tx.purchase.findFirst({
-            where: { id: dto.purchaseId, deletedAt: null },
+            where: { 
+              ...(isIdUuid ? { id: dto.purchaseId } : { purchaseNumber: dto.purchaseId }),
+              deletedAt: null 
+            },
             select: { id: true },
           });
 
           if (!purchase) {
             throw new BadRequestException('Pembelian asal tidak valid');
           }
+          finalPurchaseId = purchase.id;
         }
 
         const preparedItems = [];
@@ -183,7 +189,7 @@ export class PurchaseReturnsService {
 
         const createdReturn = await tx.purchaseReturn.create({
           data: {
-            purchaseId: dto.purchaseId,
+            purchaseId: finalPurchaseId,
             createdById: user.id,
             returnNumber: this.generateReturnNumber(),
             reason,

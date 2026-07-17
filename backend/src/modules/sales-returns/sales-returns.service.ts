@@ -147,8 +147,12 @@ export class SalesReturnsService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        const isIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.saleId);
         const sale = await tx.sale.findFirst({
-          where: { id: dto.saleId, deletedAt: null },
+          where: { 
+            ...(isIdUuid ? { id: dto.saleId } : { saleNumber: dto.saleId }),
+            deletedAt: null 
+          },
           select: { id: true, saleNumber: true },
         });
 
@@ -160,7 +164,7 @@ export class SalesReturnsService {
 
         for (const item of dto.items) {
           const allocation = await this.lockAllocation(tx, item.saleBatchAllocationId);
-          if (!allocation || allocation.saleId !== dto.saleId) {
+          if (!allocation || allocation.saleId !== sale.id) {
             throw new BadRequestException('Item retur tidak sesuai transaksi asal');
           }
 
@@ -211,7 +215,7 @@ export class SalesReturnsService {
 
         const createdReturn = await tx.salesReturn.create({
           data: {
-            saleId: dto.saleId,
+            saleId: sale.id,
             cashierId: user.id,
             returnNumber: this.generateReturnNumber(),
             reason,

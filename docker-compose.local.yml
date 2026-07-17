@@ -16,6 +16,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    ports:
+      - "5432:5432"
     networks:
       - pos_apotek_network
 
@@ -52,6 +54,7 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      # - "443:443" # Uncomment if enabling HTTPS in frontend/nginx.conf
     depends_on:
       - backend
     networks:
@@ -69,6 +72,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    ports:
+      - "6379:6379"
     networks:
       - pos_apotek_network
     command: redis-server --appendonly yes

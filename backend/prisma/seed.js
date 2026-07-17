@@ -44,7 +44,7 @@ async function main() {
     where: { name: 'MANAGER' },
   });
 
-  const passwordHash = await bcrypt.hash('ChangeMe123!', 12);
+  const passwordHash = await bcrypt.hash('AdminApotek!2026', 12);
 
   await prisma.user.upsert({
     where: { username: 'manager' },

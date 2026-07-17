@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as bcrypt from 'bcryptjs';
-import ExcelJS from 'exceljs';
+import * as ExcelJS from 'exceljs';
 import request = require('supertest');
 import { AppModule } from '../../app.module';
 import { PrismaService } from '../../database/prisma.service';

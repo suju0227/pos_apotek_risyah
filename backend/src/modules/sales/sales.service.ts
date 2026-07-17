@@ -199,8 +199,12 @@ export class SalesService {
   }
 
   async findOne(id: string, user: AuthUser) {
+    const isIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     const sale = await this.prisma.sale.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        ...(isIdUuid ? { id } : { saleNumber: id }),
+        deletedAt: null,
+      },
       include: saleInclude,
     });
 
@@ -212,8 +216,12 @@ export class SalesService {
   }
 
   async returnableItems(id: string, user: AuthUser) {
+    const isIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     const sale = await this.prisma.sale.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        ...(isIdUuid ? { id } : { saleNumber: id }),
+        deletedAt: null,
+      },
       include: saleInclude,
     });
 

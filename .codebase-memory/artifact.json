@@ -1,0 +1,11 @@
+{
+    "schema_version": 2,
+    "commit": "de820a29f2056c0b0b2a01bf13d3612aad4a4e89",
+    "indexed_at": "2026-07-09T15:32:55Z",
+    "project": "D-pos_apotek_risyah",
+    "nodes": 2358,
+    "edges": 5830,
+    "original_size": 5898240,
+    "compressed_size": 578370,
+    "compression_level": 3
+}

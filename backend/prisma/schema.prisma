@@ -186,6 +186,8 @@ model ProductUnit {
   id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   productId         String    @map("product_id") @db.Uuid
   unitId            String    @map("unit_id") @db.Uuid
+  parentProductUnitId String?      @map("parent_product_unit_id") @db.Uuid
+  multiplier          Decimal?     @map("multiplier") @db.Decimal(18, 4)
   conversionToBase  Decimal   @map("conversion_to_base") @db.Decimal(18, 4)
   isDefaultSaleUnit Boolean   @default(false) @map("is_default_sale_unit")
   isSaleUnit        Boolean   @default(true) @map("is_sale_unit")
@@ -198,6 +200,8 @@ model ProductUnit {
 
   product Product @relation(fields: [productId], references: [id])
   unit    Unit    @relation(fields: [unitId], references: [id])
+  parentProductUnit   ProductUnit? @relation("ProductUnitChains", fields: [parentProductUnitId], references: [id], onDelete: Restrict)
+  childProductUnits   ProductUnit[] @relation("ProductUnitChains")
   batchUnitPrices BatchUnitPrice[]
   purchaseItems PurchaseItem[]
   purchaseOrderItems PurchaseOrderItem[]
@@ -206,6 +210,7 @@ model ProductUnit {
 
   @@index([productId], map: "idx_product_units_product_id")
   @@index([unitId], map: "idx_product_units_unit_id")
+  @@index([parentProductUnitId], map: "idx_product_units_parent_product_unit_id")
   @@map("product_units")
 }
 

@@ -27,6 +27,8 @@ import { StockModule } from './modules/stock/stock.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { UnitsModule } from './modules/units/units.module';
 import { UsersModule } from './modules/users/users.module';
+import { SearchModule } from './modules/search/search.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -59,6 +61,8 @@ import { UsersModule } from './modules/users/users.module';
     SettingsModule,
     SalesModule,
     SalesReturnsModule,
+    SearchModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

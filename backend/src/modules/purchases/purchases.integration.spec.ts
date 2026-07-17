@@ -336,7 +336,7 @@ describe('Purchases API', () => {
       grossTotal: 10000,
       discountAmount: 1000,
       netTotal: 9000,
-      hppBase: 900,
+      hppBase: 999,
     });
 
     await postManager(

@@ -183,7 +183,9 @@ export class PurchasesService {
     }
     this.ensureUniqueSellingPrices(dto.items);
 
-    const items = await this.resolveItems(dto.items, dto.purchaseOrderId);
+    const taxMode = dto.taxMode ?? 'NON_PPN';
+    const taxRatePercent = dto.taxRatePercent ?? 0;
+    const items = await this.resolveItems(dto.items, taxMode, taxRatePercent, dto.purchaseOrderId);
     const purchaseNumber = this.generatePurchaseNumber();
     const subtotal = this.roundPrecision(
       items.reduce((sum, item) => sum + item.netTotal, 0),
@@ -193,8 +195,6 @@ export class PurchasesService {
       items.reduce((sum, item) => sum + item.discountAmount, 0),
       6,
     );
-    const taxMode = dto.taxMode ?? 'NON_PPN';
-    const taxRatePercent = dto.taxRatePercent ?? 0;
     const taxAmount = this.calculateTaxAmount(subtotal, taxMode, taxRatePercent);
     const calculatedTotal = this.calculateInvoiceTotal({
       subtotal,
@@ -333,6 +333,8 @@ export class PurchasesService {
 
   private async resolveItems(
     items: PurchaseItemDto[],
+    taxMode: PurchaseTaxMode,
+    taxRatePercent: number,
     purchaseOrderId?: string,
   ) {
     const resolvedItems = [];
@@ -367,9 +369,15 @@ export class PurchasesService {
         discountValue,
       );
       const netTotal = this.roundPrecision(grossTotal - discountAmount, 6);
+      
+      let netTotalWithTax = netTotal;
+      if (taxMode === 'PPN_EXCLUDED' && taxRatePercent > 0) {
+        netTotalWithTax = this.roundPrecision(netTotal * (1 + taxRatePercent / 100), 6);
+      }
+
       const hppBase = qtyBase === 0
         ? 0
-        : this.roundPrecision(netTotal / qtyBase, 8);
+        : this.roundPrecision(netTotalWithTax / qtyBase, 8);
 
       await this.ensureSellingPricesBelongToProduct(
         item.productId,
@@ -525,13 +533,23 @@ export class PurchasesService {
     if (existingBatch) {
       const qtyBefore = Number(existingBatch.currentStockBase);
       const qtyAfter = this.roundPrecision(qtyBefore + input.qtyBase, 4);
+
+      // Weighted Average Cost (WAC) formula
+      let finalHpp = input.hppBase;
+      if (qtyBefore > 0) {
+        const existingHpp = Number(existingBatch.hppBase);
+        const totalValueBefore = qtyBefore * existingHpp;
+        const totalValueAdded = input.qtyBase * input.hppBase;
+        finalHpp = this.roundPrecision((totalValueBefore + totalValueAdded) / qtyAfter, 8);
+      }
+
       const updatedBatch = await tx.productBatch.update({
         where: { id: existingBatch.id },
         data: {
           supplierId: input.supplierId,
           expiredDate: input.expiredDate,
           currentStockBase: qtyAfter,
-          hppBase: input.hppBase,
+          hppBase: finalHpp,
           isActive: true,
         },
       });

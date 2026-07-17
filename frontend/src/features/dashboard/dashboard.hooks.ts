@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from './services/dashboard.api';
+import { apiClient } from '../../shared/api/apiClient';
 
 const realtimeDashboardQuery = {
   refetchInterval: 15_000,
@@ -92,5 +93,33 @@ export function useDashboardRecentActivities(enabled: boolean) {
     queryKey: ['dashboard', 'recent-activities', 5],
     queryFn: () => dashboardApi.recentActivities(5),
     ...realtimeDashboardQuery,
+  });
+}
+
+export function useDashboardPaymentMethods(enabled: boolean, days = 7) {
+  return useQuery({
+    enabled,
+    queryKey: ['dashboard', 'payment-methods', days],
+    queryFn: () => dashboardApi.paymentMethods(days),
+    ...realtimeDashboardQuery,
+  });
+}
+
+export interface AppNotification {
+  id: string;
+  type: 'operational' | 'stock' | 'purchase' | 'system';
+  priority: 'critical' | 'high' | 'medium' | 'info' | 'success';
+  title: string;
+  message: string;
+  createdAt: string;
+  path?: string;
+  referenceNumber?: string;
+}
+
+export function useDashboardNotifications() {
+  return useQuery<AppNotification[]>({
+    queryKey: ['dashboard', 'notifications'],
+    queryFn: () => apiClient.get<AppNotification[]>('/notifications'),
+    refetchInterval: 15_000,
   });
 }

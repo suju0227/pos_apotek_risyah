@@ -28,6 +28,7 @@ import { SettingsPage } from '../features/settings/SettingsPage';
 import { StockMutationsPage } from '../features/stock/StockMutationsPage';
 import { StockPage } from '../features/stock/StockPage';
 import { UsersPage } from '../features/users/UsersPage';
+import { ProfilePage } from '../features/profile/ProfilePage';
 import type { RoleName } from '../features/auth/auth.types';
 
 const managerOnly: RoleName[] = ['MANAGER'];
@@ -48,6 +49,10 @@ export function App() {
           }
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
+
+          {/* Profile — accessible by all authenticated roles */}
+          <Route path="/profil" element={<ProfilePage />} />
+
           <Route
             path="/dashboard"
             element={

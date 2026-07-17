@@ -173,7 +173,7 @@ export function UserProfileMenu() {
           <div className="py-2 divide-y divide-slate-50 text-xs font-semibold text-slate-700">
             <div className="py-1">
               <button
-                onClick={() => { setActiveModal('my-profile'); setIsOpen(false); }}
+                onClick={() => { navigate('/profil'); setIsOpen(false); }}
                 className="w-full flex items-center gap-2.5 px-2 py-2 hover:bg-slate-50 rounded-xl hover:text-emerald-600 transition"
               >
                 <User size={14} /> My Profile

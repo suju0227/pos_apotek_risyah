@@ -131,6 +131,86 @@ describe('Auth and RBAC API', () => {
       .expect(403);
   });
 
+  it('updates profile name and email successfully, and rejects if email is already taken', async () => {
+    const managerLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ usernameOrEmail: 'manager', password: 'ChangeMe123!' })
+      .expect(201);
+
+    const token = managerLogin.body.accessToken;
+
+    // Successful update
+    const updateResponse = await request(app.getHttpServer())
+      .patch('/api/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Manager Baru', email: 'manager-baru@risyah.local' })
+      .expect(200);
+
+    expect(updateResponse.body).toMatchObject({
+      name: 'Manager Baru',
+      email: 'manager-baru@risyah.local',
+    });
+    expect(updateResponse.body.passwordHash).toBeUndefined();
+
+    // Check conflict email
+    await request(app.getHttpServer())
+      .patch('/api/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ email: 'kasir-test@risyah.local' })
+      .expect(409); // Conflict
+
+    // Clean up/Reset manager email for subsequent runs/tests
+    await request(app.getHttpServer())
+      .patch('/api/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Manager Apotek', email: 'manager@risyah.local' })
+      .expect(200);
+  });
+
+  it('updates password successfully and prevents login with old password', async () => {
+    // We will use kasir_test for password change
+    const cashierLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ usernameOrEmail: 'kasir_test', password: 'ChangeMe123!' })
+      .expect(201);
+
+    const token = cashierLogin.body.accessToken;
+
+    // Try changing password with wrong old password
+    await request(app.getHttpServer())
+      .patch('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ oldPassword: 'wrong-old-password', newPassword: 'NewPassword123!' })
+      .expect(400);
+
+    // Try changing password with valid details
+    await request(app.getHttpServer())
+      .patch('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ oldPassword: 'ChangeMe123!', newPassword: 'NewPassword123!' })
+      .expect(200);
+
+    // Try logging in with old password (should fail)
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ usernameOrEmail: 'kasir_test', password: 'ChangeMe123!' })
+      .expect(401);
+
+    // Try logging in with new password (should succeed)
+    const newLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ usernameOrEmail: 'kasir_test', password: 'NewPassword123!' })
+      .expect(201);
+
+    // Restore original password for next test run robustness
+    const newToken = newLogin.body.accessToken;
+    await request(app.getHttpServer())
+      .patch('/api/auth/change-password')
+      .set('Authorization', `Bearer ${newToken}`)
+      .send({ oldPassword: 'NewPassword123!', newPassword: 'ChangeMe123!' })
+      .expect(200);
+  });
+
   async function seedUsers() {
     await prisma.refreshToken.deleteMany();
 
@@ -160,6 +240,7 @@ describe('Auth and RBAC API', () => {
         roleId: managerRole.id,
         passwordHash,
         isActive: true,
+        email: 'manager@risyah.local',
         deletedAt: null,
       },
       create: {
@@ -178,6 +259,7 @@ describe('Auth and RBAC API', () => {
         roleId: managerRole.id,
         passwordHash,
         isActive: false,
+        email: 'inactive@risyah.local',
         deletedAt: null,
       },
       create: {
@@ -196,6 +278,7 @@ describe('Auth and RBAC API', () => {
         roleId: cashierRole.id,
         passwordHash,
         isActive: true,
+        email: 'kasir-test@risyah.local',
         deletedAt: null,
       },
       create: {

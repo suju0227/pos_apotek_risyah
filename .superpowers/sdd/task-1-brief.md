@@ -1,29 +1,28 @@
-# Task 1 Brief: Backend Notifications Service & Controller
+# Task 1 Brief: Backend Profile Update & Change Password Endpoints
 
-**Goal:** Create Notification Center backend service, controller, and module, and register them in the main app module.
+**Goal:** Create profile update and change password endpoints on the Auth module.
 
 ## Files to Create/Modify:
-- Create: `backend/src/modules/notifications/notifications.service.ts`
-- Create: `backend/src/modules/notifications/notifications.controller.ts`
-- Create: `backend/src/modules/notifications/notifications.module.ts`
-- Modify: `backend/src/app.module.ts`
+- Create: `backend/src/modules/auth/dto/update-profile.dto.ts`
+- Create: `backend/src/modules/auth/dto/change-password.dto.ts`
+- Modify: `backend/src/modules/auth/auth.controller.ts`
+- Modify: `backend/src/modules/auth/auth.service.ts`
 
 ## Requirements:
-1.  **NotificationsService**:
-    - Query parallel DB states using Prisma:
-      - Low Stock products (`stockAvailableBase <= minStockBase`)
-      - Expiring batches (`daysUntilExpired <= 90`)
-      - Late POs (status SENT/PARTIALLY_RECEIVED and past `orderDate` + 3 days)
-      - Audit logs (logins/logouts, failed logins, price updates)
-      - Database backup warning (if backup was not done within 24h)
-    - Apply role-based filtering:
-      - KASIR: Only gets stock, and operational categories.
-      - APOTEKER: Gets stock and operational prescriptions.
-      - MANAGER / PEMILIK: Gets all categories.
-2.  **NotificationsController**:
-    - Rute: `GET /api/notifications`
-    - Security: Use `JwtAuthGuard` and `RolesGuard`.
-3.  **NotificationsModule**:
-    - Imports: `PrismaModule`
-    - Controllers: `NotificationsController`
-    - Providers: `NotificationsService`
+1.  **UpdateProfileDto**:
+    - Optional `name` (string, min length 3)
+    - Optional `email` (string, valid email format)
+2.  **ChangePasswordDto**:
+    - Required `oldPassword` (string)
+    - Required `newPassword` (string, min length 8)
+3.  **AuthService**:
+    - `updateProfile(userId, dto)`:
+      - If email is changing, verify that the new email is not already used by another active user.
+      - Update user name and email.
+      - Return safe user object.
+    - `changePassword(userId, dto)`:
+      - Compare `oldPassword` with the current hashed password in database.
+      - Hash `newPassword` and update the database.
+4.  **AuthController**:
+    - `PATCH /api/auth/profile`: JwtAuthGuard protected, calls `authService.updateProfile`
+    - `PATCH /api/auth/change-password`: JwtAuthGuard protected, calls `authService.changePassword`

@@ -40,6 +40,7 @@ import { ConnectionStatusIndicator } from '../../shared/components/ConnectionSta
 import { useConnectionStatus } from '../../shared/hooks/useConnectionStatus';
 import { GlobalSearch } from '../../features/dashboard/components/GlobalSearch';
 import { NotificationCenter } from '../../features/dashboard/components/NotificationCenter';
+import { UserProfileMenu } from '../../features/dashboard/components/UserProfileMenu';
 
 type NavItem = {
   label: string;
@@ -525,16 +526,8 @@ export function AppShell() {
               <span className="text-[10px] font-medium text-slate-500 mt-0.5">{dateString}</span>
             </div>
 
-            {/* Profile Avatar & Info */}
-            <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 text-sm font-bold text-white shadow-sm uppercase tracking-wider">
-                {user?.name?.substring(0, 2) || 'US'}
-              </div>
-              <div className="hidden flex-col text-left xl:flex">
-                <span className="text-xs font-bold text-slate-800 tracking-tight leading-none">{user?.name || 'Manager'}</span>
-                <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-1.5">{user?.role || 'MANAGER'}</span>
-              </div>
-            </div>
+            {/* Profile Menu */}
+            <UserProfileMenu />
           </div>
         </div>
 

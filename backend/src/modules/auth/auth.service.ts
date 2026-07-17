@@ -128,11 +128,25 @@ export class AuthService {
       }
     }
 
+    if (dto.phone && dto.phone !== user.phone) {
+      const existingPhone = await this.prisma.user.findFirst({
+        where: {
+          phone: dto.phone,
+          deletedAt: null,
+          id: { not: userId },
+        },
+      });
+      if (existingPhone) {
+        throw new ConflictException('Nomor HP sudah digunakan oleh user lain');
+      }
+    }
+
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: {
         name: dto.name !== undefined ? dto.name : undefined,
         email: dto.email !== undefined ? dto.email : undefined,
+        phone: dto.phone !== undefined ? dto.phone : undefined,
       },
       include: { role: true },
     });
@@ -231,6 +245,7 @@ export class AuthService {
       name: user.name,
       username: user.username,
       email: user.email,
+      phone: user.phone,
       role: user.role.name,
       isActive: user.isActive,
       lastLoginAt: user.lastLoginAt,

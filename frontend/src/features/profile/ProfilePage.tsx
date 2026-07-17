@@ -320,7 +320,7 @@ export function ProfilePage() {
               <FieldRow label="Nama Lengkap" value={user?.name} />
               <FieldRow label="Username" value={user?.username} />
               <FieldRow label="Email" value={user?.email} />
-              <FieldRow label="Nomor HP" value={null} muted />
+              <FieldRow label="Nomor HP" value={user?.phone} />
               <FieldRow label="Role" value={user?.role} />
               <FieldRow label="Cabang" value="Apotek Risyah" />
               <FieldRow
@@ -833,7 +833,13 @@ export function ProfilePage() {
                   key={item.id}
                   {...item}
                   active={activeSection === item.id}
-                  onClick={setActiveSection}
+                  onClick={(id) => {
+                    if (id === 'edit') {
+                      navigate('/profil/edit');
+                    } else {
+                      setActiveSection(id);
+                    }
+                  }}
                 />
               ))}
               <div className="pt-1 mt-1 border-t border-slate-100">

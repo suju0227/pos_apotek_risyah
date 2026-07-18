@@ -26,6 +26,7 @@ model User {
   username     String    @unique @db.VarChar(100)
   email        String?   @unique @db.VarChar(150)
   phone        String?   @unique @db.VarChar(20)
+  avatarUrl    String?   @map("avatar_url") @db.Text
   passwordHash String    @map("password_hash") @db.Text
   isActive     Boolean   @default(true) @map("is_active")
   lastLoginAt  DateTime? @map("last_login_at") @db.Timestamp(6)

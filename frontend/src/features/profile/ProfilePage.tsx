@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   User,
   Edit2,
@@ -147,11 +147,18 @@ function ToggleRow({
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function ProfilePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout, setSession } = useAuthStore();
   const refreshToken = useAuthStore((s) => s.refreshToken);
   const toast = useToastStore();
 
   const [activeSection, setActiveSection] = useState<Section>('profil');
+
+  useEffect(() => {
+    if (location.state && (location.state as any).section) {
+      setActiveSection((location.state as any).section);
+    }
+  }, [location.state]);
 
   // Edit Profile form
   const [editName, setEditName] = useState(user?.name || '');
@@ -302,8 +309,14 @@ export function ProfilePage() {
         return (
           <SectionCard title="Informasi Profil">
             <div className="flex items-center gap-5 mb-8 pb-6 border-b border-slate-100">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-2xl font-bold uppercase shadow-md">
-                {user?.name.slice(0, 2)}
+              <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-200 flex items-center justify-center text-2xl font-bold uppercase shadow-md">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold">
+                    {user?.name.slice(0, 2)}
+                  </div>
+                )}
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900">{user?.name}</h3>
@@ -820,8 +833,14 @@ export function ProfilePage() {
           <aside className="w-56 shrink-0">
             {/* Avatar mini */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-4 text-center shadow-sm">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-lg font-bold uppercase mx-auto shadow-sm">
-                {user?.name.slice(0, 2)}
+              <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-200 flex items-center justify-center text-lg font-bold uppercase mx-auto shadow-sm">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white">
+                    {user?.name.slice(0, 2)}
+                  </div>
+                )}
               </div>
               <p className="text-xs font-bold text-slate-900 mt-2 truncate">{user?.name}</p>
               <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{user?.role}</span>

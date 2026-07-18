@@ -239,6 +239,15 @@ export class AuthService {
     return createHash('sha256').update(refreshToken).digest('hex');
   }
 
+  async updateAvatar(userId: string, avatarUrl: string) {
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+      include: { role: true },
+    });
+    return this.toSafeUser(updatedUser);
+  }
+
   private toSafeUser(user: UserWithRole) {
     return {
       id: user.id,
@@ -246,6 +255,7 @@ export class AuthService {
       username: user.username,
       email: user.email,
       phone: user.phone,
+      avatarUrl: user.avatarUrl,
       role: user.role.name,
       isActive: user.isActive,
       lastLoginAt: user.lastLoginAt,

@@ -225,6 +225,8 @@ model ProductBatch {
   initialStockBase Decimal   @map("initial_stock_base") @db.Decimal(18, 4)
   currentStockBase Decimal   @map("current_stock_base") @db.Decimal(18, 4)
   hppBase          Decimal   @map("hpp_base") @db.Decimal(18, 8)
+  costModalBase      Decimal   @default(0) @map("cost_modal_base") @db.Decimal(18, 8)
+  additionalCostBase Decimal   @default(0) @map("additional_cost_base") @db.Decimal(18, 8)
   isActive         Boolean   @default(true) @map("is_active")
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)

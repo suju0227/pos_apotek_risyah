@@ -44,6 +44,18 @@ export class UpdateBatchDto {
   @IsOptional()
   hppBase?: number;
 
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  costModalBase?: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  additionalCostBase?: number;
+
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;

@@ -11,6 +11,8 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthUser } from '../../common/types/auth-user';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateProductUnitDto } from './dto/create-product-unit.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -24,28 +26,32 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get('search')
-  search(@Query('q') search?: string) {
-    return this.productsService.search(search);
+  search(@CurrentUser() user: AuthUser, @Query('q') search?: string) {
+    return this.productsService.search(user.role, search);
   }
 
   @Get()
-  findAll(@Query('search') search?: string) {
-    return this.productsService.findAll(search);
+  findAll(@CurrentUser() user: AuthUser, @Query('search') search?: string) {
+    return this.productsService.findAll(user.role, search);
   }
 
   @Post()
-  create(@Body() dto: CreateProductDto) {
-    return this.productsService.create(dto);
+  create(@Body() dto: CreateProductDto, @CurrentUser() user: AuthUser) {
+    return this.productsService.create(dto, user.role);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
-    return this.productsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProductDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.productsService.update(id, dto, user.role);
   }
 
   @Patch(':id/deactivate')
-  deactivate(@Param('id') id: string) {
-    return this.productsService.deactivate(id);
+  deactivate(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.productsService.deactivate(id, user.role);
   }
 
   @Get(':productId/units')

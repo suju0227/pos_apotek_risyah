@@ -317,7 +317,7 @@ export class SalesReturnsService {
     salesReturn: SalesReturnWithRelations,
     role: string,
   ) {
-    const isManager = role === 'MANAGER';
+    const isManager = role === 'MANAGER' || role === 'PEMILIK';
     const response = {
       id: salesReturn.id,
       saleId: salesReturn.saleId,

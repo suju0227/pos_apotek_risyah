@@ -229,7 +229,7 @@ export class SalesService {
       throw new NotFoundException('Transaksi penjualan tidak ditemukan');
     }
 
-    const isManager = user.role === 'MANAGER';
+    const isManager = user.role === 'MANAGER' || user.role === 'PEMILIK';
     const items = sale.items.flatMap((item) =>
       item.allocations
         .map((allocation) => {
@@ -680,7 +680,7 @@ export class SalesService {
   }
 
   private toSaleResponse(sale: SaleWithRelations, role: string) {
-    const isManager = role === 'MANAGER';
+    const isManager = role === 'MANAGER' || role === 'PEMILIK';
     const response = {
       id: sale.id,
       saleNumber: sale.saleNumber,

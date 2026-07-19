@@ -41,6 +41,7 @@ import { useConnectionStatus } from '../../shared/hooks/useConnectionStatus';
 import { GlobalSearch } from '../../features/dashboard/components/GlobalSearch';
 import { NotificationCenter } from '../../features/dashboard/components/NotificationCenter';
 import { UserProfileMenu } from '../../features/dashboard/components/UserProfileMenu';
+import { useSettingsStore } from '../../features/settings/settings.store';
 
 type NavItem = {
   label: string;
@@ -164,6 +165,7 @@ const navGroups: NavGroup[] = [
 ];
 
 export function AppShell() {
+  const publicSettings = useSettingsStore((state) => state.publicSettings);
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
@@ -254,7 +256,7 @@ export function AppShell() {
         <div className="flex items-center gap-3">
           <GlobalSearch />
           <ConnectionStatusIndicator status={connection.status} />
-          <div className="text-sm font-bold tracking-tight text-gradient">POS Apotek</div>
+          <div className="text-sm font-bold tracking-tight text-gradient">{publicSettings?.app?.applicationName || 'POS Apotek'}</div>
         </div>
       </header>
 
@@ -276,16 +278,24 @@ export function AppShell() {
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-800/80 px-5 bg-[#081322]">
           {collapsed ? (
             <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-[#10b981] text-white font-heading font-black text-sm tracking-tighter shadow-md">
-              AR
+              {publicSettings?.branding?.sidebarLogoPath || publicSettings?.branding?.logoPath ? (
+                <img src={publicSettings.branding.sidebarLogoPath || publicSettings.branding.logoPath} alt="Logo" className="h-6 w-6 object-contain" />
+              ) : (
+                publicSettings?.app?.shortName || 'AR'
+              )}
             </div>
           ) : (
             <div className="min-w-0 flex items-center gap-2.5">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#10b981] text-white shadow-xs">
-                <Plus size={16} className="stroke-[3]" />
+                {publicSettings?.branding?.sidebarLogoPath || publicSettings?.branding?.logoPath ? (
+                  <img src={publicSettings.branding.sidebarLogoPath || publicSettings.branding.logoPath} alt="Logo" className="h-6 w-6 object-contain" />
+                ) : (
+                  <Plus size={16} className="stroke-[3]" />
+                )}
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-bold tracking-tight text-white truncate">Apotek Risyah</div>
-                <div className="text-[10px] text-slate-400 font-medium tracking-wide">POS Apotek</div>
+                <div className="text-sm font-bold tracking-tight text-white truncate">{publicSettings?.pharmacy?.pharmacyName || 'Apotek Risyah'}</div>
+                <div className="text-[10px] text-slate-400 font-medium tracking-wide">{publicSettings?.app?.applicationName || 'POS Apotek'}</div>
               </div>
             </div>
           )}

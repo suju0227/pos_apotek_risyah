@@ -14,6 +14,15 @@ import {
   UpdateSecuritySettingDto,
 } from './dto/update-domain-settings.dto';
 
+function cleanDto<T>(dto: T): any {
+  if (!dto) return dto;
+  const cleaned = { ...dto };
+  delete (cleaned as any).id;
+  delete (cleaned as any).createdAt;
+  delete (cleaned as any).updatedAt;
+  return cleaned;
+}
+
 @Injectable()
 export class SettingsService {
   private readonly cacheKeyPublic = 'settings:public';
@@ -93,10 +102,11 @@ export class SettingsService {
 
   async updateApp(dto: UpdateAppSettingDto, user: AuthUser) {
     const current = await this.getApp();
+    const data = cleanDto(dto);
     const updated = await this.prisma.appSetting.upsert({
       where: { id: 1 },
-      update: dto,
-      create: { id: 1, ...dto },
+      update: data,
+      create: { id: 1, ...data },
     });
     await this.auditLogsService.record({
       userId: user.id,
@@ -127,10 +137,11 @@ export class SettingsService {
 
   async updateBranding(dto: UpdateBrandingSettingDto, user: AuthUser) {
     const current = await this.getBranding();
+    const data = cleanDto(dto);
     const updated = await this.prisma.brandingSetting.upsert({
       where: { id: 1 },
-      update: dto,
-      create: { id: 1, ...dto },
+      update: data,
+      create: { id: 1, ...data },
     });
     await this.auditLogsService.record({
       userId: user.id,
@@ -161,10 +172,11 @@ export class SettingsService {
 
   async updatePharmacy(dto: UpdatePharmacyProfileDto, user: AuthUser) {
     const current = await this.getPharmacy();
+    const data = cleanDto(dto);
     const updated = await this.prisma.pharmacyProfile.upsert({
       where: { id: 1 },
-      update: dto,
-      create: { id: 1, ...dto },
+      update: data,
+      create: { id: 1, ...data },
     });
     await this.auditLogsService.record({
       userId: user.id,
@@ -195,10 +207,11 @@ export class SettingsService {
 
   async updateReceipt(dto: UpdateReceiptSettingDto, user: AuthUser) {
     const current = await this.getReceipt();
+    const data = cleanDto(dto);
     const updated = await this.prisma.receiptSetting.upsert({
       where: { id: 1 },
-      update: dto,
-      create: { id: 1, ...dto },
+      update: data,
+      create: { id: 1, ...data },
     });
     await this.auditLogsService.record({
       userId: user.id,
@@ -228,10 +241,11 @@ export class SettingsService {
 
   async updateSecurity(dto: UpdateSecuritySettingDto, user: AuthUser) {
     const current = await this.getSecurity();
+    const data = cleanDto(dto);
     const updated = await this.prisma.securitySetting.upsert({
       where: { id: 1 },
-      update: dto,
-      create: { id: 1, ...dto },
+      update: data,
+      create: { id: 1, ...data },
     });
     await this.auditLogsService.record({
       userId: user.id,
@@ -264,10 +278,11 @@ export class SettingsService {
       throw new BadRequestException('Timezone wajib Asia/Makassar');
     }
     const current = await this.getLocalization();
+    const data = cleanDto(dto);
     const updated = await this.prisma.localizationSetting.upsert({
       where: { id: 1 },
-      update: dto,
-      create: { id: 1, ...dto },
+      update: data,
+      create: { id: 1, ...data },
     });
     await this.auditLogsService.record({
       userId: user.id,
@@ -297,10 +312,11 @@ export class SettingsService {
 
   async updatePreferences(dto: UpdatePreferenceSettingDto, user: AuthUser) {
     const current = await this.getPreferences();
+    const data = cleanDto(dto);
     const updated = await this.prisma.preferenceSetting.upsert({
       where: { id: 1 },
-      update: dto,
-      create: { id: 1, ...dto },
+      update: data,
+      create: { id: 1, ...data },
     });
     
     // Convert bigint for auditing

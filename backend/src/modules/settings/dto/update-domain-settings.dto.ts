@@ -1,6 +1,12 @@
 import { IsString, IsOptional, IsBoolean, IsInt, IsEnum, IsNumber } from 'class-validator';
 
-export class UpdateAppSettingDto {
+export class BaseUpdateDto {
+  @IsOptional() id?: any;
+  @IsOptional() createdAt?: any;
+  @IsOptional() updatedAt?: any;
+}
+
+export class UpdateAppSettingDto extends BaseUpdateDto {
   @IsOptional() @IsString() siteName?: string;
   @IsOptional() @IsString() applicationName?: string;
   @IsOptional() @IsString() shortName?: string;
@@ -11,7 +17,7 @@ export class UpdateAppSettingDto {
   @IsOptional() @IsString() footerCopyright?: string;
 }
 
-export class UpdateBrandingSettingDto {
+export class UpdateBrandingSettingDto extends BaseUpdateDto {
   @IsOptional() @IsString() logoPath?: string;
   @IsOptional() @IsString() sidebarLogoPath?: string;
   @IsOptional() @IsString() faviconPath?: string;
@@ -26,7 +32,7 @@ export class UpdateBrandingSettingDto {
   @IsOptional() @IsString() customCss?: string;
 }
 
-export class UpdatePharmacyProfileDto {
+export class UpdatePharmacyProfileDto extends BaseUpdateDto {
   @IsOptional() @IsString() pharmacyName?: string;
   @IsOptional() @IsString() ownerName?: string;
   @IsOptional() @IsString() pharmacistName?: string;
@@ -52,7 +58,7 @@ export class UpdatePharmacyProfileDto {
   @IsOptional() @IsString() invoiceFooter?: string;
 }
 
-export class UpdateReceiptSettingDto {
+export class UpdateReceiptSettingDto extends BaseUpdateDto {
   @IsOptional() @IsEnum(['58mm', '80mm']) paperWidth?: string;
   @IsOptional() @IsInt() fontSize?: number;
   @IsOptional() @IsBoolean() showLogo?: boolean;
@@ -66,7 +72,7 @@ export class UpdateReceiptSettingDto {
   @IsOptional() @IsBoolean() autoNumbering?: boolean;
 }
 
-export class UpdateSecuritySettingDto {
+export class UpdateSecuritySettingDto extends BaseUpdateDto {
   @IsOptional() @IsInt() sessionTimeout?: number;
   @IsOptional() @IsInt() minimumPasswordLength?: number;
   @IsOptional() @IsInt() passwordExpiration?: number;
@@ -75,7 +81,7 @@ export class UpdateSecuritySettingDto {
   @IsOptional() @IsInt() auditRetentionDays?: number;
 }
 
-export class UpdateLocalizationSettingDto {
+export class UpdateLocalizationSettingDto extends BaseUpdateDto {
   @IsOptional() @IsString() timezone?: string;
   @IsOptional() @IsEnum(['id', 'en']) language?: string;
   @IsOptional() @IsString() currency?: string;
@@ -86,7 +92,7 @@ export class UpdateLocalizationSettingDto {
   @IsOptional() @IsNumber() defaultTax?: number;
 }
 
-export class UpdatePreferenceSettingDto {
+export class UpdatePreferenceSettingDto extends BaseUpdateDto {
   @IsOptional() @IsEnum(['LIGHT', 'DARK', 'AUTO']) defaultTheme?: string;
   @IsOptional() @IsBoolean() enableAnimation?: boolean;
   @IsOptional() @IsBoolean() enableNotification?: boolean;
@@ -102,7 +108,7 @@ export class UpdatePreferenceSettingDto {
   @IsOptional() @IsBoolean() backupEncryptionEnabled?: boolean;
 }
 
-export class UpdateGlobalSettingDto {
+export class UpdateGlobalSettingDto extends BaseUpdateDto {
   @IsString() key: string;
   @IsString() value: string;
   @IsOptional() @IsString() category?: string;

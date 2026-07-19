@@ -90,3 +90,9 @@ export function useUpdateGlobalSettings() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'global'] }),
   });
 }
+
+export function useUploadSettingImage() {
+  return useMutation({
+    mutationFn: settingsApi.uploadImage,
+  });
+}

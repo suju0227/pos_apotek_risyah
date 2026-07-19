@@ -35,4 +35,13 @@ export const settingsApi = {
   getGlobal: () => apiClient.get<GlobalSetting[]>('/settings/global'),
   updateGlobal: (key: string, data: Partial<GlobalSetting>) => apiClient.put<GlobalSetting>(`/settings/global/${key}`, sanitizePayload(data)),
   refreshCache: () => apiClient.post('/settings/cache/refresh'),
+  uploadImage: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiClient.post<{ path: string }>('/settings/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
 };

@@ -5,13 +5,14 @@ import { Input } from '../../../shared/components/Input';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
 import { ErrorState } from '../../../shared/components/ErrorState';
 import { useToastStore } from '../../../shared/components/toast.store';
-import { useBrandingSettings, useUpdateBrandingSettings } from '../settings.hooks';
+import { useBrandingSettings, useUpdateBrandingSettings, useUploadSettingImage } from '../settings.hooks';
 import type { BrandingSettings } from '../settings.types';
 import { useSettingsStore } from '../settings.store';
 
 export function BrandingTab() {
   const { data, isLoading, error } = useBrandingSettings();
   const updateSettings = useUpdateBrandingSettings();
+  const uploadImage = useUploadSettingImage();
   const showToast = useToastStore((state) => state.show);
   const reloadPublic = useSettingsStore(state => state.load);
 
@@ -24,6 +25,18 @@ export function BrandingTab() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: keyof BrandingSettings) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const res = await uploadImage.mutateAsync(file);
+      setForm(prev => ({ ...prev, [fieldName]: res.path }));
+      showToast('Gambar berhasil di-upload.');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Gagal meng-upload gambar.');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,25 +59,72 @@ export function BrandingTab() {
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Logo & Gambar</h2>
         <div className="grid gap-6 lg:grid-cols-2">
           <div>
-            <Input label="Logo Path" name="logoPath" value={form.logoPath ?? ''} onChange={handleChange} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Logo Path</label>
+            <div className="flex gap-2 items-end">
+              <Input className="flex-1" label="" name="logoPath" value={form.logoPath ?? ''} onChange={handleChange} />
+              <label className="flex h-10 items-center justify-center px-4 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 cursor-pointer transition select-none active:scale-95 shrink-0">
+                {uploadImage.isPending ? 'Uploading...' : 'Upload'}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'logoPath')} disabled={uploadImage.isPending} />
+              </label>
+            </div>
             {form.logoPath && <img src={form.logoPath} alt="Logo" className="mt-2 h-12 object-contain border p-1 rounded" />}
           </div>
+          
           <div>
-            <Input label="Favicon Path" name="faviconPath" value={form.faviconPath ?? ''} onChange={handleChange} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Favicon Path</label>
+            <div className="flex gap-2 items-end">
+              <Input className="flex-1" label="" name="faviconPath" value={form.faviconPath ?? ''} onChange={handleChange} />
+              <label className="flex h-10 items-center justify-center px-4 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 cursor-pointer transition select-none active:scale-95 shrink-0">
+                {uploadImage.isPending ? 'Uploading...' : 'Upload'}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'faviconPath')} disabled={uploadImage.isPending} />
+              </label>
+            </div>
             {form.faviconPath && <img src={form.faviconPath} alt="Favicon" className="mt-2 h-8 w-8 object-contain border p-1 rounded" />}
           </div>
+
           <div>
-            <Input label="Sidebar Logo Path" name="sidebarLogoPath" value={form.sidebarLogoPath ?? ''} onChange={handleChange} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Sidebar Logo Path</label>
+            <div className="flex gap-2 items-end">
+              <Input className="flex-1" label="" name="sidebarLogoPath" value={form.sidebarLogoPath ?? ''} onChange={handleChange} />
+              <label className="flex h-10 items-center justify-center px-4 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 cursor-pointer transition select-none active:scale-95 shrink-0">
+                {uploadImage.isPending ? 'Uploading...' : 'Upload'}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'sidebarLogoPath')} disabled={uploadImage.isPending} />
+              </label>
+            </div>
             {form.sidebarLogoPath && <img src={form.sidebarLogoPath} alt="Sidebar Logo" className="mt-2 h-10 object-contain bg-slate-800 p-1 rounded" />}
           </div>
+
           <div>
-            <Input label="Login Background Path" name="loginBackgroundPath" value={form.loginBackgroundPath ?? ''} onChange={handleChange} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Login Background Path</label>
+            <div className="flex gap-2 items-end">
+              <Input className="flex-1" label="" name="loginBackgroundPath" value={form.loginBackgroundPath ?? ''} onChange={handleChange} />
+              <label className="flex h-10 items-center justify-center px-4 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 cursor-pointer transition select-none active:scale-95 shrink-0">
+                {uploadImage.isPending ? 'Uploading...' : 'Upload'}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'loginBackgroundPath')} disabled={uploadImage.isPending} />
+              </label>
+            </div>
           </div>
+
           <div>
-            <Input label="Login Illustration Path" name="loginIllustrationPath" value={form.loginIllustrationPath ?? ''} onChange={handleChange} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Login Illustration Path</label>
+            <div className="flex gap-2 items-end">
+              <Input className="flex-1" label="" name="loginIllustrationPath" value={form.loginIllustrationPath ?? ''} onChange={handleChange} />
+              <label className="flex h-10 items-center justify-center px-4 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 cursor-pointer transition select-none active:scale-95 shrink-0">
+                {uploadImage.isPending ? 'Uploading...' : 'Upload'}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'loginIllustrationPath')} disabled={uploadImage.isPending} />
+              </label>
+            </div>
           </div>
+
           <div>
-            <Input label="Dark Logo Path" name="darkLogoPath" value={form.darkLogoPath ?? ''} onChange={handleChange} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Dark Logo Path</label>
+            <div className="flex gap-2 items-end">
+              <Input className="flex-1" label="" name="darkLogoPath" value={form.darkLogoPath ?? ''} onChange={handleChange} />
+              <label className="flex h-10 items-center justify-center px-4 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 cursor-pointer transition select-none active:scale-95 shrink-0">
+                {uploadImage.isPending ? 'Uploading...' : 'Upload'}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'darkLogoPath')} disabled={uploadImage.isPending} />
+              </label>
+            </div>
           </div>
         </div>
       </Card>

@@ -5,12 +5,13 @@ import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
-import { useSettings, useUpdateSettings } from './settings.hooks';
-import type { UpdateSettingsPayload } from './settings.types';
+import { usePharmacyProfile, useUpdatePharmacyProfile } from './settings.hooks';
+
+type UpdateSettingsPayload = any;
 
 export function SettingsPage() {
-  const { data, isLoading, error } = useSettings();
-  const updateSettings = useUpdateSettings();
+  const { data, isLoading, error } = usePharmacyProfile();
+  const updateSettings = useUpdatePharmacyProfile();
   const showToast = useToastStore((state) => state.show);
   const [form, setForm] = useState<UpdateSettingsPayload>({
     pharmacyName: '',
@@ -26,8 +27,9 @@ export function SettingsPage() {
       pharmacyName: data.pharmacyName,
       address: data.address ?? '',
       phone: data.phone ?? '',
-      expiredAlertDays: data.expiredAlertDays,
-      timezone: data.timezone,
+      expiredAlertDays: (data as any).expiredAlertDays ?? 30,
+      timezone: (data as any).timezone ?? 'Asia/Makassar',
+      poPrintTemplate: (data as any).poPrintTemplate ?? '',
     });
   }, [data]);
 
@@ -50,7 +52,7 @@ export function SettingsPage() {
         phone: form.phone?.trim() || null,
         expiredAlertDays,
         timezone: 'Asia/Makassar',
-      });
+      } as any);
       showToast('Pengaturan berhasil disimpan.');
     } catch (err) {
       showToast((err as Error).message);
@@ -97,7 +99,7 @@ export function SettingsPage() {
             }
           />
           <Input label="Zona waktu operasional" value="Asia/Makassar" disabled />
-          <Input label="Mata uang" value={data?.currency ?? 'IDR'} disabled />
+          <Input label="Mata uang" value={(data as any)?.currency ?? 'IDR'} disabled />
         </div>
         <p className="mt-4 text-xs text-slate-500">
           Zona waktu dan mata uang dikunci untuk V1. Perubahan profil dicatat di audit log

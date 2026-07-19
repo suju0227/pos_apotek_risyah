@@ -29,7 +29,7 @@ import {
   usePrintPurchaseOrderPreview,
   usePurchaseOrders,
 } from './purchaseOrder.hooks';
-import { useSettings } from '../settings/settings.hooks';
+import { usePharmacyProfile } from '../settings/settings.hooks';
 import { defaultPoTemplate, renderTemplate } from '../../shared/utils/templateEngine';
 
 const poSchema = z.object({
@@ -102,7 +102,7 @@ export function PurchaseOrderPage() {
   const purchaseOrders = usePurchaseOrders();
   const createPo = useCreatePurchaseOrder();
   const markSent = useMarkPurchaseOrderSent();
-  const settings = useSettings();
+  const settings = usePharmacyProfile();
   const cancelPo = useCancelPurchaseOrder();
   const printPreview = usePrintPurchaseOrderPreview();
 
@@ -392,7 +392,7 @@ export function PurchaseOrderPage() {
                         </table>
                       `;
 
-                      const tpl = settings.data?.poPrintTemplate || defaultPoTemplate;
+                      const tpl = (settings.data as any)?.poPrintTemplate || defaultPoTemplate;
                       const html = renderTemplate(tpl, {
                         pharmacyName: settings.data?.pharmacyName || 'Apotek',
                         pharmacyAddress: settings.data?.address || '',

@@ -1,4 +1,3 @@
-// frontend/src/features/products/ProductFinancialSummary.tsx
 import { TrendingUp, DollarSign, Package, Percent, BarChart2 } from 'lucide-react';
 import { useAuthStore } from '../auth/auth.store';
 import { formatRupiah, formatPercent } from '../../shared/utils/formatters';

@@ -33,6 +33,25 @@ export type ProductUnit = {
   unit: Unit;
 };
 
+export type BatchFinancialSnapshot = {
+  id: string;
+  batchNumber: string;
+  expiredDate: string;
+  initialStockBase: number;
+  currentStockBase: number;
+  costModalBase: number;
+  additionalCostBase: number;
+  hppBase: number;
+  sellingPriceDefault: number;
+  sellingPriceBase: number;
+  margin: number;
+  marginPercent: number;
+  nilaiPersediaan: number;
+  potensiProfit: number;
+  isActive: boolean;
+  status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK' | 'EXPIRED';
+};
+
 export type Product = {
   id: string;
   categoryId: string;
@@ -46,6 +65,17 @@ export type Product = {
   category: Category;
   baseUnit: Unit;
   productUnits: ProductUnit[];
+  // Financial fields (0 for non-MANAGER roles, populated for MANAGER/PEMILIK)
+  hppActive: number;
+  sellingPriceActive: number;
+  marginActive: number;
+  marginPercentActive: number;
+  batchCount: number;
+  nilaiPersediaan: number;
+  potensiProfit: number;
+  hppMin: number;
+  hppMax: number;
+  batches: BatchFinancialSnapshot[];
 };
 
 export type CreateCategoryPayload = {

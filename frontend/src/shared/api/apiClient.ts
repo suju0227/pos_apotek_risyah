@@ -8,10 +8,11 @@ type RequestOptions = RequestInit & {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { skipAuth, headers, ...init } = options;
   const token = useAuthStore.getState().accessToken;
+  const isFormData = init.body instanceof FormData;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token && !skipAuth ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
@@ -47,18 +48,18 @@ export const apiClient = {
     request<T>(path, {
       ...options,
       method: 'POST',
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body instanceof FormData ? body : (body === undefined ? undefined : JSON.stringify(body)),
     }),
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, {
       ...options,
       method: 'PATCH',
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body instanceof FormData ? body : (body === undefined ? undefined : JSON.stringify(body)),
     }),
   put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, {
       ...options,
       method: 'PUT',
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body instanceof FormData ? body : (body === undefined ? undefined : JSON.stringify(body)),
     }),
 };

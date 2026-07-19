@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './layout/AppShell';
 import { ProtectedRoute } from './routes/ProtectedRoute';
@@ -31,6 +32,7 @@ import { UsersPage } from '../features/users/UsersPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import { EditProfilePage } from '../features/profile/EditProfilePage';
 import type { RoleName } from '../features/auth/auth.types';
+import { useSettingsStore } from '../features/settings/settings.store';
 
 const managerOnly: RoleName[] = ['MANAGER'];
 const dashboardRoles: RoleName[] = ['KASIR', 'APOTEKER', 'MANAGER', 'PEMILIK'];
@@ -38,6 +40,12 @@ const cashierAndManager: RoleName[] = ['KASIR', 'MANAGER'];
 const pharmacistAndManager: RoleName[] = ['APOTEKER', 'MANAGER'];
 
 export function App() {
+  const loadSettings = useSettingsStore((state) => state.load);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
   return (
     <>
       <Routes>

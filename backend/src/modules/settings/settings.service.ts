@@ -112,7 +112,6 @@ export class SettingsService {
       userId: user.id,
       action: 'SETTINGS_APP_UPDATED',
       entityType: 'APP_SETTINGS',
-      entityId: '1',
       oldValue: current as any,
       newValue: updated as any,
     });
@@ -147,7 +146,6 @@ export class SettingsService {
       userId: user.id,
       action: 'SETTINGS_BRANDING_UPDATED',
       entityType: 'BRANDING_SETTINGS',
-      entityId: '1',
       oldValue: current as any,
       newValue: updated as any,
     });
@@ -182,7 +180,6 @@ export class SettingsService {
       userId: user.id,
       action: 'SETTINGS_PHARMACY_UPDATED',
       entityType: 'PHARMACY_PROFILE',
-      entityId: '1',
       oldValue: current as any,
       newValue: updated as any,
     });
@@ -217,7 +214,6 @@ export class SettingsService {
       userId: user.id,
       action: 'SETTINGS_RECEIPT_UPDATED',
       entityType: 'RECEIPT_SETTINGS',
-      entityId: '1',
       oldValue: current as any,
       newValue: updated as any,
     });
@@ -251,7 +247,6 @@ export class SettingsService {
       userId: user.id,
       action: 'SETTINGS_SECURITY_UPDATED',
       entityType: 'SECURITY_SETTINGS',
-      entityId: '1',
       oldValue: current as any,
       newValue: updated as any,
     });
@@ -288,7 +283,6 @@ export class SettingsService {
       userId: user.id,
       action: 'SETTINGS_LOCALIZATION_UPDATED',
       entityType: 'LOCALIZATION_SETTINGS',
-      entityId: '1',
       oldValue: current as any,
       newValue: updated as any,
     });
@@ -327,7 +321,6 @@ export class SettingsService {
       userId: user.id,
       action: 'SETTINGS_PREFERENCE_UPDATED',
       entityType: 'PREFERENCE_SETTINGS',
-      entityId: '1',
       oldValue: safeOldValue,
       newValue: safeNewValue,
     });

@@ -24,9 +24,9 @@ CREATE TABLE "app_settings" (
 -- CreateTable
 CREATE TABLE "branding_settings" (
     "id" INTEGER NOT NULL DEFAULT 1,
-    "logo_path" VARCHAR(255),
-    "sidebar_logo_path" VARCHAR(255),
-    "favicon_path" VARCHAR(255),
+    "logo_path" VARCHAR(255) DEFAULT '/brand/logo.png',
+    "sidebar_logo_path" VARCHAR(255) DEFAULT '/brand/sidebar-logo.svg',
+    "favicon_path" VARCHAR(255) DEFAULT '/brand/favicon.ico',
     "login_background_path" VARCHAR(255),
     "login_illustration_path" VARCHAR(255),
     "dark_logo_path" VARCHAR(255),

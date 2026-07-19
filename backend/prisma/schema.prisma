@@ -72,9 +72,9 @@ model AppSetting {
 
 model BrandingSetting {
   id                      Int      @id @default(1)
-  logoPath                String?  @map("logo_path") @db.VarChar(255)
-  sidebarLogoPath         String?  @map("sidebar_logo_path") @db.VarChar(255)
-  faviconPath             String?  @map("favicon_path") @db.VarChar(255)
+  logoPath                String?  @default("/brand/logo.png") @map("logo_path") @db.VarChar(255)
+  sidebarLogoPath         String?  @default("/brand/sidebar-logo.svg") @map("sidebar_logo_path") @db.VarChar(255)
+  faviconPath             String?  @default("/brand/favicon.ico") @map("favicon_path") @db.VarChar(255)
   loginBackgroundPath     String?  @map("login_background_path") @db.VarChar(255)
   loginIllustrationPath   String?  @map("login_illustration_path") @db.VarChar(255)
   darkLogoPath            String?  @map("dark_logo_path") @db.VarChar(255)

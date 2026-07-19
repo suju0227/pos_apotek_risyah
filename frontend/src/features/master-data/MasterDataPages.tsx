@@ -15,18 +15,14 @@ import {
   useCategories,
   useCreateCategory,
   useCreateProduct,
-  useCreateProductUnit,
   useCreateSupplier,
   useCreateUnit,
   useDeactivateCategory,
   useDeactivateProduct,
-  useDeactivateProductUnit,
   useDeactivateSupplier,
   useDeactivateUnit,
-  useProductUnits,
   useProducts,
   useSuppliers,
-  useUpdateProductUnit,
   useUnits,
 } from './masterData.hooks';
 import type {
@@ -36,6 +32,7 @@ import type {
   Supplier,
   Unit,
 } from './masterData.types';
+import { ProductDetailPanel } from '../products/ProductDetailPanel';
 
 const optionalText = z
   .string()
@@ -70,24 +67,11 @@ const productSchema = z.object({
   minStockBase: z.coerce.number().min(0, 'Stok minimum tidak boleh negatif'),
 });
 
-const productUnitSchema = z.object({
-  unitId: z.string().min(1, 'Satuan wajib dipilih'),
-  conversionToBase: z.coerce
-    .number()
-    .min(0.0001, 'Konversi harus lebih dari 0'),
-  isDefaultSaleUnit: z.boolean(),
-  isSaleUnit: z.boolean(),
-  minSaleQty: z.coerce.number().min(0.001, 'Minimum jual harus lebih dari 0'),
-  saleUnitNote: optionalText,
-});
-
 type CategoryForm = z.infer<typeof categorySchema>;
 type SupplierForm = z.infer<typeof supplierSchema>;
 type UnitForm = z.infer<typeof unitSchema>;
 type ProductForm = z.infer<typeof productSchema>;
 type ProductFormInput = z.input<typeof productSchema>;
-type ProductUnitForm = z.infer<typeof productUnitSchema>;
-type ProductUnitFormInput = z.input<typeof productUnitSchema>;
 
 function StatusBadge({ active }: { active: boolean }) {
   return (
@@ -124,27 +108,7 @@ function FieldError({ message }: { message?: string }) {
   return <span className="mt-1 block text-xs text-red-600">{message}</span>;
 }
 
-function CheckboxField({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-      />
-      {label}
-    </label>
-  );
-}
+
 
 export function CategoriesPage() {
   const toast = useToastStore((state) => state.show);
@@ -388,12 +352,8 @@ export function ProductsPage() {
   const categories = useCategories();
   const units = useUnits();
   const products = useProducts(search);
-  const productUnits = useProductUnits(selectedProductId);
   const createProduct = useCreateProduct();
   const deactivateProduct = useDeactivateProduct();
-  const createProductUnit = useCreateProductUnit(selectedProductId);
-  const updateProductUnit = useUpdateProductUnit(selectedProductId);
-  const deactivateProductUnit = useDeactivateProductUnit(selectedProductId);
   const form = useForm<ProductFormInput, unknown, ProductForm>({
     resolver: zodResolver(productSchema),
     defaultValues: {
@@ -404,17 +364,6 @@ export function ProductsPage() {
       categoryId: '',
       baseUnitId: '',
       minStockBase: 0,
-    },
-  });
-  const productUnitForm = useForm<ProductUnitFormInput, unknown, ProductUnitForm>({
-    resolver: zodResolver(productUnitSchema),
-    defaultValues: {
-      unitId: '',
-      conversionToBase: 1,
-      isDefaultSaleUnit: false,
-      isSaleUnit: true,
-      minSaleQty: 1,
-      saleUnitNote: '',
     },
   });
 
@@ -437,19 +386,7 @@ export function ProductsPage() {
   const selectedProduct =
     products.data?.find((product) => product.id === selectedProductId) ?? null;
 
-  const onSubmitProductUnit = productUnitForm.handleSubmit(async (values) => {
-    if (!selectedProductId) return;
-    await createProductUnit.mutateAsync(values);
-    productUnitForm.reset({
-      unitId: '',
-      conversionToBase: 1,
-      isDefaultSaleUnit: false,
-      isSaleUnit: true,
-      minSaleQty: 1,
-      saleUnitNote: '',
-    });
-    toast('Satuan produk berhasil ditambahkan');
-  });
+
 
   return (
     <div className="space-y-5">
@@ -593,195 +530,10 @@ export function ProductsPage() {
         />
       ) : null}
       {selectedProduct ? (
-        <Card className="space-y-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-950">
-                Satuan jual {selectedProduct.name}
-              </h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Satuan dasar: {selectedProduct.baseUnit.name}. Backend tetap
-                memvalidasi satuan jual aktif saat checkout.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setSelectedProductId(null)}
-            >
-              Tutup
-            </Button>
-          </div>
-
-          <form
-            className="grid gap-4 lg:grid-cols-[1fr_1fr_1fr_1fr] xl:grid-cols-[1fr_1fr_1fr_1fr_1.3fr_auto]"
-            onSubmit={onSubmitProductUnit}
-          >
-            <Select
-              label="Satuan"
-              error={productUnitForm.formState.errors.unitId?.message}
-              {...productUnitForm.register('unitId')}
-            >
-              <option value="">Pilih satuan</option>
-              {unitOptions.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name}
-                </option>
-              ))}
-            </Select>
-            <Input
-              label="Konversi ke dasar"
-              type="number"
-              step="0.0001"
-              {...productUnitForm.register('conversionToBase')}
-              error={
-                productUnitForm.formState.errors.conversionToBase?.message
-              }
-            />
-            <Input
-              label="Minimum jual"
-              type="number"
-              step="0.001"
-              {...productUnitForm.register('minSaleQty')}
-              error={productUnitForm.formState.errors.minSaleQty?.message}
-            />
-            <div className="space-y-3 self-end pb-2">
-              <CheckboxField
-                label="Boleh dijual"
-                checked={productUnitForm.watch('isSaleUnit')}
-                onChange={(checked) =>
-                  productUnitForm.setValue('isSaleUnit', checked)
-                }
-              />
-              <CheckboxField
-                label="Default jual"
-                checked={productUnitForm.watch('isDefaultSaleUnit')}
-                onChange={(checked) =>
-                  productUnitForm.setValue('isDefaultSaleUnit', checked)
-                }
-              />
-            </div>
-            <Input
-              label="Catatan"
-              {...productUnitForm.register('saleUnitNote')}
-              placeholder="Opsional"
-            />
-            <Button className="self-end" disabled={createProductUnit.isPending}>
-              Tambah
-            </Button>
-          </form>
-          <FormError error={createProductUnit.error} />
-
-          {productUnits.isLoading ? <LoadingSkeleton rows={3} /> : null}
-          {productUnits.isError ? (
-            <ErrorState message={productUnits.error.message} />
-          ) : null}
-          {productUnits.data?.length === 0 ? (
-            <EmptyState
-              title="Satuan jual belum ada"
-              message="Tambahkan satuan produk sebelum batch dan harga jual dibuat."
-            />
-          ) : null}
-          {productUnits.data?.length ? (
-            <DataTable<ProductUnit>
-              data={productUnits.data}
-              columns={[
-                {
-                  key: 'unit',
-                  header: 'Satuan',
-                  render: (row) => row.unit.name,
-                },
-                {
-                  key: 'conversionToBase',
-                  header: 'Konversi',
-                  render: (row) => row.conversionToBase.toLocaleString('id-ID'),
-                },
-                {
-                  key: 'minSaleQty',
-                  header: 'Min jual',
-                  render: (row) => row.minSaleQty.toLocaleString('id-ID'),
-                },
-                {
-                  key: 'isSaleUnit',
-                  header: 'Boleh dijual',
-                  render: (row) => <StatusBadge active={row.isSaleUnit} />,
-                },
-                {
-                  key: 'isDefaultSaleUnit',
-                  header: 'Default',
-                  render: (row) => (
-                    <span className="text-sm font-medium text-slate-700">
-                      {row.isDefaultSaleUnit ? 'Ya' : '-'}
-                    </span>
-                  ),
-                },
-                { key: 'saleUnitNote', header: 'Catatan' },
-                {
-                  key: 'isActive',
-                  header: 'Status',
-                  render: (row) => <StatusBadge active={row.isActive} />,
-                },
-                {
-                  key: 'actions',
-                  header: 'Aksi',
-                  render: (row) => (
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        disabled={
-                          updateProductUnit.isPending ||
-                          !row.isActive ||
-                          row.isDefaultSaleUnit
-                        }
-                        onClick={async () => {
-                          await updateProductUnit.mutateAsync({
-                            productUnitId: row.id,
-                            payload: {
-                              isDefaultSaleUnit: true,
-                              isSaleUnit: true,
-                              isActive: true,
-                            },
-                          });
-                          toast('Default satuan jual diperbarui');
-                        }}
-                      >
-                        Jadikan default
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        disabled={updateProductUnit.isPending || !row.isActive}
-                        onClick={async () => {
-                          await updateProductUnit.mutateAsync({
-                            productUnitId: row.id,
-                            payload: { isSaleUnit: !row.isSaleUnit },
-                          });
-                          toast('Status satuan jual diperbarui');
-                        }}
-                      >
-                        {row.isSaleUnit ? 'Nonjual' : 'Boleh jual'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        disabled={deactivateProductUnit.isPending || !row.isActive}
-                        onClick={async () => {
-                          await deactivateProductUnit.mutateAsync(row.id);
-                          toast('Satuan produk dinonaktifkan');
-                        }}
-                      >
-                        Nonaktifkan
-                      </Button>
-                    </div>
-                  ),
-                },
-              ]}
-            />
-          ) : null}
-          <FormError error={updateProductUnit.error} />
-          <FormError error={deactivateProductUnit.error} />
-        </Card>
+        <ProductDetailPanel
+          product={selectedProduct}
+          onClose={() => setSelectedProductId(null)}
+        />
       ) : null}
     </div>
   );

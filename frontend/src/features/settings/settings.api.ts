@@ -27,6 +27,6 @@ export const settingsApi = {
   getPreferences: () => apiClient.get<PreferenceSettings>('/settings/preferences'),
   updatePreferences: (data: Partial<PreferenceSettings>) => apiClient.put<PreferenceSettings>('/settings/preferences', data),
   getGlobal: () => apiClient.get<GlobalSetting[]>('/settings/global'),
-  updateGlobal: (data: Partial<GlobalSetting>) => apiClient.put<GlobalSetting>('/settings/global', data),
+  updateGlobal: (key: string, data: Partial<GlobalSetting>) => apiClient.put<GlobalSetting>(`/settings/global/${key}`, data),
   refreshCache: () => apiClient.post('/settings/cache/refresh'),
 };

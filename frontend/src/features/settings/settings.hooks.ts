@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { settingsApi } from './settings.api';
+import type { GlobalSetting } from './settings.types';
 
 export function useAppSettings() {
   return useQuery({ queryKey: ['settings', 'app'], queryFn: settingsApi.getApp });
@@ -84,7 +85,8 @@ export function useGlobalSettings() {
 export function useUpdateGlobalSettings() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: settingsApi.updateGlobal,
+    mutationFn: ({ key, data }: { key: string; data: Partial<GlobalSetting> }) =>
+      settingsApi.updateGlobal(key, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'global'] }),
   });
 }

@@ -55,18 +55,161 @@ model User {
 }
 
 model AppSetting {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  pharmacyName     String   @default("Apotek Risyah") @map("pharmacy_name") @db.VarChar(200)
-  address          String?  @db.Text
-  phone            String?  @db.VarChar(50)
-  expiredAlertDays Int      @default(30) @map("expired_alert_days")
-  timezone         String   @default("Asia/Makassar") @db.VarChar(100)
-  currency         String   @default("IDR") @db.VarChar(20)
-  poPrintTemplate  String?  @map("po_print_template") @db.Text
+  id               Int      @id @default(1)
+  siteName         String   @default("Apotek Risyah") @map("site_name") @db.VarChar(200)
+  applicationName  String   @default("POS Apotek Risyah") @map("application_name") @db.VarChar(200)
+  shortName        String   @default("ARIS") @map("short_name") @db.VarChar(50)
+  tagline          String?  @db.VarChar(200)
+  description      String?  @db.Text
+  maintenanceMode  Boolean  @default(false) @map("maintenance_mode")
+  environment      String   @default("production") @db.VarChar(50)
+  footerCopyright  String   @default("© 2026 Apotek Risyah. All rights reserved.") @map("footer_copyright") @db.VarChar(200)
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
 
   @@map("app_settings")
+}
+
+model BrandingSetting {
+  id                      Int      @id @default(1)
+  logoPath                String?  @map("logo_path") @db.VarChar(255)
+  sidebarLogoPath         String?  @map("sidebar_logo_path") @db.VarChar(255)
+  faviconPath             String?  @map("favicon_path") @db.VarChar(255)
+  loginBackgroundPath     String?  @map("login_background_path") @db.VarChar(255)
+  loginIllustrationPath   String?  @map("login_illustration_path") @db.VarChar(255)
+  darkLogoPath            String?  @map("dark_logo_path") @db.VarChar(255)
+  lightLogoPath           String?  @map("light_logo_path") @db.VarChar(255)
+  primaryColor            String   @default("#2563eb") @map("primary_color") @db.VarChar(50)
+  secondaryColor          String   @default("#475569") @map("secondary_color") @db.VarChar(50)
+  accentColor             String   @default("#3b82f6") @map("accent_color") @db.VarChar(50)
+  theme                   String   @default("LIGHT") @db.VarChar(20)
+  customCss               String?  @map("custom_css") @db.Text
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("branding_settings")
+}
+
+model PharmacyProfile {
+  id                 Int      @id @default(1)
+  pharmacyName       String   @default("Apotek Risyah") @map("pharmacy_name") @db.VarChar(200)
+  ownerName          String?  @map("owner_name") @db.VarChar(200)
+  pharmacistName     String?  @map("pharmacist_name") @db.VarChar(200)
+  sia                String?  @map("sia") @db.VarChar(100)
+  sipa               String?  @map("sipa") @db.VarChar(100)
+  operationalLicense String?  @map("operational_license") @db.VarChar(100)
+  npwp               String?  @map("npwp") @db.VarChar(100)
+  email              String?  @db.VarChar(100)
+  phone              String?  @db.VarChar(50)
+  whatsapp           String?  @db.VarChar(50)
+  website            String?  @db.VarChar(200)
+  address            String?  @db.Text
+  village            String?  @db.VarChar(100)
+  district           String?  @db.VarChar(100)
+  city               String?  @db.VarChar(100)
+  province           String?  @db.VarChar(100)
+  postalCode         String?  @map("postal_code") @db.VarChar(20)
+  latitude           Decimal? @db.Decimal(10, 8)
+  longitude          Decimal? @db.Decimal(10, 8)
+  googleMapsUrl      String?  @map("google_maps_url") @db.Text
+  openingHours       String?  @map("opening_hours") @db.VarChar(255)
+  receiptFooter      String?  @map("receipt_footer") @db.Text
+  invoiceFooter      String?  @map("invoice_footer") @db.Text
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("pharmacy_profile")
+}
+
+model ReceiptSetting {
+  id             Int      @id @default(1)
+  paperWidth     String   @default("80mm") @map("paper_width")
+  fontSize       Int      @default(12) @map("font_size")
+  showLogo       Boolean  @default(true) @map("show_logo")
+  showQRCode     Boolean  @default(false) @map("show_qr_code")
+  showBarcode    Boolean  @default(false) @map("show_barcode")
+  showAddress    Boolean  @default(true) @map("show_address")
+  showNPWP       Boolean  @default(false) @map("show_npwp")
+  customHeader   String?  @map("custom_header") @db.Text
+  customFooter   String?  @map("custom_footer") @db.Text
+  receiptFormat  String   @default("STANDARD") @map("receipt_format") @db.VarChar(50)
+  autoNumbering  Boolean  @default(true) @map("auto_numbering")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("receipt_settings")
+}
+
+model SecuritySetting {
+  id                    Int      @id @default(1)
+  sessionTimeout        Int      @default(30) @map("session_timeout")
+  minimumPasswordLength Int      @default(8) @map("minimum_password_length")
+  passwordExpiration    Int      @default(90) @map("password_expiration")
+  maxLoginAttempt       Int      @default(5) @map("max_login_attempt")
+  enableTwoFactor       Boolean  @default(false) @map("enable_two_factor")
+  auditRetentionDays    Int      @default(365) @map("audit_retention_days")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("security_settings")
+}
+
+model LocalizationSetting {
+  id                Int      @id @default(1)
+  timezone          String   @default("Asia/Makassar") @db.VarChar(100)
+  language          String   @default("id") @db.VarChar(10)
+  currency          String   @default("IDR") @db.VarChar(20)
+  dateFormat        String   @default("DD-MM-YYYY") @map("date_format") @db.VarChar(50)
+  timeFormat        String   @default("HH:mm:ss") @map("time_format") @db.VarChar(50)
+  decimalSeparator  String   @default(",") @map("decimal_separator") @db.VarChar(5)
+  thousandSeparator String   @default(".") @map("thousand_separator") @db.VarChar(5)
+  defaultTax        Decimal  @default(11.00) @map("default_tax") @db.Decimal(5, 2)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("localization_settings")
+}
+
+model PreferenceSetting {
+  id                       Int      @id @default(1)
+  defaultTheme             String   @default("LIGHT") @map("default_theme") @db.VarChar(20)
+  enableAnimation          Boolean  @default(true) @map("enable_animation")
+  enableNotification       Boolean  @default(true) @map("enable_notification")
+  enableSound              Boolean  @default(true) @map("enable_sound")
+  dashboardRefreshInterval Int      @default(60) @map("dashboard_refresh_interval")
+  defaultLandingPage       String   @default("/dashboard") @map("default_landing_page") @db.VarChar(100)
+  defaultRowsPerPage       Int      @default(10) @map("default_rows_per_page")
+  backupDirectory          String   @default("./backups") @map("backup_directory") @db.VarChar(255)
+  automaticBackup          Boolean  @default(false) @map("automatic_backup")
+  backupIntervalHours      Int      @default(24) @map("backup_interval_hours")
+  backupRetentionCount     Int      @default(7) @map("backup_retention_count")
+  backupCompressionEnabled Boolean  @default(true) @map("backup_compression_enabled")
+  backupEncryptionEnabled  Boolean  @default(false) @map("backup_encryption_enabled")
+  lastBackupAt             DateTime? @map("last_backup_at") @db.Timestamp(6)
+  lastRestoreAt            DateTime? @map("last_restore_at") @db.Timestamp(6)
+  backupChecksum           String?  @map("backup_checksum") @db.VarChar(256)
+  backupSize               BigInt?  @map("backup_size")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("preference_settings")
+}
+
+model GlobalSetting {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category    String   @db.VarChar(50)
+  key         String   @unique @db.VarChar(100)
+  value       String   @db.Text
+  valueType   String   @default("STRING") @map("value_type") @db.VarChar(20)
+  isPublic    Boolean  @default(false) @map("is_public")
+  isEditable  Boolean  @default(true) @map("is_editable")
+  sortOrder   Int      @default(0) @map("sort_order")
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([category])
+  @@map("global_settings")
 }
 
 model AuditLog {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -135,5 +135,13 @@ export class SettingsController {
   @Roles('MANAGER')
   updateGlobal(@Param('key') key: string, @Body() dto: UpdateGlobalSettingDto, @CurrentUser() user: AuthUser) {
     return this.settingsService.updateGlobal(key, dto, user);
+  }
+
+  @Post('cache/refresh')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('MANAGER')
+  async refreshCache() {
+    await this.settingsService.clearAllSettingsCache();
+    return { message: 'Settings cache cleared successfully' };
   }
 }

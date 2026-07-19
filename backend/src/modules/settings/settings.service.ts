@@ -79,10 +79,15 @@ export class SettingsService {
 
   // --- APP SETTING ---
   async getApp() {
+    const cacheKey = 'settings:app';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     let app = await this.prisma.appSetting.findUnique({ where: { id: 1 } });
     if (!app) {
       app = await this.prisma.appSetting.create({ data: { id: 1 } });
     }
+    await this.cacheService.set(cacheKey, app, 30 * 60);
     return app;
   }
 
@@ -101,16 +106,22 @@ export class SettingsService {
       oldValue: current as any,
       newValue: updated as any,
     });
+    await this.cacheService.del('settings:app');
     await this.cacheService.del(this.cacheKeyPublic);
     return updated;
   }
 
   // --- BRANDING SETTING ---
   async getBranding() {
+    const cacheKey = 'settings:branding';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     let branding = await this.prisma.brandingSetting.findUnique({ where: { id: 1 } });
     if (!branding) {
       branding = await this.prisma.brandingSetting.create({ data: { id: 1 } });
     }
+    await this.cacheService.set(cacheKey, branding, 30 * 60);
     return branding;
   }
 
@@ -129,16 +140,22 @@ export class SettingsService {
       oldValue: current as any,
       newValue: updated as any,
     });
+    await this.cacheService.del('settings:branding');
     await this.cacheService.del(this.cacheKeyPublic);
     return updated;
   }
 
   // --- PHARMACY PROFILE ---
   async getPharmacy() {
+    const cacheKey = 'settings:pharmacy';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     let pharmacy = await this.prisma.pharmacyProfile.findUnique({ where: { id: 1 } });
     if (!pharmacy) {
       pharmacy = await this.prisma.pharmacyProfile.create({ data: { id: 1 } });
     }
+    await this.cacheService.set(cacheKey, pharmacy, 30 * 60);
     return pharmacy;
   }
 
@@ -157,16 +174,22 @@ export class SettingsService {
       oldValue: current as any,
       newValue: updated as any,
     });
+    await this.cacheService.del('settings:pharmacy');
     await this.cacheService.del(this.cacheKeyPublic);
     return updated;
   }
 
   // --- RECEIPT SETTING ---
   async getReceipt() {
+    const cacheKey = 'settings:receipt';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     let receipt = await this.prisma.receiptSetting.findUnique({ where: { id: 1 } });
     if (!receipt) {
       receipt = await this.prisma.receiptSetting.create({ data: { id: 1 } });
     }
+    await this.cacheService.set(cacheKey, receipt, 30 * 60);
     return receipt;
   }
 
@@ -185,15 +208,21 @@ export class SettingsService {
       oldValue: current as any,
       newValue: updated as any,
     });
+    await this.cacheService.del('settings:receipt');
     return updated;
   }
 
   // --- SECURITY SETTING ---
   async getSecurity() {
+    const cacheKey = 'settings:security';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     let security = await this.prisma.securitySetting.findUnique({ where: { id: 1 } });
     if (!security) {
       security = await this.prisma.securitySetting.create({ data: { id: 1 } });
     }
+    await this.cacheService.set(cacheKey, security, 30 * 60);
     return security;
   }
 
@@ -212,15 +241,21 @@ export class SettingsService {
       oldValue: current as any,
       newValue: updated as any,
     });
+    await this.cacheService.del('settings:security');
     return updated;
   }
 
   // --- LOCALIZATION SETTING ---
   async getLocalization() {
+    const cacheKey = 'settings:localization';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     let localization = await this.prisma.localizationSetting.findUnique({ where: { id: 1 } });
     if (!localization) {
       localization = await this.prisma.localizationSetting.create({ data: { id: 1 } });
     }
+    await this.cacheService.set(cacheKey, localization, 30 * 60);
     return localization;
   }
 
@@ -242,15 +277,21 @@ export class SettingsService {
       oldValue: current as any,
       newValue: updated as any,
     });
+    await this.cacheService.del('settings:localization');
     return updated;
   }
 
   // --- PREFERENCE SETTING ---
   async getPreferences() {
+    const cacheKey = 'settings:preferences';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     let preference = await this.prisma.preferenceSetting.findUnique({ where: { id: 1 } });
     if (!preference) {
       preference = await this.prisma.preferenceSetting.create({ data: { id: 1 } });
     }
+    await this.cacheService.set(cacheKey, preference, 30 * 60);
     return preference;
   }
 
@@ -274,14 +315,21 @@ export class SettingsService {
       oldValue: safeOldValue,
       newValue: safeNewValue,
     });
+    await this.cacheService.del('settings:preferences');
     return updated;
   }
 
   // --- GLOBAL SETTING ---
   async getGlobal() {
-    return this.prisma.globalSetting.findMany({
+    const cacheKey = 'settings:global';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
+    const data = await this.prisma.globalSetting.findMany({
       orderBy: { sortOrder: 'asc' },
     });
+    await this.cacheService.set(cacheKey, data, 30 * 60);
+    return data;
   }
 
   async updateGlobal(key: string, dto: UpdateGlobalSettingDto, user: AuthUser) {
@@ -316,6 +364,24 @@ export class SettingsService {
       oldValue: current as any,
       newValue: updated as any,
     });
+    await this.cacheService.del('settings:global');
     return updated;
+  }
+
+  async clearAllSettingsCache() {
+    const keys = [
+      'settings:app',
+      'settings:branding',
+      'settings:pharmacy',
+      'settings:localization',
+      'settings:receipt',
+      'settings:security',
+      'settings:preferences',
+      'settings:global',
+      this.cacheKeyPublic,
+    ];
+    for (const key of keys) {
+      await this.cacheService.del(key);
+    }
   }
 }

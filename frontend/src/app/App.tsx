@@ -13,6 +13,7 @@ import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { ExportPage } from '../features/exports/ExportPage';
 import {
   CategoriesPage,
+  DosageFormsPage,
   ProductsPage,
   SuppliersPage,
   UnitsPage,
@@ -108,6 +109,14 @@ export function App() {
             element={
               <ProtectedRoute allowedRoles={managerOnly}>
                 <CategoriesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bentuk-sediaan"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <DosageFormsPage />
               </ProtectedRoute>
             }
           />

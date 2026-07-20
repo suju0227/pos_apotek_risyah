@@ -30,8 +30,9 @@ export class ProductsController {
     @CurrentUser() user: AuthUser,
     @Query('q') search?: string,
     @Query('categoryId') categoryId?: string,
+    @Query('dosageFormId') dosageFormId?: string,
   ) {
-    return this.productsService.search(user.role, search, categoryId);
+    return this.productsService.search(user.role, search, categoryId, dosageFormId);
   }
 
   @Get()
@@ -39,8 +40,9 @@ export class ProductsController {
     @CurrentUser() user: AuthUser,
     @Query('search') search?: string,
     @Query('categoryId') categoryId?: string,
+    @Query('dosageFormId') dosageFormId?: string,
   ) {
-    return this.productsService.findAll(user.role, search, categoryId);
+    return this.productsService.findAll(user.role, search, categoryId, dosageFormId);
   }
 
   @Post()

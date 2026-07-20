@@ -126,3 +126,23 @@ export type CreateProductUnitPayload = {
 export type UpdateProductUnitPayload = Partial<CreateProductUnitPayload> & {
   isActive?: boolean;
 };
+
+export type DosageForm = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  productCount: number;
+};
+
+export type CreateDosageFormPayload = {
+  code: string;
+  name: string;
+  description?: string;
+};
+
+export type UpdateDosageFormPayload = Partial<CreateDosageFormPayload> & {
+  isActive?: boolean;
+};

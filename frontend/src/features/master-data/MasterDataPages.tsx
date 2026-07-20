@@ -26,6 +26,11 @@ import {
   useProducts,
   useSuppliers,
   useUnits,
+  useDosageForms,
+  useCreateDosageForm,
+  useUpdateDosageForm,
+  useDeactivateDosageForm,
+  useDeleteDosageForm,
 } from './masterData.hooks';
 import type {
   Category,
@@ -460,15 +465,7 @@ export function UnitsPage() {
   );
 }
 
-// Temporary hardcoded options for dosage forms and storage locations (preparation fields)
-const DOSAGE_FORM_OPTIONS = [
-  { value: 'tablet', label: 'Tablet' },
-  { value: 'kapsul', label: 'Kapsul' },
-  { value: 'sirup', label: 'Sirup' },
-  { value: 'salep', label: 'Salep' },
-  { value: 'injeksi', label: 'Injeksi' },
-];
-
+// Temporary hardcoded options for storage locations (preparation fields)
 const STORAGE_LOCATION_OPTIONS = [
   { value: 'rak-a', label: 'Rak A' },
   { value: 'rak-b', label: 'Rak B' },
@@ -480,12 +477,14 @@ export function ProductsPage() {
   const toast = useToastStore((state) => state.show);
   const [search, setSearch] = useState('');
   const [filterCategoryId, setFilterCategoryId] = useState('');
+  const [filterDosageFormId, setFilterDosageFormId] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   
   const categoriesFlat = useCategories();
   const categoriesTree = useCategoriesTree();
   const units = useUnits();
-  const products = useProducts(search, filterCategoryId);
+  const dosageForms = useDosageForms();
+  const products = useProducts(search, filterCategoryId, filterDosageFormId);
   const createProduct = useCreateProduct();
   const deactivateProduct = useDeactivateProduct();
   
@@ -628,14 +627,14 @@ export function ProductsPage() {
 
           {/* Preparation Fields: Dosage Form and Storage Location */}
           <Select
-            label="Bentuk Sediaan (Persiapan)"
+            label="Bentuk Sediaan"
             error={form.formState.errors.dosageFormId?.message}
             {...form.register('dosageFormId')}
           >
             <option value="">-- Pilih Bentuk Sediaan --</option>
-            {DOSAGE_FORM_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
+            {dosageForms.data?.filter((df) => df.isActive).map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.name} ({opt.code})
               </option>
             ))}
           </Select>
@@ -660,7 +659,7 @@ export function ProductsPage() {
         <FormError error={createProduct.error} />
       </Card>
 
-      <Card className="p-4 grid gap-4 md:grid-cols-2">
+      <Card className="p-4 grid gap-4 md:grid-cols-3">
         <Input
           label="Cari produk"
           value={search}
@@ -676,6 +675,18 @@ export function ProductsPage() {
           {categoriesFlat.data?.map((cat) => (
             <option key={cat.id} value={cat.id}>
               {cat.name}
+            </option>
+          ))}
+        </Select>
+        <Select
+          label="Filter Bentuk Sediaan"
+          value={filterDosageFormId}
+          onChange={(event) => setFilterDosageFormId(event.target.value)}
+        >
+          <option value="">Semua Bentuk Sediaan</option>
+          {dosageForms.data?.map((df) => (
+            <option key={df.id} value={df.id}>
+              {df.name}
             </option>
           ))}
         </Select>
@@ -761,6 +772,163 @@ export function ProductsPage() {
         <ProductDetailPanel
           product={selectedProduct}
           onClose={() => setSelectedProductId(null)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+const dosageFormSchema = z.object({
+  code: z.string().trim().min(1, 'Kode wajib diisi'),
+  name: z.string().trim().min(1, 'Nama wajib diisi'),
+  description: optionalText,
+});
+
+export function DosageFormsPage() {
+  const toast = useToastStore((state) => state.show);
+  const [search, setSearch] = useState('');
+  
+  const dosageForms = useDosageForms();
+  const createDosageForm = useCreateDosageForm();
+  const deactivateDosageForm = useDeactivateDosageForm();
+  const deleteDosageForm = useDeleteDosageForm();
+  
+  const form = useForm({
+    resolver: zodResolver(dosageFormSchema),
+    defaultValues: { code: '', name: '', description: '' },
+  });
+
+  const onSubmit = form.handleSubmit(async (values) => {
+    try {
+      await createDosageForm.mutateAsync(values);
+      form.reset({ code: '', name: '', description: '' });
+      toast('Bentuk sediaan berhasil ditambahkan');
+    } catch (err: any) {
+      toast(err?.response?.data?.message || err?.message || 'Gagal menambahkan bentuk sediaan');
+    }
+  });
+
+  const handleDeactivate = async (id: string) => {
+    try {
+      await deactivateDosageForm.mutateAsync(id);
+      toast('Bentuk sediaan berhasil dinonaktifkan');
+    } catch (err: any) {
+      toast(err?.response?.data?.message || err?.message || 'Gagal menonaktifkan bentuk sediaan');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus bentuk sediaan ini?')) return;
+    try {
+      await deleteDosageForm.mutateAsync(id);
+      toast('Bentuk sediaan berhasil dihapus');
+    } catch (err: any) {
+      toast(err?.response?.data?.message || err?.message || 'Gagal menghapus bentuk sediaan');
+    }
+  };
+
+  const filteredData = dosageForms.data?.filter((df) => {
+    const s = search.toLowerCase();
+    return df.code.toLowerCase().includes(s) || df.name.toLowerCase().includes(s);
+  }) || [];
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Bentuk Sediaan</h1>
+          <p className="text-muted-foreground">
+            Kelola standar bentuk sediaan obat untuk penyeragaman resep dan master produk.
+          </p>
+        </div>
+      </div>
+      <Card className="p-5">
+        <form className="grid gap-4 md:grid-cols-3" onSubmit={onSubmit}>
+          <Input
+            label="Kode sediaan (misal: TAB, SIR)"
+            {...form.register('code')}
+            error={form.formState.errors.code?.message}
+          />
+          <Input
+            label="Nama bentuk sediaan"
+            {...form.register('name')}
+            error={form.formState.errors.name?.message}
+          />
+          <Input label="Deskripsi" {...form.register('description')} />
+          <div className="md:col-span-3 flex justify-end">
+            <Button disabled={createDosageForm.isPending}>
+              Tambah Bentuk Sediaan
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      <Card className="p-4">
+        <Input
+          label="Cari bentuk sediaan"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Nama atau kode bentuk sediaan"
+        />
+      </Card>
+
+      {dosageForms.isLoading ? <LoadingSkeleton rows={5} /> : null}
+      {dosageForms.isError ? <ErrorState message={dosageForms.error.message} /> : null}
+      {dosageForms.data && filteredData.length === 0 ? (
+        <EmptyState title="Bentuk sediaan tidak ditemukan" message="Coba kata kunci pencarian lain atau tambahkan baru." />
+      ) : null}
+
+      {filteredData.length ? (
+        <DataTable<any>
+          data={filteredData}
+          columns={[
+            { key: 'code', header: 'Kode' },
+            { key: 'name', header: 'Nama' },
+            { key: 'description', header: 'Deskripsi', render: (row) => row.description ?? '-' },
+            {
+              key: 'isActive',
+              header: 'Status',
+              render: (row) => (
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  row.isActive ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {row.isActive ? 'Aktif' : 'Nonaktif'}
+                </span>
+              ),
+            },
+            {
+              key: 'productCount',
+              header: 'Jumlah Produk',
+              render: (row) => `${row.productCount || 0} produk`,
+            },
+            {
+              key: 'actions',
+              header: 'Aksi',
+              render: (row) => (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={deactivateDosageForm.isPending || !row.isActive}
+                    onClick={() => handleDeactivate(row.id)}
+                  >
+                    Nonaktifkan
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    disabled={deleteDosageForm.isPending}
+                    onClick={() => handleDelete(row.id)}
+                  >
+                    Hapus
+                  </Button>
+                </div>
+              ),
+            },
+          ]}
         />
       ) : null}
     </div>

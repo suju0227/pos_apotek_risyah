@@ -112,6 +112,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Produk', path: '/produk', icon: Package, roles: ['MANAGER'] },
       { label: 'Kategori', path: '/kategori', icon: Tags, roles: ['MANAGER'] },
+      { label: 'Bentuk Sediaan', path: '/bentuk-sediaan', icon: Scroll, roles: ['MANAGER'] },
       { label: 'Satuan', path: '/satuan', icon: Scale, roles: ['MANAGER'] },
       { label: 'Supplier', path: '/supplier', icon: Truck, roles: ['MANAGER'] },
     ],
@@ -460,10 +461,14 @@ export function AppShell() {
           {collapsed ? (
             <div className="flex flex-col items-center">
               <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-xs font-bold text-white shadow-xs uppercase tracking-wider"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-xs font-bold text-white shadow-xs uppercase tracking-wider overflow-hidden"
                 title={`${user?.name} (${user?.username})`}
               >
-                {user?.name?.substring(0, 2) || 'US'}
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  user?.name?.substring(0, 2) || 'US'
+                )}
               </div>
               <Button
                 type="button"
@@ -478,8 +483,12 @@ export function AppShell() {
           ) : (
             <>
               <div className="flex items-center gap-3 mb-4 px-1.5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-xs font-bold text-white shadow-xs uppercase tracking-wider">
-                  {user?.name?.substring(0, 2) || 'US'}
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-xs font-bold text-white shadow-xs uppercase tracking-wider overflow-hidden">
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    user?.name?.substring(0, 2) || 'US'
+                  )}
                 </div>
                 <div className="flex flex-col min-w-0">
                   <div className="truncate text-xs font-bold text-white tracking-tight">{user?.name}</div>

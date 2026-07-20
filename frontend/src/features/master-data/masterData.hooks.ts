@@ -99,10 +99,10 @@ export function useDeactivateUnit() {
   });
 }
 
-export function useProducts(q: string, categoryId?: string) {
+export function useProducts(q: string, categoryId?: string, dosageFormId?: string) {
   return useQuery({
-    queryKey: ['master-data', 'products', q, categoryId],
-    queryFn: () => masterDataApi.products(q, categoryId),
+    queryKey: ['master-data', 'products', q, categoryId, dosageFormId],
+    queryFn: () => masterDataApi.products(q, categoryId, dosageFormId),
   });
 }
 
@@ -176,5 +176,49 @@ export function useDeactivateProductUnit(productId: string | null) {
         queryKey: ['master-data', 'products', productId, 'units'],
       });
     },
+  });
+}
+
+export function useDosageForms() {
+  return useQuery({
+    queryKey: ['master-data', 'dosage-forms'],
+    queryFn: masterDataApi.dosageForms,
+  });
+}
+
+export function useCreateDosageForm() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: masterDataApi.createDosageForm,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['master-data', 'dosage-forms'] }),
+  });
+}
+
+export function useUpdateDosageForm() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof masterDataApi.updateDosageForm>[1] }) =>
+      masterDataApi.updateDosageForm(id, payload),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['master-data', 'dosage-forms'] }),
+  });
+}
+
+export function useDeactivateDosageForm() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: masterDataApi.deactivateDosageForm,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['master-data', 'dosage-forms'] }),
+  });
+}
+
+export function useDeleteDosageForm() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: masterDataApi.deleteDosageForm,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['master-data', 'dosage-forms'] }),
   });
 }

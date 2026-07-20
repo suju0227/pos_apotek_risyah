@@ -13,6 +13,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ExportsModule } from './modules/exports/exports.module';
 import { HealthModule } from './modules/health/health.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { DosageFormsModule } from './modules/dosage-forms/dosage-forms.module';
 import { PrescriptionsModule } from './modules/prescriptions/prescriptions.module';
 import { ProductsModule } from './modules/products/products.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
@@ -45,6 +46,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     RolesModule,
     UsersModule,
     CategoriesModule,
+    DosageFormsModule,
     SuppliersModule,
     UnitsModule,
     ProductsModule,

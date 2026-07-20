@@ -35,6 +35,8 @@ export function ProductDetailPanel({ product, onClose }: ProductDetailPanelProps
           <p className="mt-0.5 text-xs text-slate-500">
             Kode: {product.code}
             {product.genericName ? ` · Generik: ${product.genericName}` : ''}
+            {product.dosageForm ? ` · Sediaan: ${product.dosageForm.name}` : ''}
+            {product.storageLocationId ? ` · Lokasi: ${product.storageLocationId}` : ''}
           </p>
         </div>
         <Button type="button" variant="ghost" onClick={onClose} className="self-start shrink-0">

@@ -55,11 +55,11 @@ export class ProductsService {
     private readonly cacheService: CacheService,
   ) {}
 
-  async findAll(role?: string, search?: string, categoryId?: string) {
+  async findAll(role?: string, search?: string, categoryId?: string, dosageFormId?: string) {
     let products: any[];
     // Don't cache search or filtered results
-    if (search || categoryId) {
-      products = await this.queryProducts(search, categoryId);
+    if (search || categoryId || dosageFormId) {
+      products = await this.queryProducts(search, categoryId, dosageFormId);
     } else {
       // Try to get from cache
       const cached = await this.cacheService.get<any[]>(this.cacheKey);
@@ -87,7 +87,7 @@ export class ProductsService {
     return [categoryId, ...ids, ...childIds.flat()];
   }
 
-  private async queryProducts(search?: string, categoryId?: string) {
+  private async queryProducts(search?: string, categoryId?: string, dosageFormId?: string) {
     let categoryIds: string[] | undefined;
     if (categoryId) {
       categoryIds = await this.getDescendantCategoryIds(categoryId);
@@ -97,6 +97,7 @@ export class ProductsService {
       where: {
         deletedAt: null,
         ...(categoryIds ? { categoryId: { in: categoryIds } } : {}),
+        ...(dosageFormId ? { dosageFormId } : {}),
         ...(search
           ? {
               OR: [
@@ -114,8 +115,8 @@ export class ProductsService {
     return products.map((product) => this.toProductResponse(product));
   }
 
-  search(role?: string, search?: string, categoryId?: string) {
-    return this.findAll(role, search, categoryId);
+  search(role?: string, search?: string, categoryId?: string, dosageFormId?: string) {
+    return this.findAll(role, search, categoryId, dosageFormId);
   }
 
   async create(dto: CreateProductDto, role?: string) {

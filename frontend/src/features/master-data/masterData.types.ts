@@ -1,8 +1,10 @@
 export type Category = {
   id: string;
   name: string;
+  parentId: string | null;
   description: string | null;
   isActive: boolean;
+  children?: Category[];
 };
 
 export type Supplier = {
@@ -56,6 +58,8 @@ export type Product = {
   id: string;
   categoryId: string;
   baseUnitId: string;
+  dosageFormId: string | null;
+  storageLocationId: string | null;
   code: string;
   barcode: string | null;
   name: string;
@@ -64,6 +68,8 @@ export type Product = {
   isActive: boolean;
   category: Category;
   baseUnit: Unit;
+  dosageForm?: { id: string; name: string } | null;
+  storageLocation?: { id: string; name: string } | null;
   productUnits: ProductUnit[];
   // Financial fields (0 for non-MANAGER roles, populated for MANAGER/PEMILIK)
   hppActive: number;
@@ -80,6 +86,7 @@ export type Product = {
 
 export type CreateCategoryPayload = {
   name: string;
+  parentId?: string | null;
   description?: string;
 };
 
@@ -98,6 +105,8 @@ export type CreateUnitPayload = {
 export type CreateProductPayload = {
   categoryId: string;
   baseUnitId: string;
+  dosageFormId?: string;
+  storageLocationId?: string;
   code: string;
   barcode?: string;
   name: string;

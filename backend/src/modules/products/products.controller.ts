@@ -26,13 +26,21 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get('search')
-  search(@CurrentUser() user: AuthUser, @Query('q') search?: string) {
-    return this.productsService.search(user.role, search);
+  search(
+    @CurrentUser() user: AuthUser,
+    @Query('q') search?: string,
+    @Query('categoryId') categoryId?: string,
+  ) {
+    return this.productsService.search(user.role, search, categoryId);
   }
 
   @Get()
-  findAll(@CurrentUser() user: AuthUser, @Query('search') search?: string) {
-    return this.productsService.findAll(user.role, search);
+  findAll(
+    @CurrentUser() user: AuthUser,
+    @Query('search') search?: string,
+    @Query('categoryId') categoryId?: string,
+  ) {
+    return this.productsService.findAll(user.role, search, categoryId);
   }
 
   @Post()

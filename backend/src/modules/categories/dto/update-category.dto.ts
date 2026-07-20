@@ -1,4 +1,4 @@
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class UpdateCategoryDto {
   @IsString()
@@ -13,4 +13,8 @@ export class UpdateCategoryDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsUUID()
+  @IsOptional()
+  parentId?: string | null;
 }

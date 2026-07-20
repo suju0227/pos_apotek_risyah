@@ -13,11 +13,13 @@ import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import {
   useCategories,
+  useCategoriesTree,
   useCreateCategory,
   useCreateProduct,
   useCreateSupplier,
   useCreateUnit,
   useDeactivateCategory,
+  useDeleteCategory,
   useDeactivateProduct,
   useDeactivateSupplier,
   useDeactivateUnit,
@@ -28,7 +30,6 @@ import {
 import type {
   Category,
   Product,
-  ProductUnit,
   Supplier,
   Unit,
 } from './masterData.types';
@@ -43,6 +44,7 @@ const optionalText = z
 const categorySchema = z.object({
   name: z.string().trim().min(1, 'Nama wajib diisi'),
   description: optionalText,
+  parentId: optionalText,
 });
 
 const supplierSchema = z.object({
@@ -62,16 +64,18 @@ const productSchema = z.object({
   barcode: optionalText,
   name: z.string().trim().min(1, 'Nama wajib diisi'),
   genericName: optionalText,
-  categoryId: z.string().min(1, 'Kategori wajib dipilih'),
+  parentCategoryId: z.string().min(1, 'Kategori wajib dipilih'),
+  categoryId: z.string().optional(),
   baseUnitId: z.string().min(1, 'Satuan dasar wajib dipilih'),
   minStockBase: z.coerce.number().min(0, 'Stok minimum tidak boleh negatif'),
+  dosageFormId: optionalText,
+  storageLocationId: optionalText,
 });
 
 type CategoryForm = z.infer<typeof categorySchema>;
 type SupplierForm = z.infer<typeof supplierSchema>;
 type UnitForm = z.infer<typeof unitSchema>;
 type ProductForm = z.infer<typeof productSchema>;
-type ProductFormInput = z.input<typeof productSchema>;
 
 function StatusBadge({ active }: { active: boolean }) {
   return (
@@ -103,28 +107,137 @@ function FormError({ error }: { error?: unknown }) {
   );
 }
 
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null;
-  return <span className="mt-1 block text-xs text-red-600">{message}</span>;
+// Collapsible tree item for categories
+function CategoryTreeItem({
+  node,
+  onDeactivate,
+  onDelete,
+  level = 0,
+}: {
+  node: Category;
+  onDeactivate: (id: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  level?: number;
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+  const hasChildren = node.children && node.children.length > 0;
+
+  return (
+    <div className="space-y-1">
+      <div
+        className="flex items-center justify-between rounded-lg border border-slate-200/60 bg-white p-3 hover:bg-slate-50 transition-colors shadow-xs"
+        style={{ marginLeft: `${level * 20}px` }}
+      >
+        <div className="flex items-center gap-2">
+          {hasChildren ? (
+            <button
+              type="button"
+              onClick={() => setIsOpen(!isOpen)}
+              className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              {isOpen ? '▼' : '▶'}
+            </button>
+          ) : (
+            <span className="w-5 h-5 text-slate-300 flex items-center justify-center">•</span>
+          )}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+            <span className="font-semibold text-slate-900">{node.name}</span>
+            {node.description && (
+              <span className="text-xs text-slate-500 font-normal sm:ml-2">
+                — {node.description}
+              </span>
+            )}
+          </div>
+          <span className="ml-2">
+            <StatusBadge active={node.isActive} />
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={!node.isActive}
+            onClick={() => onDeactivate(node.id)}
+          >
+            Nonaktifkan
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={() => onDelete(node.id)}
+          >
+            Hapus
+          </Button>
+        </div>
+      </div>
+      {hasChildren && isOpen && (
+        <div className="space-y-1 mt-1">
+          {node.children?.map((child) => (
+            <CategoryTreeItem
+              key={child.id}
+              node={child}
+              onDeactivate={onDeactivate}
+              onDelete={onDelete}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
-
-
 
 export function CategoriesPage() {
   const toast = useToastStore((state) => state.show);
-  const categories = useCategories();
+  const categoriesFlat = useCategories();
+  const categoriesTree = useCategoriesTree();
   const createCategory = useCreateCategory();
   const deactivateCategory = useDeactivateCategory();
-  const form = useForm<CategoryForm>({
+  const deleteCategory = useDeleteCategory();
+  const form = useForm({
     resolver: zodResolver(categorySchema),
-    defaultValues: { name: '', description: '' },
+    defaultValues: { name: '', description: '', parentId: '' },
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
-    await createCategory.mutateAsync(values);
-    form.reset({ name: '', description: '' });
-    toast('Kategori berhasil ditambahkan');
+    try {
+      const payload = {
+        name: values.name,
+        description: values.description,
+        parentId: values.parentId || null,
+      };
+      await createCategory.mutateAsync(payload);
+      form.reset({ name: '', description: '', parentId: '' });
+      toast('Kategori berhasil ditambahkan');
+    } catch (err: any) {
+      toast(err?.response?.data?.message || err?.message || 'Gagal menambahkan kategori');
+    }
   });
+
+  const handleDeactivate = async (id: string) => {
+    try {
+      await deactivateCategory.mutateAsync(id);
+      toast('Kategori berhasil dinonaktifkan');
+    } catch (err: any) {
+      toast(err?.response?.data?.message || err?.message || 'Gagal menonaktifkan kategori');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus kategori ini secara permanen?')) return;
+    try {
+      await deleteCategory.mutateAsync(id);
+      toast('Kategori berhasil dihapus');
+    } catch (err: any) {
+      toast(err?.response?.data?.message || err?.message || 'Gagal menghapus kategori');
+    }
+  };
+
+  // Only list active root categories as possible parent options (two-level UI restriction)
+  const parentOptions = categoriesFlat.data?.filter((c) => !c.parentId && c.isActive) || [];
 
   return (
     <div className="space-y-5">
@@ -133,56 +246,54 @@ export function CategoriesPage() {
         subtitle="Kelola kelompok produk untuk pencarian dan laporan."
       />
       <Card>
-        <form className="grid gap-4 md:grid-cols-[1fr_1fr_auto]" onSubmit={onSubmit}>
+        <form className="grid gap-4 md:grid-cols-3" onSubmit={onSubmit}>
           <Input
             label="Nama kategori"
             {...form.register('name')}
             error={form.formState.errors.name?.message}
           />
+          <Select
+            label="Kategori Induk (Opsional)"
+            error={form.formState.errors.parentId?.message}
+            {...form.register('parentId')}
+          >
+            <option value="">-- Kategori Utama (Root) --</option>
+            {parentOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
           <Input label="Deskripsi" {...form.register('description')} />
-          <Button className="self-end" disabled={createCategory.isPending}>
-            Tambah
-          </Button>
+          <div className="md:col-span-3 flex justify-end">
+            <Button disabled={createCategory.isPending}>
+              Tambah Kategori
+            </Button>
+          </div>
         </form>
         <FormError error={createCategory.error} />
       </Card>
-      {categories.isLoading ? <LoadingSkeleton rows={5} /> : null}
-      {categories.isError ? <ErrorState message={categories.error.message} /> : null}
-      {categories.data?.length === 0 ? (
-        <EmptyState title="Kategori kosong" message="Tambahkan kategori produk pertama." />
-      ) : null}
-      {categories.data?.length ? (
-        <DataTable<Category>
-          data={categories.data}
-          columns={[
-            { key: 'name', header: 'Nama' },
-            { key: 'description', header: 'Deskripsi' },
-            {
-              key: 'isActive',
-              header: 'Status',
-              render: (row) => <StatusBadge active={row.isActive} />,
-            },
-            {
-              key: 'actions',
-              header: 'Aksi',
-              render: (row) => (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  disabled={deactivateCategory.isPending || !row.isActive}
-                  onClick={async () => {
-                    await deactivateCategory.mutateAsync(row.id);
-                    toast('Kategori dinonaktifkan');
-                  }}
-                >
-                  Nonaktifkan
-                </Button>
-              ),
-            },
-          ]}
-        />
-      ) : null}
+      
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-slate-900">Struktur Hirarki Kategori</h2>
+        {categoriesTree.isLoading ? <LoadingSkeleton rows={5} /> : null}
+        {categoriesTree.isError ? <ErrorState message={categoriesTree.error.message} /> : null}
+        {categoriesTree.data?.length === 0 ? (
+          <EmptyState title="Kategori kosong" message="Tambahkan kategori produk pertama." />
+        ) : null}
+        {categoriesTree.data?.length ? (
+          <div className="space-y-2 max-w-4xl">
+            {categoriesTree.data.map((node) => (
+              <CategoryTreeItem
+                key={node.id}
+                node={node}
+                onDeactivate={handleDeactivate}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -207,21 +318,21 @@ export function SuppliersPage() {
     <div className="space-y-5">
       <PageHeader
         title="Supplier"
-        subtitle="Kelola pemasok untuk pembelian dan batch obat."
+        subtitle="Kelola distributor resmi obat dan alat kesehatan."
       />
       <Card>
-        <form className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" onSubmit={onSubmit}>
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
           <Input
             label="Nama supplier"
             {...form.register('name')}
             error={form.formState.errors.name?.message}
           />
           <Input label="Telepon" {...form.register('phone')} />
-          <Input label="Kontak" {...form.register('contactPerson')} />
+          <Input label="Contact Person" {...form.register('contactPerson')} />
           <Input label="Alamat" {...form.register('address')} />
-          <Button className="self-end" disabled={createSupplier.isPending}>
-            Tambah
-          </Button>
+          <div className="md:col-span-2 flex justify-end">
+            <Button disabled={createSupplier.isPending}>Tambah supplier</Button>
+          </div>
         </form>
         <FormError error={createSupplier.error} />
       </Card>
@@ -235,9 +346,13 @@ export function SuppliersPage() {
           data={suppliers.data}
           columns={[
             { key: 'name', header: 'Nama' },
-            { key: 'phone', header: 'Telepon' },
-            { key: 'contactPerson', header: 'Kontak' },
-            { key: 'address', header: 'Alamat' },
+            { key: 'phone', header: 'Telepon', render: (row) => row.phone ?? '-' },
+            {
+              key: 'contactPerson',
+              header: 'Contact Person',
+              render: (row) => row.contactPerson ?? '-',
+            },
+            { key: 'address', header: 'Alamat', render: (row) => row.address ?? '-' },
             {
               key: 'isActive',
               header: 'Status',
@@ -288,7 +403,7 @@ export function UnitsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Satuan"
-        subtitle="Kelola satuan dasar dan satuan jual produk."
+        subtitle="Kelola satuan kemasan obat seperti Box, Strip, Tablet."
       />
       <Card>
         <form className="grid gap-4 md:grid-cols-[1fr_1fr_auto]" onSubmit={onSubmit}>
@@ -307,14 +422,14 @@ export function UnitsPage() {
       {units.isLoading ? <LoadingSkeleton rows={5} /> : null}
       {units.isError ? <ErrorState message={units.error.message} /> : null}
       {units.data?.length === 0 ? (
-        <EmptyState title="Satuan kosong" message="Tambahkan satuan pertama." />
+        <EmptyState title="Satuan kosong" message="Tambahkan satuan obat pertama." />
       ) : null}
       {units.data?.length ? (
         <DataTable<Unit>
           data={units.data}
           columns={[
             { key: 'name', header: 'Nama' },
-            { key: 'symbol', header: 'Simbol' },
+            { key: 'symbol', header: 'Simbol', render: (row) => row.symbol ?? '-' },
             {
               key: 'isActive',
               header: 'Status',
@@ -326,8 +441,8 @@ export function UnitsPage() {
               render: (row) => (
                 <Button
                   type="button"
-                  variant="secondary"
                   size="sm"
+                  variant="secondary"
                   disabled={deactivateUnit.isPending || !row.isActive}
                   onClick={async () => {
                     await deactivateUnit.mutateAsync(row.id);
@@ -345,48 +460,99 @@ export function UnitsPage() {
   );
 }
 
+// Temporary hardcoded options for dosage forms and storage locations (preparation fields)
+const DOSAGE_FORM_OPTIONS = [
+  { value: 'tablet', label: 'Tablet' },
+  { value: 'kapsul', label: 'Kapsul' },
+  { value: 'sirup', label: 'Sirup' },
+  { value: 'salep', label: 'Salep' },
+  { value: 'injeksi', label: 'Injeksi' },
+];
+
+const STORAGE_LOCATION_OPTIONS = [
+  { value: 'rak-a', label: 'Rak A' },
+  { value: 'rak-b', label: 'Rak B' },
+  { value: 'lemari-pendingin', label: 'Lemari Pendingin' },
+  { value: 'etalase-depan', label: 'Etalase Depan' },
+];
+
 export function ProductsPage() {
   const toast = useToastStore((state) => state.show);
   const [search, setSearch] = useState('');
+  const [filterCategoryId, setFilterCategoryId] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const categories = useCategories();
+  
+  const categoriesFlat = useCategories();
+  const categoriesTree = useCategoriesTree();
   const units = useUnits();
-  const products = useProducts(search);
+  const products = useProducts(search, filterCategoryId);
   const createProduct = useCreateProduct();
   const deactivateProduct = useDeactivateProduct();
-  const form = useForm<ProductFormInput, unknown, ProductForm>({
+  
+  const form = useForm({
     resolver: zodResolver(productSchema),
     defaultValues: {
       code: '',
       barcode: '',
       name: '',
       genericName: '',
+      parentCategoryId: '',
       categoryId: '',
       baseUnitId: '',
       minStockBase: 0,
+      dosageFormId: '',
+      storageLocationId: '',
     },
   });
 
+  const watchParentCategoryId = form.watch('parentCategoryId');
+  const subcategories = categoriesTree.data?.find((c) => c.id === watchParentCategoryId)?.children || [];
+  const hasSubcategories = subcategories.length > 0;
+
   const onSubmit = form.handleSubmit(async (values) => {
-    await createProduct.mutateAsync(values);
-    form.reset({
-      code: '',
-      barcode: '',
-      name: '',
-      genericName: '',
-      categoryId: '',
-      baseUnitId: '',
-      minStockBase: 0,
-    });
-    toast('Produk berhasil ditambahkan');
+    if (hasSubcategories && !values.categoryId) {
+      form.setError('categoryId', { type: 'manual', message: 'Subkategori wajib dipilih' });
+      return;
+    }
+
+    const finalCategoryId = hasSubcategories ? values.categoryId! : values.parentCategoryId;
+
+    try {
+      const payload = {
+        code: values.code,
+        barcode: values.barcode,
+        name: values.name,
+        genericName: values.genericName,
+        categoryId: finalCategoryId,
+        baseUnitId: values.baseUnitId,
+        minStockBase: values.minStockBase,
+        dosageFormId: values.dosageFormId || undefined,
+        storageLocationId: values.storageLocationId || undefined,
+      };
+
+      await createProduct.mutateAsync(payload);
+      form.reset({
+        code: '',
+        barcode: '',
+        name: '',
+        genericName: '',
+        parentCategoryId: '',
+        categoryId: '',
+        baseUnitId: '',
+        minStockBase: 0,
+        dosageFormId: '',
+        storageLocationId: '',
+      });
+      toast('Produk berhasil ditambahkan');
+    } catch (err: any) {
+      toast(err?.response?.data?.message || err?.message || 'Gagal menambahkan produk');
+    }
   });
 
-  const categoryOptions = categories.data ?? [];
+  const parentCategoryOptions = categoriesTree.data?.filter((c) => c.isActive) || [];
   const unitOptions = units.data ?? [];
   const selectedProduct =
     products.data?.find((product) => product.id === selectedProductId) ?? null;
-
-
 
   return (
     <div className="space-y-5">
@@ -408,30 +574,50 @@ export function ProductsPage() {
             error={form.formState.errors.name?.message}
           />
           <Input label="Nama generik" {...form.register('genericName')} />
+          
           <Select
-            label="Kategori"
-            error={form.formState.errors.categoryId?.message}
-            {...form.register('categoryId')}
+            label="Kategori Utama"
+            error={form.formState.errors.parentCategoryId?.message}
+            {...form.register('parentCategoryId')}
           >
-            <option value="">Pilih kategori</option>
-            {categoryOptions.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
+            <option value="">Pilih kategori utama</option>
+            {parentCategoryOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
               </option>
             ))}
           </Select>
+
+          {hasSubcategories ? (
+            <Select
+              label="Subkategori"
+              error={form.formState.errors.categoryId?.message}
+              {...form.register('categoryId')}
+            >
+              <option value="">Pilih subkategori</option>
+              {subcategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          ) : (
+            <div className="hidden lg:block"></div>
+          )}
+
           <Select
             label="Satuan dasar"
             error={form.formState.errors.baseUnitId?.message}
             {...form.register('baseUnitId')}
           >
-            <option value="">Pilih satuan</option>
+            <option value="">Pilih satuan dasar</option>
             {unitOptions.map((unit) => (
               <option key={unit.id} value={unit.id}>
                 {unit.name}
               </option>
             ))}
           </Select>
+
           <Input
             label="Stok minimum"
             type="number"
@@ -439,21 +625,63 @@ export function ProductsPage() {
             {...form.register('minStockBase')}
             error={form.formState.errors.minStockBase?.message}
           />
-          <div className="flex items-end">
+
+          {/* Preparation Fields: Dosage Form and Storage Location */}
+          <Select
+            label="Bentuk Sediaan (Persiapan)"
+            error={form.formState.errors.dosageFormId?.message}
+            {...form.register('dosageFormId')}
+          >
+            <option value="">-- Pilih Bentuk Sediaan --</option>
+            {DOSAGE_FORM_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            label="Lokasi Penyimpanan (Persiapan)"
+            error={form.formState.errors.storageLocationId?.message}
+            {...form.register('storageLocationId')}
+          >
+            <option value="">-- Pilih Lokasi --</option>
+            {STORAGE_LOCATION_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
+
+          <div className="lg:col-span-3 flex justify-end">
             <Button disabled={createProduct.isPending}>Tambah produk</Button>
           </div>
         </form>
         <FormError error={createProduct.error} />
       </Card>
-      <Card className="p-4">
+
+      <Card className="p-4 grid gap-4 md:grid-cols-2">
         <Input
           label="Cari produk"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Nama, kode, atau barcode"
         />
+        <Select
+          label="Filter Kategori"
+          value={filterCategoryId}
+          onChange={(event) => setFilterCategoryId(event.target.value)}
+        >
+          <option value="">Semua Kategori</option>
+          {categoriesFlat.data?.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
+            </option>
+          ))}
+        </Select>
       </Card>
-      {products.isLoading || categories.isLoading || units.isLoading ? (
+
+      {products.isLoading || categoriesFlat.isLoading || units.isLoading ? (
         <LoadingSkeleton rows={5} />
       ) : null}
       {products.isError ? <ErrorState message={products.error.message} /> : null}
@@ -501,12 +729,12 @@ export function ProductsPage() {
               render: (row) => (
                 <div className="flex flex-row items-center gap-1.5 whitespace-nowrap">
                   <Button
-                    type="button"
-                    size="sm"
-                    variant={
-                      selectedProductId === row.id ? 'primary' : 'secondary'
-                    }
-                    onClick={() => setSelectedProductId(row.id)}
+                     type="button"
+                     size="sm"
+                     variant={
+                       selectedProductId === row.id ? 'primary' : 'secondary'
+                     }
+                     onClick={() => setSelectedProductId(row.id)}
                   >
                     Satuan jual
                   </Button>

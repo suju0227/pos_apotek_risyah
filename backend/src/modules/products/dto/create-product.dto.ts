@@ -36,4 +36,12 @@ export class CreateProductDto {
   @Min(0)
   @IsOptional()
   minStockBase?: number;
+
+  @IsUUID()
+  @IsOptional()
+  dosageFormId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  storageLocationId?: string;
 }

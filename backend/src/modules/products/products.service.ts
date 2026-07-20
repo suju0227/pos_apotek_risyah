@@ -18,6 +18,8 @@ import { UpdateProductUnitDto } from './dto/update-product-unit.dto';
 const productInclude = {
   category: true,
   baseUnit: true,
+  dosageForm: true,
+  storageLocation: true,
   productUnits: {
     where: { deletedAt: null },
     include: { unit: true },
@@ -53,11 +55,11 @@ export class ProductsService {
     private readonly cacheService: CacheService,
   ) {}
 
-  async findAll(role?: string, search?: string) {
+  async findAll(role?: string, search?: string, categoryId?: string) {
     let products: any[];
-    // Don't cache search results
-    if (search) {
-      products = await this.queryProducts(search);
+    // Don't cache search or filtered results
+    if (search || categoryId) {
+      products = await this.queryProducts(search, categoryId);
     } else {
       // Try to get from cache
       const cached = await this.cacheService.get<any[]>(this.cacheKey);
@@ -74,10 +76,27 @@ export class ProductsService {
     return products.map((product) => this.sanitizeProductResponse(product, role));
   }
 
-  private async queryProducts(search?: string) {
+  private async getDescendantCategoryIds(categoryId: string): Promise<string[]> {
+    const categories = await this.prisma.category.findMany({
+      where: { parentId: categoryId, deletedAt: null },
+      select: { id: true },
+    });
+    const ids = categories.map((c) => c.id);
+    const childIdsPromises = ids.map((id) => this.getDescendantCategoryIds(id));
+    const childIds = await Promise.all(childIdsPromises);
+    return [categoryId, ...ids, ...childIds.flat()];
+  }
+
+  private async queryProducts(search?: string, categoryId?: string) {
+    let categoryIds: string[] | undefined;
+    if (categoryId) {
+      categoryIds = await this.getDescendantCategoryIds(categoryId);
+    }
+
     const products = await this.prisma.product.findMany({
       where: {
         deletedAt: null,
+        ...(categoryIds ? { categoryId: { in: categoryIds } } : {}),
         ...(search
           ? {
               OR: [
@@ -95,13 +114,15 @@ export class ProductsService {
     return products.map((product) => this.toProductResponse(product));
   }
 
-  search(role?: string, search?: string) {
-    return this.findAll(role, search);
+  search(role?: string, search?: string, categoryId?: string) {
+    return this.findAll(role, search, categoryId);
   }
 
   async create(dto: CreateProductDto, role?: string) {
     await this.ensureCategoryActive(dto.categoryId);
     await this.ensureUnitActive(dto.baseUnitId);
+    if (dto.dosageFormId) await this.ensureDosageFormActive(dto.dosageFormId);
+    if (dto.storageLocationId) await this.ensureStorageLocationActive(dto.storageLocationId);
 
     try {
       const product = await this.prisma.product.create({
@@ -124,6 +145,8 @@ export class ProductsService {
   async update(id: string, dto: UpdateProductDto, role?: string) {
     if (dto.categoryId) await this.ensureCategoryActive(dto.categoryId);
     if (dto.baseUnitId) await this.ensureUnitActive(dto.baseUnitId);
+    if (dto.dosageFormId) await this.ensureDosageFormActive(dto.dosageFormId);
+    if (dto.storageLocationId) await this.ensureStorageLocationActive(dto.storageLocationId);
 
     try {
       const product = await this.prisma.product.update({
@@ -317,6 +340,26 @@ export class ProductsService {
 
     if (!category) {
       throw new BadRequestException('Kategori tidak valid');
+    }
+  }
+
+  private async ensureDosageFormActive(dosageFormId: string) {
+    const dosageForm = await this.prisma.dosageForm.findFirst({
+      where: { id: dosageFormId, isActive: true, deletedAt: null },
+    });
+
+    if (!dosageForm) {
+      throw new BadRequestException('Bentuk Sediaan tidak valid');
+    }
+  }
+
+  private async ensureStorageLocationActive(storageLocationId: string) {
+    const storageLocation = await this.prisma.storageLocation.findFirst({
+      where: { id: storageLocationId, isActive: true, deletedAt: null },
+    });
+
+    if (!storageLocation) {
+      throw new BadRequestException('Lokasi Penyimpanan tidak valid');
     }
   }
 

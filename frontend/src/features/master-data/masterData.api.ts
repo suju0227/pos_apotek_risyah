@@ -15,10 +15,13 @@ import type {
 
 export const masterDataApi = {
   categories: () => apiClient.get<Category[]>('/categories'),
+  categoriesTree: () => apiClient.get<Category[]>('/categories/tree'),
   createCategory: (payload: CreateCategoryPayload) =>
     apiClient.post<Category>('/categories', payload),
   deactivateCategory: (id: string) =>
     apiClient.patch<Category>(`/categories/${id}/deactivate`),
+  deleteCategory: (id: string) =>
+    apiClient.del<Category>(`/categories/${id}`),
 
   suppliers: () => apiClient.get<Supplier[]>('/suppliers'),
   createSupplier: (payload: CreateSupplierPayload) =>
@@ -32,9 +35,10 @@ export const masterDataApi = {
   deactivateUnit: (id: string) =>
     apiClient.patch<Unit>(`/units/${id}/deactivate`),
 
-  products: (q?: string) => {
+  products: (q?: string, categoryId?: string) => {
     const params = new URLSearchParams();
     if (q?.trim()) params.set('q', q.trim());
+    if (categoryId) params.set('categoryId', categoryId);
     const query = params.toString();
     return apiClient.get<Product[]>(`/products${query ? `?${query}` : ''}`);
   },

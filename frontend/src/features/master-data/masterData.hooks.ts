@@ -9,12 +9,21 @@ export function useCategories() {
   });
 }
 
+export function useCategoriesTree() {
+  return useQuery({
+    queryKey: ['master-data', 'categories-tree'],
+    queryFn: masterDataApi.categoriesTree,
+  });
+}
+
 export function useCreateCategory() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: masterDataApi.createCategory,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['master-data', 'categories'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['master-data', 'categories'] });
+      queryClient.invalidateQueries({ queryKey: ['master-data', 'categories-tree'] });
+    },
   });
 }
 
@@ -22,8 +31,21 @@ export function useDeactivateCategory() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: masterDataApi.deactivateCategory,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['master-data', 'categories'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['master-data', 'categories'] });
+      queryClient.invalidateQueries({ queryKey: ['master-data', 'categories-tree'] });
+    },
+  });
+}
+
+export function useDeleteCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: masterDataApi.deleteCategory,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['master-data', 'categories'] });
+      queryClient.invalidateQueries({ queryKey: ['master-data', 'categories-tree'] });
+    },
   });
 }
 
@@ -77,10 +99,10 @@ export function useDeactivateUnit() {
   });
 }
 
-export function useProducts(q: string) {
+export function useProducts(q: string, categoryId?: string) {
   return useQuery({
-    queryKey: ['master-data', 'products', q],
-    queryFn: () => masterDataApi.products(q),
+    queryKey: ['master-data', 'products', q, categoryId],
+    queryFn: () => masterDataApi.products(q, categoryId),
   });
 }
 

@@ -13,6 +13,7 @@ import { DiscountService } from './discount.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { IdempotencyService } from './idempotency.service';
 import { PaymentService } from './payment.service';
+import { InventoryService } from '../inventory/inventory.service';
 
 const SALE_CHECKOUT_ACTION = 'SALE_CHECKOUT';
 
@@ -86,6 +87,7 @@ export class SalesService {
     private readonly discountService: DiscountService,
     private readonly idempotencyService: IdempotencyService,
     private readonly paymentService: PaymentService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   async findCashierProducts(q?: string) {
@@ -485,41 +487,23 @@ export class SalesService {
             },
           });
 
-          for (const allocation of item.allocations) {
-            await tx.saleBatchAllocation.create({
-              data: {
-                saleItemId: createdItem.id,
-                batchId: allocation.batchId,
-                batchNumber: allocation.batchNumber,
-                expiredDate: allocation.expiredDate,
-                qtyBase: allocation.qtyBase,
-                hppBaseSnapshot: allocation.hppBaseSnapshot,
-                subtotal: allocation.subtotal,
-                discountAmount: allocation.discountAmount,
-                profitAmount: allocation.profitAmount,
-              },
-            });
-
-            await tx.productBatch.update({
-              where: { id: allocation.batchId },
-              data: { currentStockBase: allocation.qtyAfter },
-            });
-
-            await tx.stockMutation.create({
-              data: {
-                productId: item.productId,
-                batchId: allocation.batchId,
-                createdById: user.id,
-                movementType: 'OUT',
-                referenceType: 'SALE',
-                referenceId: createdSale.id,
-                qtyBefore: allocation.qtyBefore,
-                qtyChange: -allocation.qtyBase,
-                qtyAfter: allocation.qtyAfter,
-                metadata: { reason: `Penjualan ${createdSale.saleNumber}` },
-              },
-            });
-          }
+          // Panggil InventoryService untuk memproses penurangan stok FEFO, alokasi batch, dan ledger mutasi (Dual-Write ACID)
+          await this.inventoryService.commitOutboundStock(
+            item.productId,
+            item.qtyBase,
+            createdItem.id, // referenceId diisi detail ID item penjualan
+            'SALE',
+            {
+              invoiceNumber: createdSale.saleNumber,
+              cashier: user.username,
+              cashierCode: user.id.substring(0, 5),
+              unitPrice: item.sellingPrice.toString(),
+              discount: item.discountAmount.toString(),
+              saleUnitName: item.unitName,
+              conversionToBase: item.conversionSnapshot.toString(),
+            },
+            user.id,
+          );
         }
 
         const sale = await tx.sale.findUniqueOrThrow({

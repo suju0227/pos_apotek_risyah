@@ -58,6 +58,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     networks:
       - pos_apotek_network
 
@@ -73,7 +79,8 @@ services:
       - "80:80"
       # - "443:443" # Uncomment if enabling HTTPS in frontend/nginx.conf
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - pos_apotek_network
 

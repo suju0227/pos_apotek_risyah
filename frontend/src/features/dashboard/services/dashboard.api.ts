@@ -90,6 +90,10 @@ export const dashboardApi = {
         `/dashboard/recent-activities?limit=${limit}`,
       )
     ).map(mapRecentActivity),
+  paymentMethods: async (days = 7) =>
+    apiClient.get<{ method: string; count: number; total: number }[]>(
+      `/dashboard/payment-methods?days=${days}`,
+    ),
 };
 
 function mapSummary(summary: ApiDashboardSummary): DashboardSummary {

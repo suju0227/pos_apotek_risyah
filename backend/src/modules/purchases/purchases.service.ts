@@ -8,6 +8,7 @@ import { Prisma, ProductBatch, ProductUnit } from '@prisma/client';
 import { isPrismaUniqueError } from '../../common/utils/prisma-error';
 import { PrismaService } from '../../database/prisma.service';
 import { IdempotencyService } from '../sales/idempotency.service';
+import { InventoryService } from '../inventory/inventory.service';
 import {
   CreatePurchaseDto,
   PurchaseTaxMode,
@@ -53,6 +54,7 @@ export class PurchasesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly idempotencyService: IdempotencyService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   async findAll() {
@@ -233,13 +235,32 @@ export class PurchasesService {
         });
 
         for (const item of items) {
-          const batch = await this.createOrUpdateBatch(tx, {
-            productId: item.productId,
-            supplierId: dto.supplierId,
-            batchNumber: item.batchNumber,
-            expiredDate: item.expiredDate,
-            qtyBase: item.qtyBase,
-            hppBase: item.hppBase,
+          // Panggil InventoryService untuk memproses penambahan stok batch dan mutasi (Dual-Write ACID)
+          await this.inventoryService.receiveStock(
+            item.productId,
+            item.batchNumber,
+            new Date(item.expiredDate),
+            item.qtyBase,
+            item.hppBase.toString(),
+            createdPurchase.id,
+            undefined, // storageLocationId
+            {
+              purchaseNumber: createdPurchase.purchaseNumber,
+              supplier: (await tx.supplier.findUnique({ where: { id: dto.supplierId } }))?.name || 'Unknown',
+              invoice: dto.invoiceNumber || '',
+              unitCost: item.hppBase.toString(),
+            },
+            createdById,
+          );
+
+          // Ambil batchId yang di-resolve/dibuat oleh InventoryService untuk referensi purchaseItem
+          const batch = await tx.productBatch.findFirstOrThrow({
+            where: {
+              productId: item.productId,
+              batchNumber: item.batchNumber,
+              isActive: true,
+              deletedAt: null,
+            },
           });
 
           await tx.purchaseItem.create({
@@ -276,21 +297,6 @@ export class PurchasesService {
           }
 
           await this.replaceBatchPrices(tx, batch.id, item.sellingPrices);
-
-          await tx.stockMutation.create({
-            data: {
-              productId: item.productId,
-              batchId: batch.id,
-              createdById,
-              movementType: 'IN',
-              referenceType: 'PURCHASE',
-              referenceId: createdPurchase.id,
-              qtyBefore: batch.qtyBefore,
-              qtyChange: item.qtyBase,
-              qtyAfter: batch.qtyAfter,
-              metadata: { reason: `Pembelian ${createdPurchase.purchaseNumber}` },
-            },
-          });
         }
 
         if (dto.purchaseOrderId) {
@@ -509,75 +515,6 @@ export class PurchasesService {
     if (productUnits.length !== productUnitIds.length) {
       throw new BadRequestException('Harga jual berisi satuan produk yang tidak valid');
     }
-  }
-
-  private async createOrUpdateBatch(
-    tx: Prisma.TransactionClient,
-    input: {
-      productId: string;
-      supplierId: string;
-      batchNumber: string;
-      expiredDate: Date;
-      qtyBase: number;
-      hppBase: number;
-    },
-  ): Promise<ProductBatch & { qtyBefore: number; qtyAfter: number }> {
-    const existingBatch = await tx.productBatch.findFirst({
-      where: {
-        productId: input.productId,
-        batchNumber: input.batchNumber,
-        deletedAt: null,
-      },
-    });
-
-    if (existingBatch) {
-      const qtyBefore = Number(existingBatch.currentStockBase);
-      const qtyAfter = this.roundPrecision(qtyBefore + input.qtyBase, 4);
-
-      // Weighted Average Cost (WAC) formula
-      let finalHpp = input.hppBase;
-      if (qtyBefore > 0) {
-        const existingHpp = Number(existingBatch.hppBase);
-        const totalValueBefore = qtyBefore * existingHpp;
-        const totalValueAdded = input.qtyBase * input.hppBase;
-        finalHpp = this.roundPrecision((totalValueBefore + totalValueAdded) / qtyAfter, 8);
-      }
-
-      const updatedBatch = await tx.productBatch.update({
-        where: { id: existingBatch.id },
-        data: {
-          supplierId: input.supplierId,
-          expiredDate: input.expiredDate,
-          currentStockBase: qtyAfter,
-          hppBase: finalHpp,
-          isActive: true,
-        },
-      });
-
-      return {
-        ...updatedBatch,
-        qtyBefore,
-        qtyAfter,
-      };
-    }
-
-    const createdBatch = await tx.productBatch.create({
-      data: {
-        productId: input.productId,
-        supplierId: input.supplierId,
-        batchNumber: input.batchNumber,
-        expiredDate: input.expiredDate,
-        initialStockBase: input.qtyBase,
-        currentStockBase: input.qtyBase,
-        hppBase: input.hppBase,
-      },
-    });
-
-    return {
-      ...createdBatch,
-      qtyBefore: 0,
-      qtyAfter: input.qtyBase,
-    };
   }
 
   private async applyPurchaseOrderReceipt(

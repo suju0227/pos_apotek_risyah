@@ -1,4 +1,21 @@
 services:
+  zerotier:
+    image: zerotier/zerotier:latest
+    container_name: pos_apotek_zerotier
+    restart: unless-stopped
+    network_mode: host   # ZeroTier butuh akses langsung ke network stack host untuk TUN/TAP
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    devices:
+      - /dev/net/tun
+    volumes:
+      - pos_apotek_zerotier_data:/var/lib/zerotier-one
+    # Untuk join network ZeroTier, jalankan setelah container up:
+    #   docker exec pos_apotek_zerotier zerotier-cli join <NETWORK_ID>
+    # Untuk melihat status:
+    #   docker exec pos_apotek_zerotier zerotier-cli status
+
   postgres:
     image: postgres:16-alpine
     container_name: pos_apotek_postgres
@@ -97,6 +114,7 @@ services:
 volumes:
   pos_apotek_pgdata:
   pos_apotek_redis_data:
+  pos_apotek_zerotier_data:
 
 networks:
   pos_apotek_network:

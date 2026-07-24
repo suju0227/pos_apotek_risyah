@@ -31,6 +31,8 @@ import { UsersModule } from './modules/users/users.module';
 import { SearchModule } from './modules/search/search.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 
+import { InventoryModule } from './modules/inventory/inventory.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -56,6 +58,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     PurchasesModule,
     ReportsModule,
     StockModule,
+    InventoryModule,
     PrescriptionsModule,
     CounselingRecordsModule,
     DashboardModule,

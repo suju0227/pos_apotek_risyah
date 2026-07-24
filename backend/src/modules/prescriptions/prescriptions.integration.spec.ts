@@ -181,7 +181,8 @@ describe('Prescriptions and counseling API', () => {
     const mutation = await prisma.stockMutation.findFirstOrThrow({
       where: {
         referenceId: saleResponse.body.id,
-        mutationType: 'SALE_OUT',
+        movementType: 'OUT',
+        referenceType: 'SALE',
       },
     });
     expect(mutation.qtyChange.toNumber()).toBe(-2);

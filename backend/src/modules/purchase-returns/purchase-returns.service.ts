@@ -220,13 +220,13 @@ export class PurchaseReturnsService {
               productId: item.batch.productId,
               batchId: item.batch.id,
               createdById: user.id,
-              mutationType: 'PURCHASE_RETURN_OUT',
+              movementType: 'OUT',
               referenceType: 'PURCHASE_RETURN',
               referenceId: createdReturn.id,
               qtyBefore: item.qtyBefore,
               qtyChange: -item.qtyBaseReturned,
               qtyAfter: item.qtyAfter,
-              reason: `Retur pembelian ${createdReturn.returnNumber}`,
+              metadata: { reason: `Retur pembelian ${createdReturn.returnNumber}` },
             },
           });
         }

@@ -113,11 +113,12 @@ describe('Sales Returns API', () => {
     const mutation = await prisma.stockMutation.findFirstOrThrow({
       where: {
         referenceId: response.id,
-        mutationType: 'SALES_RETURN_IN',
+        movementType: 'IN',
+        referenceType: 'SALE_RETURN',
       },
     });
     expect(mutation).toMatchObject({
-      referenceType: 'SALES_RETURN',
+      referenceType: 'SALE_RETURN',
       productId: fixture.product.id,
       batchId: fixture.batch.id,
     });

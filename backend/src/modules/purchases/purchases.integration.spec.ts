@@ -90,7 +90,7 @@ describe('Purchases API', () => {
       (item: { referenceId: string }) => item.referenceId === purchase.id,
     );
     expect(mutation).toMatchObject({
-      mutationType: 'PURCHASE_IN',
+      movementType: 'IN',
       referenceType: 'PURCHASE',
       qtyBefore: 0,
       qtyChange: 20,

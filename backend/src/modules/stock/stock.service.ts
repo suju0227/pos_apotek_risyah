@@ -145,7 +145,9 @@ export class StockService {
       const createdAdjustment = await tx.stockAdjustment.create({
         data: {
           batchId,
+          productId: batch.productId,
           createdById: userId,
+          adjustmentType: difference > 0 ? 'INCREASE' : 'DECREASE',
           oldQty,
           newQty: newQtyBase,
           difference,
@@ -158,14 +160,13 @@ export class StockService {
           productId: batch.productId,
           batchId,
           createdById: userId,
-          mutationType:
-            difference > 0 ? 'STOCK_ADJUSTMENT_IN' : 'STOCK_ADJUSTMENT_OUT',
-          referenceType: 'STOCK_ADJUSTMENT',
+          movementType: difference > 0 ? 'IN' : 'OUT',
+          referenceType: 'ADJUSTMENT',
           referenceId: createdAdjustment.id,
           qtyBefore: oldQty,
           qtyChange: difference,
           qtyAfter: newQtyBase,
-          reason,
+          metadata: { reason },
         },
       });
 

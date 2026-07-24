@@ -282,13 +282,13 @@ export class PurchasesService {
               productId: item.productId,
               batchId: batch.id,
               createdById,
-              mutationType: 'PURCHASE_IN',
+              movementType: 'IN',
               referenceType: 'PURCHASE',
               referenceId: createdPurchase.id,
               qtyBefore: batch.qtyBefore,
               qtyChange: item.qtyBase,
               qtyAfter: batch.qtyAfter,
-              reason: `Pembelian ${createdPurchase.purchaseNumber}`,
+              metadata: { reason: `Pembelian ${createdPurchase.purchaseNumber}` },
             },
           });
         }

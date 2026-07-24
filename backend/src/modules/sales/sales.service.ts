@@ -510,13 +510,13 @@ export class SalesService {
                 productId: item.productId,
                 batchId: allocation.batchId,
                 createdById: user.id,
-                mutationType: 'SALE_OUT',
+                movementType: 'OUT',
                 referenceType: 'SALE',
                 referenceId: createdSale.id,
                 qtyBefore: allocation.qtyBefore,
                 qtyChange: -allocation.qtyBase,
                 qtyAfter: allocation.qtyAfter,
-                reason: `Penjualan ${createdSale.saleNumber}`,
+                metadata: { reason: `Penjualan ${createdSale.saleNumber}` },
               },
             });
           }

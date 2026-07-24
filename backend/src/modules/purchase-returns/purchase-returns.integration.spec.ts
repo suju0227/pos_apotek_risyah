@@ -81,7 +81,8 @@ describe('Purchase Returns API', () => {
     const mutation = await prisma.stockMutation.findFirstOrThrow({
       where: {
         referenceId: response.id,
-        mutationType: 'PURCHASE_RETURN_OUT',
+        movementType: 'OUT',
+        referenceType: 'PURCHASE_RETURN',
       },
     });
     expect(mutation).toMatchObject({

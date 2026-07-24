@@ -171,7 +171,7 @@ describe('Sales API', () => {
     expect(allocation.hppBaseSnapshot.toNumber()).toBe(1000);
 
     const mutation = await prisma.stockMutation.findFirstOrThrow({
-      where: { referenceId: sale.id, mutationType: 'SALE_OUT' },
+      where: { referenceId: sale.id, movementType: 'OUT', referenceType: 'SALE' },
     });
     expect(mutation).toMatchObject({
       referenceType: 'SALE',

@@ -93,12 +93,11 @@ describe('Stock API', () => {
     );
 
     expect(mutation).toMatchObject({
-      mutationType: 'STOCK_ADJUSTMENT_IN',
-      referenceType: 'STOCK_ADJUSTMENT',
+      movementType: 'IN',
+      referenceType: 'ADJUSTMENT',
       qtyBefore: 8,
       qtyChange: 7,
       qtyAfter: 15,
-      reason: 'Koreksi stok opname',
     });
   });
 

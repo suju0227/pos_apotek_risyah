@@ -259,13 +259,13 @@ export class SalesReturnsService {
               productId: item.allocation.productId,
               batchId: item.allocation.batchId,
               createdById: user.id,
-              mutationType: 'SALES_RETURN_IN',
-              referenceType: 'SALES_RETURN',
+              movementType: 'IN',
+              referenceType: 'SALE_RETURN',
               referenceId: createdReturn.id,
               qtyBefore: item.qtyBefore,
               qtyChange: item.qtyBaseReturned,
               qtyAfter: item.qtyAfter,
-              reason: `Retur ${createdReturn.returnNumber} dari ${sale.saleNumber}`,
+              metadata: { reason: `Retur ${createdReturn.returnNumber} dari ${sale.saleNumber}` },
             },
           });
         }

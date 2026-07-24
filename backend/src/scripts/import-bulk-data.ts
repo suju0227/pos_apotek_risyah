@@ -298,7 +298,9 @@ async function main() {
         const adjustment = await tx.stockAdjustment.create({
           data: {
             batchId: batch.id,
+            productId: product.id,
             createdById: managerUser.id,
+            adjustmentType: 'INCREASE',
             oldQty: 0,
             newQty: initialStock,
             difference: initialStock,
@@ -311,13 +313,13 @@ async function main() {
             productId: product.id,
             batchId: batch.id,
             createdById: managerUser.id,
-            mutationType: 'STOCK_ADJUSTMENT',
-            referenceType: 'STOCK_ADJUSTMENT',
+            movementType: 'IN',
+            referenceType: 'ADJUSTMENT',
             referenceId: adjustment.id,
             qtyBefore: 0,
             qtyChange: initialStock,
             qtyAfter: initialStock,
-            reason: 'Import massal onboarding produk'
+            metadata: { reason: 'Import massal onboarding produk' }
           }
         });
       });

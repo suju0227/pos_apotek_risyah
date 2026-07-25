@@ -2,11 +2,11 @@
 document_name: "03_SDD_SYSTEM_DESIGN_POS_APOTEK_REVISI_SINKRON"
 document_type: "Software Design Document / System Design"
 project_name: "POS Apotek"
-version: "1.2.0"
+version: "1.3.0"
 status: "Draft Revisi - Synchronized with PRD, SRS, Frontend, Backend, and UI/UX Flow"
 prepared_for: "AI Vibe Coding / Codex GPT"
 prepared_by: "Suryadi Umar"
-last_updated: "2026-06-02"
+last_updated: "2026-07-25"
 source_documents:
   - "01_PRD_POS_APOTEK.md"
   - "02_SRS_POS_APOTEK.md"
@@ -24,11 +24,12 @@ revision_focus:
   - "penambahan alur teknis manajemen user"
   - "penambahan mapping error backend ke UI"
   - "penegasan role-based UI dan backend authorization"
+  - "penambahan schema hirarki kategori parentId/sortOrder dan NotificationsModule"
 ---
 
 # SDD / System Design - POS Apotek
 
-## Versi Revisi Sinkron 1.2.0
+## Versi Revisi Sinkron 1.3.0
 
 ## 0. Status Pembaruan Dokumen
 
@@ -589,7 +590,8 @@ src/
 │   ├── reports/
 │   ├── exports/
 │   ├── settings/
-│   └── audit-logs/
+│   ├── audit-logs/
+│   └── notifications/
 │
 └── tests/
     ├── unit/
@@ -630,6 +632,31 @@ Aturan utama backend:
 | Export Module | Ekspor laporan ke Excel/PDF |
 | Settings Module | Profil apotek dan konfigurasi dasar |
 | Audit Log Module | Catatan aktivitas penting |
+| Notifications Module | Sintesis dinamis alert operasional (stok kritis, expired, PO pending, resep) dengan RBAC filtering |
+
+### 12.1 Strategi Redis Caching & Cache Invalidation Keys
+
+Untuk data master read-heavy (seperti Kategori), backend NestJS menggunakan Redis Caching dengan invalidasi otomatis:
+
+- **Key Cache Kategori Hirarki:** `categories:tree` (Menyimpan struktur pohon kategori hirarki bertingkat)
+- **Key Cache Kategori Flat:** `categories:flat` (Menyimpan daftar kategori rata)
+
+**Aturan Invalidasi Cache:**
+Setiap kali terjadi aksi penambahan (`create`), pembaruan (`update`), penonaktifan, atau penghapusan (`delete`) pada modul Kategori, `CategoriesService` wajib memicu invalidasi cache Redis:
+```typescript
+await this.cacheManager.del('categories:tree');
+await this.cacheManager.del('categories:flat');
+```
+
+### 12.2 Arsitektur `NotificationsModule`
+
+`NotificationsModule` menyediakan fitur sintetis notifikasi dinamis secara realtime tanpa menyimpan tabel notifikasi redundan di database.
+
+- **Dynamic Synthesis:** Menggabungkan alert stok kritis dari `StockService`, batch kedaluwarsa dari `BatchService`, PO pending dari `PurchaseOrderService`, dan resep siap bayar (`READY_FOR_PAYMENT`) dari `PrescriptionService`.
+- **RBAC Filtering:**
+  - Kasir: melihat notifikasi resep siap bayar dan alert stok kritis dasar.
+  - Manager/Pemilik: melihat seluruh alert operasional dan finansial (stok kritis, batch expired, PO pending).
+- **Local Client State:** Status dibaca (`read`) dan diabaikan (`dismissed`) disimpan pada local state frontend (Zustand/localStorage) untuk menjaga kesederhanaan backend.
 
 ---
 
@@ -867,18 +894,44 @@ Aturan:
 |---|---|---:|---|---|
 | id | UUID | Yes | PK | ID kategori |
 | name | VARCHAR(150) | Yes | - | Nama kategori |
+| parent_id | UUID | No | FK categories.id | Self-referencing ID kategori induk (hirarki) |
+| sort_order | INT | Yes | DEFAULT 0 | Nomor urut penataan |
 | description | TEXT | No | - | Deskripsi |
 | is_active | BOOLEAN | Yes | DEFAULT true | Status aktif |
 | created_at | TIMESTAMP | Yes | DEFAULT now | Waktu dibuat |
 | updated_at | TIMESTAMP | Yes | DEFAULT now | Waktu diubah |
 | deleted_at | TIMESTAMP | No | - | Soft delete |
 
-Partial unique index:
+Definisi Prisma Schema:
+
+```prisma
+model Category {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  parentId    String?    @map("parent_id")
+  sortOrder   Int        @default(0) @map("sort_order")
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  deletedAt   DateTime?  @map("deleted_at")
+
+  parent      Category?  @relation("CategoryToParent", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryToParent")
+  products    Product[]
+
+  @@map("categories")
+}
+```
+
+Partial unique index & FK index:
 
 ```sql
 CREATE UNIQUE INDEX uq_categories_name_active
 ON categories(name)
 WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_categories_parent_id ON categories(parent_id);
 ```
 
 ### 15.5 Tabel `suppliers`

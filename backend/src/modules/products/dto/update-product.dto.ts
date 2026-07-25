@@ -45,4 +45,12 @@ export class UpdateProductDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsUUID()
+  @IsOptional()
+  dosageFormId?: string | null;
+
+  @IsUUID()
+  @IsOptional()
+  storageLocationId?: string | null;
 }

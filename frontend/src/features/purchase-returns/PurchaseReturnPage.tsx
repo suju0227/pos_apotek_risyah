@@ -6,6 +6,7 @@ import { DataTable } from '../../shared/components/DataTable';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
+import { Select } from '../../shared/components/Select';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import { useConnectionStatus } from '../../shared/hooks/useConnectionStatus';
@@ -184,21 +185,18 @@ function PurchaseReturnItemEditor({
 
   return (
     <div className="grid gap-3 rounded-md border border-slate-200 p-3 lg:grid-cols-[1fr_160px_1fr_auto]">
-      <label className="block">
-        <span className="mb-1 block text-sm font-medium text-slate-700">Batch {index + 1}</span>
-        <select
-          className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
-          value={item.batchId}
-          onChange={(event) => onChange({ ...item, batchId: event.target.value })}
-        >
-          <option value="">Pilih batch</option>
-          {batches.map((batch) => (
-            <option key={batch.id} value={batch.id}>
-              {batch.product.name} - {batch.batchNumber} - stok {formatQty(batch.currentStockBase, batch.product.baseUnit.symbol)}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        label={`Batch ${index + 1}`}
+        value={item.batchId}
+        onChange={(event) => onChange({ ...item, batchId: event.target.value })}
+      >
+        <option value="">Pilih batch</option>
+        {batches.map((batch) => (
+          <option key={batch.id} value={batch.id}>
+            {batch.product.name} - {batch.batchNumber} - stok {formatQty(batch.currentStockBase, batch.product.baseUnit.symbol)}
+          </option>
+        ))}
+      </Select>
       <Input
         label="Qty base retur"
         type="number"

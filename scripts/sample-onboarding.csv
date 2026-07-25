@@ -1,0 +1,5 @@
+code,name,category,supplier,baseUnit,saleUnit,conversionToBase,minSaleQty,purchasePrice,sellingPrice,initialStock,batchNumber,expiredDate
+OBT001,Paracetamol 500mg,Obat Bebas,Kimia Farma,tablet,tablet,1,1,350.00,1000,500,BCH-PCT-001,2028-12-31
+OBT002,Amoxicillin 500mg,Obat Keras,Kalbe Farma,tablet,strip,10,1,12000.00,18000,100,BCH-AMX-001,2027-06-30
+OBT003,Promag Tablet,Obat Bebas,Kalbe Farma,tablet,tablet,1,1,600.00,1500,300,BCH-PMG-001,2027-09-30
+OBT004,Betadine Salep 10g,Obat Bebas Terbatas,Mundipharma,tube,tube,1,1,15000.00,22000,50,BCH-BTD-001,2028-03-31

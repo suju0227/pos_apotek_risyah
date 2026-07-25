@@ -8,8 +8,11 @@ import { DataTable } from '../../shared/components/DataTable';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
+import { Select } from '../../shared/components/Select';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
+import { useAuthStore } from '../auth/auth.store';
+import { FinancialSummaryCard } from '../../shared/components/FinancialSummaryCard';
 import {
   formatDate,
   formatDateTimeWita,
@@ -37,6 +40,8 @@ const batchSchema = z.object({
   initialStockBase: z.coerce.number().min(0, 'Stok awal tidak boleh negatif'),
   currentStockBase: z.coerce.number().min(0, 'Stok kini tidak boleh negatif'),
   hppBase: z.coerce.number().min(0, 'HPP tidak boleh negatif'),
+  costModalBase: z.coerce.number().min(0, 'Harga modal tidak boleh negatif').optional(),
+  additionalCostBase: z.coerce.number().min(0, 'Biaya tambahan tidak boleh negatif').optional(),
 });
 
 const priceSchema = z
@@ -86,6 +91,9 @@ function FormError({ error }: { error?: unknown }) {
 
 export function BatchPage() {
   const toast = useToastStore((state) => state.show);
+  const user = useAuthStore((state) => state.user);
+  const canViewFinancials = user?.role === 'MANAGER' || user?.role === 'PEMILIK';
+
   const [selectedProductId, setSelectedProductId] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -112,6 +120,8 @@ export function BatchPage() {
       initialStockBase: 0,
       currentStockBase: 0,
       hppBase: 0,
+      costModalBase: 0,
+      additionalCostBase: 0,
     },
   });
 
@@ -131,6 +141,31 @@ export function BatchPage() {
   const selectedProduct = products.data?.find(
     (product) => product.id === selectedProductId,
   );
+
+  // Live calculations for real-time preview (only for MANAGER/PEMILIK)
+  const rawCostModal = form.watch('costModalBase');
+  const rawAdditional = form.watch('additionalCostBase');
+  const costModalBase = isNaN(Number(rawCostModal)) ? 0 : Number(rawCostModal);
+  const additionalCostBase = isNaN(Number(rawAdditional)) ? 0 : Number(rawAdditional);
+  const hppBase = costModalBase + additionalCostBase;
+
+  useEffect(() => {
+    form.setValue('hppBase', hppBase);
+  }, [hppBase, form.setValue]);
+
+  const defaultSaleUnit = useMemo(
+    () => saleUnits.find((u) => u.isDefaultSaleUnit),
+    [saleUnits]
+  );
+  const rawSellingPriceDefault = defaultSaleUnit ? priceInputs[defaultSaleUnit.id] : '0';
+  const sellingPriceDefault = isNaN(Number(rawSellingPriceDefault)) ? 0 : Number(rawSellingPriceDefault);
+  const conversionToBase = defaultSaleUnit ? Number(defaultSaleUnit.conversionToBase) : 1;
+  const sellingPriceBase = conversionToBase > 0 ? sellingPriceDefault / conversionToBase : 0;
+  const margin = sellingPriceBase - hppBase;
+  const marginPercent = sellingPriceBase > 0 ? (margin / sellingPriceBase) * 100 : 0;
+  const rawCurrentStockBase = form.watch('currentStockBase');
+  const currentStockBase = isNaN(Number(rawCurrentStockBase)) ? 0 : Number(rawCurrentStockBase);
+
   const filteredBatches = useMemo(() => {
     const now = new Date();
     const soon = new Date();
@@ -154,6 +189,7 @@ export function BatchPage() {
       return matchesSearch && matchesStatus && matchesExpiry;
     });
   }, [batches.data, expiryFilter, search, statusFilter]);
+
   const selectedBatch =
     batches.data?.find((batch) => batch.id === selectedBatchId) ?? null;
   const selectedBatchMutations = (mutations.data ?? []).filter(
@@ -201,6 +237,8 @@ export function BatchPage() {
       initialStockBase: 0,
       currentStockBase: 0,
       hppBase: 0,
+      costModalBase: 0,
+      additionalCostBase: 0,
     });
     setSelectedProductId('');
     setPriceInputs({});
@@ -220,45 +258,32 @@ export function BatchPage() {
       <Card>
         <form className="space-y-5" onSubmit={onSubmit}>
           <div className="grid gap-4 lg:grid-cols-3">
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Produk
-              </span>
-              <select
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                {...form.register('productId', {
-                  onChange: (event) => setSelectedProductId(event.target.value),
-                })}
-              >
-                <option value="">Pilih produk</option>
-                {(products.data ?? []).map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}
-                  </option>
-                ))}
-              </select>
-              {form.formState.errors.productId?.message ? (
-                <span className="mt-1 block text-xs text-red-600">
-                  {form.formState.errors.productId.message}
-                </span>
-              ) : null}
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Supplier
-              </span>
-              <select
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                {...form.register('supplierId')}
-              >
-                <option value="">Tanpa supplier</option>
-                {(suppliers.data ?? []).map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Select
+              label="Produk"
+              error={form.formState.errors.productId?.message}
+              {...form.register('productId', {
+                onChange: (event) => setSelectedProductId(event.target.value),
+              })}
+            >
+              <option value="">Pilih produk</option>
+              {(products.data ?? []).map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Supplier"
+              error={form.formState.errors.supplierId?.message}
+              {...form.register('supplierId')}
+            >
+              <option value="">Tanpa supplier</option>
+              {(suppliers.data ?? []).map((supplier) => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </option>
+              ))}
+            </Select>
             <Input
               label="Nomor batch"
               {...form.register('batchNumber')}
@@ -284,13 +309,33 @@ export function BatchPage() {
               {...form.register('currentStockBase')}
               error={form.formState.errors.currentStockBase?.message}
             />
-            <Input
-              label="HPP per satuan dasar"
-              type="number"
-              step="0.00000001"
-              {...form.register('hppBase')}
-              error={form.formState.errors.hppBase?.message}
-            />
+
+            {canViewFinancials && (
+              <>
+                <Input
+                  label="Harga Modal (Base)"
+                  type="number"
+                  step="0.01"
+                  {...form.register('costModalBase')}
+                  error={form.formState.errors.costModalBase?.message}
+                />
+                <Input
+                  label="Biaya Tambahan (Base)"
+                  type="number"
+                  step="0.01"
+                  {...form.register('additionalCostBase')}
+                  error={form.formState.errors.additionalCostBase?.message}
+                />
+                <Input
+                  label="HPP per satuan dasar (Auto)"
+                  type="number"
+                  step="0.00000001"
+                  {...form.register('hppBase')}
+                  disabled
+                  error={form.formState.errors.hppBase?.message}
+                />
+              </>
+            )}
           </div>
 
           <div className="rounded-lg border border-slate-200 p-4">
@@ -340,6 +385,27 @@ export function BatchPage() {
             ) : null}
           </div>
 
+          {/* Real-time Preview Card (only for MANAGER/PEMILIK and when a product is selected) */}
+          {canViewFinancials && selectedProductId && (
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <p className="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wider">
+                Live Preview Ringkasan Finansial
+              </p>
+              <FinancialSummaryCard
+                costModalBase={Number(costModalBase)}
+                additionalCostBase={Number(additionalCostBase)}
+                hppBase={hppBase}
+                sellingPriceBase={sellingPriceBase}
+                margin={margin}
+                marginPercent={marginPercent}
+                currentStockBase={Number(currentStockBase)}
+                nilaiPersediaan={hppBase * Number(currentStockBase)}
+                potensiProfit={margin * Number(currentStockBase)}
+                title="Estimasi Finansial Batch Baru"
+              />
+            </div>
+          )}
+
           <div className="flex justify-end">
             <Button disabled={createBatch.isPending || saleUnits.length === 0}>
               Simpan batch
@@ -357,37 +423,27 @@ export function BatchPage() {
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Produk, batch, atau supplier"
           />
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
-              Status
-            </span>
-            <select
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option value="">Semua status</option>
-              <option value="ACTIVE">Aktif</option>
-              <option value="OUT_OF_STOCK">Stok habis</option>
-              <option value="EXPIRED">Expired</option>
-              <option value="INACTIVE">Nonaktif</option>
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
-              Expired
-            </span>
-            <select
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              value={expiryFilter}
-              onChange={(event) => setExpiryFilter(event.target.value)}
-            >
-              <option value="">Semua expiry</option>
-              <option value="soon">Mendekati expired</option>
-              <option value="expired">Expired</option>
-              <option value="valid">Masih aman</option>
-            </select>
-          </label>
+          <Select
+            label="Status"
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+          >
+            <option value="">Semua status</option>
+            <option value="ACTIVE">Aktif</option>
+            <option value="OUT_OF_STOCK">Stok habis</option>
+            <option value="EXPIRED">Expired</option>
+            <option value="INACTIVE">Nonaktif</option>
+          </Select>
+          <Select
+            label="Expired"
+            value={expiryFilter}
+            onChange={(event) => setExpiryFilter(event.target.value)}
+          >
+            <option value="">Semua expiry</option>
+            <option value="soon">Mendekati expired</option>
+            <option value="expired">Expired</option>
+            <option value="valid">Masih aman</option>
+          </Select>
         </div>
       </Card>
 
@@ -424,11 +480,15 @@ export function BatchPage() {
               render: (row) =>
                 formatQty(row.currentStockBase, row.product.baseUnit.name),
             },
-            {
-              key: 'hppBase',
-              header: 'HPP dasar',
-              render: (row) => formatRupiah(row.hppBase),
-            },
+            ...(canViewFinancials
+              ? [
+                  {
+                    key: 'hppBase',
+                    header: 'HPP dasar',
+                    render: (row: ProductBatch) => formatRupiah(row.hppBase),
+                  },
+                ]
+              : []),
             {
               key: 'prices',
               header: 'Harga jual',
@@ -522,6 +582,23 @@ export function BatchPage() {
               </div>
             </div>
           </div>
+
+          {canViewFinancials && (
+            <div className="border-t border-slate-100 pt-4">
+              <FinancialSummaryCard
+                costModalBase={selectedBatch.costModalBase}
+                additionalCostBase={selectedBatch.additionalCostBase}
+                hppBase={selectedBatch.hppBase}
+                sellingPriceBase={selectedBatch.sellingPriceBase || 0}
+                margin={selectedBatch.margin || 0}
+                marginPercent={selectedBatch.marginPercent || 0}
+                currentStockBase={selectedBatch.currentStockBase}
+                nilaiPersediaan={selectedBatch.nilaiPersediaan || 0}
+                potensiProfit={selectedBatch.potensiProfit || 0}
+                title="Ringkasan Finansial Detail Batch"
+              />
+            </div>
+          )}
 
           <div>
             <h3 className="mb-2 text-sm font-semibold text-slate-950">

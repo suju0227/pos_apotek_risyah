@@ -10,6 +10,7 @@ import { DataTable } from '../../shared/components/DataTable';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
+import { Select } from '../../shared/components/Select';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import { useConnectionStatus } from '../../shared/hooks/useConnectionStatus';
@@ -480,21 +481,18 @@ export function PurchasePage() {
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Nomor pembelian, faktur, supplier"
           />
-          <label className="space-y-1 text-sm font-medium text-slate-700">
-            Supplier
-            <select
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={filterSupplierId}
-              onChange={(event) => setFilterSupplierId(event.target.value)}
-            >
-              <option value="">Semua supplier</option>
-              {suppliers.data?.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Supplier"
+            value={filterSupplierId}
+            onChange={(event) => setFilterSupplierId(event.target.value)}
+          >
+            <option value="">Semua supplier</option>
+            {suppliers.data?.map((supplier) => (
+              <option key={supplier.id} value={supplier.id}>
+                {supplier.name}
+              </option>
+            ))}
+          </Select>
           <Input
             label="Tanggal"
             type="date"
@@ -579,26 +577,19 @@ export function PurchasePage() {
         </div>
         <form className="space-y-5" onSubmit={purchaseForm.handleSubmit(submitPurchase)}>
           <div className="grid gap-4 md:grid-cols-3">
-            <label className="space-y-1 text-sm font-medium text-slate-700">
-              Supplier
-              <select
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
-                disabled={Boolean(poId)}
-                {...purchaseForm.register('supplierId')}
-              >
-                <option value="">Pilih supplier</option>
-                {suppliers.data?.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-              {purchaseForm.formState.errors.supplierId ? (
-                <span className="text-xs text-red-600">
-                  {purchaseForm.formState.errors.supplierId.message}
-                </span>
-              ) : null}
-            </label>
+            <Select
+              label="Supplier"
+              disabled={Boolean(poId)}
+              error={purchaseForm.formState.errors.supplierId?.message}
+              {...purchaseForm.register('supplierId')}
+            >
+              <option value="">Pilih supplier</option>
+              {suppliers.data?.map((supplier) => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </option>
+              ))}
+            </Select>
             <Input
               label="Tanggal pembelian"
               type="date"
@@ -611,17 +602,14 @@ export function PurchasePage() {
               type="date"
               {...purchaseForm.register('invoiceDate')}
             />
-            <label className="space-y-1 text-sm font-medium text-slate-700">
-              Mode PPN
-              <select
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                {...purchaseForm.register('taxMode')}
-              >
-                <option value="NON_PPN">Non PPN</option>
-                <option value="PPN_INCLUDED">PPN termasuk</option>
-                <option value="PPN_EXCLUDED">PPN di luar</option>
-              </select>
-            </label>
+            <Select
+              label="Mode PPN"
+              {...purchaseForm.register('taxMode')}
+            >
+              <option value="NON_PPN">Non PPN</option>
+              <option value="PPN_INCLUDED">PPN termasuk</option>
+              <option value="PPN_EXCLUDED">PPN di luar</option>
+            </Select>
             <Input
               label="Tarif PPN (%)"
               type="number"
@@ -655,49 +643,35 @@ export function PurchasePage() {
           <div className="rounded-md border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-900">Tambah item pembelian</h3>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <label className="space-y-1 text-sm font-medium text-slate-700">
-                Produk
-                <select
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                  {...itemForm.register('productId', {
-                    onChange: (event) => {
-                      setItemProductId(event.target.value);
-                      itemForm.setValue('productUnitId', '');
-                    },
-                  })}
-                >
-                  <option value="">Pilih produk</option>
-                  {products.data?.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name}
-                    </option>
-                  ))}
-                </select>
-                {itemForm.formState.errors.productId ? (
-                  <span className="text-xs text-red-600">
-                    {itemForm.formState.errors.productId.message}
-                  </span>
-                ) : null}
-              </label>
-              <label className="space-y-1 text-sm font-medium text-slate-700">
-                Satuan pembelian
-                <select
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                  {...itemForm.register('productUnitId')}
-                >
-                  <option value="">Pilih satuan</option>
-                  {productUnits.data?.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.unit.symbol ?? unit.unit.name} • isi {formatQty(unit.conversionToBase)}
-                    </option>
-                  ))}
-                </select>
-                {itemForm.formState.errors.productUnitId ? (
-                  <span className="text-xs text-red-600">
-                    {itemForm.formState.errors.productUnitId.message}
-                  </span>
-                ) : null}
-              </label>
+              <Select
+                label="Produk"
+                error={itemForm.formState.errors.productId?.message}
+                {...itemForm.register('productId', {
+                  onChange: (event) => {
+                    setItemProductId(event.target.value);
+                    itemForm.setValue('productUnitId', '');
+                  },
+                })}
+              >
+                <option value="">Pilih produk</option>
+                {products.data?.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                label="Satuan pembelian"
+                error={itemForm.formState.errors.productUnitId?.message}
+                {...itemForm.register('productUnitId')}
+              >
+                <option value="">Pilih satuan</option>
+                {productUnits.data?.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.unit.symbol ?? unit.unit.name} • isi {formatQty(unit.conversionToBase)}
+                  </option>
+                ))}
+              </Select>
               <Input
                 label="Qty diterima"
                 type="number"
@@ -723,17 +697,14 @@ export function PurchasePage() {
                 {...itemForm.register('expiredDate')}
                 error={itemForm.formState.errors.expiredDate?.message}
               />
-              <label className="space-y-1 text-sm font-medium text-slate-700">
-                Jenis diskon
-                <select
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                  {...itemForm.register('discountType')}
-                >
-                  <option value="NONE">Tidak ada</option>
-                  <option value="NOMINAL">Nominal</option>
-                  <option value="PERCENT">Persen</option>
-                </select>
-              </label>
+              <Select
+                label="Jenis diskon"
+                {...itemForm.register('discountType')}
+              >
+                <option value="NONE">Tidak ada</option>
+                <option value="NOMINAL">Nominal</option>
+                <option value="PERCENT">Persen</option>
+              </Select>
               <Input
                 label="Nilai diskon"
                 type="number"

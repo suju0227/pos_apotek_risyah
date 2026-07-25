@@ -40,17 +40,17 @@ type BatchWithRelations = Prisma.ProductBatchGetPayload<{
 export class BatchesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(role?: string) {
     const batches = await this.prisma.productBatch.findMany({
       where: { deletedAt: null },
       include: batchInclude,
       orderBy: [{ expiredDate: 'asc' }, { createdAt: 'desc' }],
     });
 
-    return batches.map((batch) => this.toBatchResponse(batch));
+    return batches.map((batch) => this.toBatchResponse(batch, role));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, role?: string) {
     const batch = await this.prisma.productBatch.findFirst({
       where: { id, deletedAt: null },
       include: batchInclude,
@@ -60,13 +60,19 @@ export class BatchesService {
       throw new NotFoundException('Batch tidak ditemukan');
     }
 
-    return this.toBatchResponse(batch);
+    return this.toBatchResponse(batch, role);
   }
 
-  async create(dto: CreateBatchDto) {
+  async create(dto: CreateBatchDto, role?: string) {
     await this.ensureProductActive(dto.productId);
     await this.ensureSupplierActive(dto.supplierId);
     await this.ensurePricesBelongToProduct(dto.productId, dto.prices);
+
+    const costModal = dto.costModalBase ?? 0;
+    const additionalCost = dto.additionalCostBase ?? 0;
+    const hppBase = (dto.costModalBase !== undefined || dto.additionalCostBase !== undefined)
+      ? costModal + additionalCost
+      : dto.hppBase;
 
     try {
       const batch = await this.prisma.productBatch.create({
@@ -77,7 +83,9 @@ export class BatchesService {
           expiredDate: this.toDate(dto.expiredDate),
           initialStockBase: dto.initialStockBase,
           currentStockBase: dto.currentStockBase,
-          hppBase: dto.hppBase,
+          costModalBase: costModal,
+          additionalCostBase: additionalCost,
+          hppBase: hppBase,
           prices: {
             create: dto.prices.map((price) => ({
               productUnitId: price.productUnitId,
@@ -88,7 +96,7 @@ export class BatchesService {
         include: batchInclude,
       });
 
-      return this.toBatchResponse(batch);
+      return this.toBatchResponse(batch, role);
     } catch (error) {
       if (isPrismaUniqueError(error)) {
         throw new BadRequestException('Nomor batch atau harga satuan sudah digunakan');
@@ -97,7 +105,7 @@ export class BatchesService {
     }
   }
 
-  async update(id: string, dto: UpdateBatchDto) {
+  async update(id: string, dto: UpdateBatchDto, role?: string) {
     const existingBatch = await this.prisma.productBatch.findFirst({
       where: { id, deletedAt: null },
     });
@@ -110,6 +118,12 @@ export class BatchesService {
     if (dto.prices) {
       await this.ensurePricesBelongToProduct(existingBatch.productId, dto.prices);
     }
+
+    const costModal = dto.costModalBase !== undefined ? dto.costModalBase : Number(existingBatch.costModalBase);
+    const additionalCost = dto.additionalCostBase !== undefined ? dto.additionalCostBase : Number(existingBatch.additionalCostBase);
+    const hppBase = (dto.costModalBase !== undefined || dto.additionalCostBase !== undefined)
+      ? costModal + additionalCost
+      : dto.hppBase;
 
     try {
       const batch = await this.prisma.$transaction(async (tx) => {
@@ -131,7 +145,9 @@ export class BatchesService {
             expiredDate: dto.expiredDate ? this.toDate(dto.expiredDate) : undefined,
             initialStockBase: dto.initialStockBase,
             currentStockBase: dto.currentStockBase,
-            hppBase: dto.hppBase,
+            costModalBase: dto.costModalBase,
+            additionalCostBase: dto.additionalCostBase,
+            hppBase: hppBase,
             isActive: dto.isActive,
             ...(dto.prices
               ? {
@@ -148,7 +164,7 @@ export class BatchesService {
         });
       });
 
-      return this.toBatchResponse(batch);
+      return this.toBatchResponse(batch, role);
     } catch (error) {
       if (isPrismaNotFoundError(error)) {
         throw new NotFoundException('Batch tidak ditemukan');
@@ -160,7 +176,7 @@ export class BatchesService {
     }
   }
 
-  async deactivate(id: string) {
+  async deactivate(id: string, role?: string) {
     try {
       const batch = await this.prisma.productBatch.update({
         where: { id },
@@ -180,7 +196,7 @@ export class BatchesService {
         include: batchInclude,
       });
 
-      return this.toBatchResponse(batch);
+      return this.toBatchResponse(batch, role);
     } catch (error) {
       if (isPrismaNotFoundError(error)) {
         throw new NotFoundException('Batch tidak ditemukan');
@@ -189,7 +205,7 @@ export class BatchesService {
     }
   }
 
-  async expiredAlert() {
+  async expiredAlert(role?: string) {
     const today = this.startOfToday();
     const alertUntil = new Date(today);
     alertUntil.setDate(alertUntil.getDate() + 30);
@@ -207,7 +223,7 @@ export class BatchesService {
       orderBy: { expiredDate: 'asc' },
     });
 
-    return batches.map((batch) => this.toBatchResponse(batch));
+    return batches.map((batch) => this.toBatchResponse(batch, role));
   }
 
   private async ensureProductActive(productId: string) {
@@ -259,12 +275,36 @@ export class BatchesService {
     }
   }
 
-  private toBatchResponse(batch: BatchWithRelations) {
+  private toBatchResponse(batch: BatchWithRelations, role?: string) {
+    const isSanitized = role !== 'MANAGER' && role !== 'PEMILIK';
+
+    const defaultPriceObj = batch.prices.find((p) => p.productUnit?.isDefaultSaleUnit);
+    const sellingPriceDefault = defaultPriceObj ? Number(defaultPriceObj.sellingPrice) : 0;
+    const conversionToBase = defaultPriceObj ? Number(defaultPriceObj.productUnit.conversionToBase) : 1;
+    const sellingPriceBase = conversionToBase > 0 ? sellingPriceDefault / conversionToBase : 0;
+
+    const costModalBase = isSanitized ? 0 : Number(batch.costModalBase || 0);
+    const additionalCostBase = isSanitized ? 0 : Number(batch.additionalCostBase || 0);
+    const hppBase = isSanitized ? 0 : Number(batch.hppBase || 0);
+
+    const margin = isSanitized ? 0 : (sellingPriceBase - hppBase);
+    const marginPercent = isSanitized ? 0 : (sellingPriceBase > 0 ? (margin / sellingPriceBase) * 100 : 0);
+    const nilaiPersediaan = isSanitized ? 0 : (hppBase * Number(batch.currentStockBase));
+    const potensiProfit = isSanitized ? 0 : (margin * Number(batch.currentStockBase));
+
     return {
       ...batch,
       initialStockBase: Number(batch.initialStockBase),
       currentStockBase: Number(batch.currentStockBase),
-      hppBase: Number(batch.hppBase),
+      costModalBase,
+      additionalCostBase,
+      hppBase,
+      sellingPriceDefault,
+      sellingPriceBase,
+      margin,
+      marginPercent,
+      nilaiPersediaan,
+      potensiProfit,
       status: this.resolveBatchStatus(batch),
       prices: batch.prices.map((price) => ({
         ...price,

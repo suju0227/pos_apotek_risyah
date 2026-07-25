@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export class DashboardDaysQueryDto {
   @IsOptional()
@@ -17,6 +17,14 @@ export class DashboardTopProductsQueryDto extends DashboardDaysQueryDto {
   @Min(1)
   @Max(20)
   limit?: number;
+
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
 }
 
 export class DashboardLimitQueryDto {
@@ -32,4 +40,22 @@ export class DashboardPeriodQueryDto {
   @IsOptional()
   @IsIn(['7d'])
   period?: '7d';
+
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+}
+
+export class DashboardDateRangeQueryDto {
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
 }

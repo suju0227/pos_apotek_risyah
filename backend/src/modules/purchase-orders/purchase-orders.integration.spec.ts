@@ -170,7 +170,7 @@ describe('Purchase Orders API', () => {
     expect(received.items[0].qtyReceived).toBe(5);
 
     const mutation = await prisma.stockMutation.findFirstOrThrow({
-      where: { referenceId: firstPurchase.id, mutationType: 'PURCHASE_IN' },
+      where: { referenceId: firstPurchase.id, movementType: 'IN', referenceType: 'PURCHASE' },
     });
     expect(mutation.qtyChange.toNumber()).toBe(2);
   });

@@ -9,6 +9,7 @@ import { DataTable } from '../../shared/components/DataTable';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
+import { Select } from '../../shared/components/Select';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import { formatDate, formatQty } from '../../shared/utils/formatters';
@@ -28,6 +29,8 @@ import {
   usePrintPurchaseOrderPreview,
   usePurchaseOrders,
 } from './purchaseOrder.hooks';
+import { usePharmacyProfile } from '../settings/settings.hooks';
+import { defaultPoTemplate, renderTemplate } from '../../shared/utils/templateEngine';
 
 const poSchema = z.object({
   supplierId: z.string().min(1, 'Supplier wajib dipilih'),
@@ -99,6 +102,7 @@ export function PurchaseOrderPage() {
   const purchaseOrders = usePurchaseOrders();
   const createPo = useCreatePurchaseOrder();
   const markSent = useMarkPurchaseOrderSent();
+  const settings = usePharmacyProfile();
   const cancelPo = useCancelPurchaseOrder();
   const printPreview = usePrintPurchaseOrderPreview();
 
@@ -173,22 +177,18 @@ export function PurchaseOrderPage() {
 
       <Card className="space-y-5">
         <form className="grid gap-4 lg:grid-cols-3" onSubmit={submitPo}>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
-              Supplier
-            </span>
-            <select
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              {...poForm.register('supplierId')}
-            >
-              <option value="">Pilih supplier</option>
-              {(suppliers.data ?? []).map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Supplier"
+            error={poForm.formState.errors.supplierId?.message}
+            {...poForm.register('supplierId')}
+          >
+            <option value="">Pilih supplier</option>
+            {(suppliers.data ?? []).map((supplier) => (
+              <option key={supplier.id} value={supplier.id}>
+                {supplier.name}
+              </option>
+            ))}
+          </Select>
           <Input
             label="Tanggal PO"
             type="date"
@@ -201,40 +201,32 @@ export function PurchaseOrderPage() {
         <div className="rounded-lg border border-slate-200 p-4">
           <h2 className="mb-3 text-base font-semibold text-slate-950">Item PO</h2>
           <form className="grid gap-4 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]" onSubmit={addItem}>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Produk
-              </span>
-              <select
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                {...itemForm.register('productId', {
-                  onChange: (event) => setItemProductId(event.target.value),
-                })}
-              >
-                <option value="">Pilih produk</option>
-                {(products.data ?? []).map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Satuan
-              </span>
-              <select
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                {...itemForm.register('productUnitId')}
-              >
-                <option value="">Pilih satuan</option>
-                {saleUnits.map((productUnit) => (
-                  <option key={productUnit.id} value={productUnit.id}>
-                    {productUnit.unit.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Select
+              label="Produk"
+              error={itemForm.formState.errors.productId?.message}
+              {...itemForm.register('productId', {
+                onChange: (event) => setItemProductId(event.target.value),
+              })}
+            >
+              <option value="">Pilih produk</option>
+              {(products.data ?? []).map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Satuan"
+              error={itemForm.formState.errors.productUnitId?.message}
+              {...itemForm.register('productUnitId')}
+            >
+              <option value="">Pilih satuan</option>
+              {saleUnits.map((productUnit) => (
+                <option key={productUnit.id} value={productUnit.id}>
+                  {productUnit.unit.name}
+                </option>
+              ))}
+            </Select>
             <Input
               label="Qty pesan"
               type="number"
@@ -330,10 +322,11 @@ export function PurchaseOrderPage() {
             {
               key: 'items',
               header: 'Item',
-              render: (row) =>
+              render: (row) => (
                 row.items
                   .map((item) => `${item.product.name} ${formatQty(item.qtyOrdered, item.productUnit.unit.name)}`)
-                  .join(', '),
+                  .join(', ')
+              ),
             },
             {
               key: 'status',
@@ -376,10 +369,44 @@ export function PurchaseOrderPage() {
                     variant="secondary"
                     onClick={async () => {
                       const preview = await printPreview.mutateAsync(row.id);
-                      setPreviewText(JSON.stringify(preview, null, 2));
+                      
+                      // Build items table HTML
+                      const itemsHtml = `
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                          <thead>
+                            <tr>
+                              <th style="border: 1px solid #333; padding: 8px; text-align: left;">Nama Barang</th>
+                              <th style="border: 1px solid #333; padding: 8px; text-align: right;">Jumlah</th>
+                              <th style="border: 1px solid #333; padding: 8px; text-align: center;">Satuan</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            ${preview.purchaseOrder.items.map((item: any) => `
+                              <tr>
+                                <td style="border: 1px solid #333; padding: 8px;">${item.product.name}</td>
+                                <td style="border: 1px solid #333; padding: 8px; text-align: right;">${formatQty(item.qtyOrdered)}</td>
+                                <td style="border: 1px solid #333; padding: 8px; text-align: center;">${item.productUnit.unit.name}</td>
+                              </tr>
+                            `).join('')}
+                          </tbody>
+                        </table>
+                      `;
+
+                      const tpl = (settings.data as any)?.poPrintTemplate || defaultPoTemplate;
+                      const html = renderTemplate(tpl, {
+                        pharmacyName: settings.data?.pharmacyName || 'Apotek',
+                        pharmacyAddress: settings.data?.address || '',
+                        pharmacyPhone: settings.data?.phone || '',
+                        poNumber: preview.purchaseOrder.poNumber,
+                        supplierName: preview.purchaseOrder.supplier.name,
+                        orderDate: formatDate(preview.purchaseOrder.orderDate),
+                        itemsTable: itemsHtml,
+                      });
+                      
+                      setPreviewText(html);
                     }}
                   >
-                    Preview
+                    Cetak / Preview
                   </Button>
                   <Button
                     type="button"
@@ -397,14 +424,34 @@ export function PurchaseOrderPage() {
       ) : null}
       <FormError error={markSent.error ?? cancelPo.error ?? printPreview.error} />
       {previewText ? (
-        <Card>
-          <h2 className="mb-2 text-base font-semibold text-slate-950">
-            Print preview PO
-          </h2>
-          <pre className="max-h-96 overflow-auto rounded-md bg-slate-950 p-4 text-xs text-slate-50">
-            {previewText}
-          </pre>
-        </Card>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <Card className="w-full max-w-4xl shadow-xl bg-slate-100 flex flex-col max-h-[90vh]">
+            <div className="mb-4 flex items-center justify-between border-b border-slate-300 pb-3">
+              <h2 className="text-lg font-bold text-slate-900">Cetak Surat Pesanan</h2>
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  onClick={() => {
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                      printWindow.document.write(previewText);
+                      printWindow.document.close();
+                      printWindow.focus();
+                      setTimeout(() => {
+                        printWindow.print();
+                        printWindow.close();
+                      }, 250);
+                    }
+                  }}
+                >
+                  Print
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setPreviewText('')}>Tutup</Button>
+              </div>
+            </div>
+            <div className="overflow-auto flex-1 bg-white p-8 shadow-inner rounded" dangerouslySetInnerHTML={{ __html: previewText }} />
+          </Card>
+        </div>
       ) : null}
     </div>
   );

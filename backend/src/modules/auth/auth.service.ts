@@ -1,6 +1,9 @@
 import {
   Injectable,
   UnauthorizedException,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -11,6 +14,8 @@ import { SignOptions } from 'jsonwebtoken';
 import { durationToMilliseconds } from '../../common/utils/duration';
 import { PrismaService } from '../../database/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 type UserWithRole = User & { role: Role };
 
@@ -99,6 +104,81 @@ export class AuthService {
     return this.toSafeUser(user);
   }
 
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      include: { role: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    if (dto.email && dto.email !== user.email) {
+      const existingUser = await this.prisma.user.findFirst({
+        where: {
+          email: dto.email,
+          isActive: true,
+          deletedAt: null,
+          id: { not: userId },
+        },
+      });
+      if (existingUser) {
+        throw new ConflictException('Email sudah digunakan oleh user aktif lain');
+      }
+    }
+
+    if (dto.phone && dto.phone !== user.phone) {
+      const existingPhone = await this.prisma.user.findFirst({
+        where: {
+          phone: dto.phone,
+          deletedAt: null,
+          id: { not: userId },
+        },
+      });
+      if (existingPhone) {
+        throw new ConflictException('Nomor HP sudah digunakan oleh user lain');
+      }
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: dto.name !== undefined ? dto.name : undefined,
+        email: dto.email !== undefined ? dto.email : undefined,
+        phone: dto.phone !== undefined ? dto.phone : undefined,
+      },
+      include: { role: true },
+    });
+
+    return this.toSafeUser(updatedUser);
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    const passwordValid = await bcrypt.compare(dto.oldPassword, user.passwordHash);
+
+    if (!passwordValid) {
+      throw new BadRequestException('Password lama salah');
+    }
+
+    const newPasswordHash = await bcrypt.hash(dto.newPassword, 12);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newPasswordHash },
+    });
+
+    return { message: 'Password berhasil diubah' };
+  }
+
   private async createSession(user: UserWithRole) {
     const accessExpiresIn = this.configService.getOrThrow<string>(
       'JWT_ACCESS_EXPIRES_IN',
@@ -159,12 +239,23 @@ export class AuthService {
     return createHash('sha256').update(refreshToken).digest('hex');
   }
 
+  async updateAvatar(userId: string, avatarUrl: string) {
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+      include: { role: true },
+    });
+    return this.toSafeUser(updatedUser);
+  }
+
   private toSafeUser(user: UserWithRole) {
     return {
       id: user.id,
       name: user.name,
       username: user.username,
       email: user.email,
+      phone: user.phone,
+      avatarUrl: user.avatarUrl,
       role: user.role.name,
       isActive: user.isActive,
       lastLoginAt: user.lastLoginAt,

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from './services/dashboard.api';
+import { apiClient } from '../../shared/api/apiClient';
 
 const realtimeDashboardQuery = {
   refetchInterval: 15_000,
@@ -7,10 +8,10 @@ const realtimeDashboardQuery = {
   staleTime: 10_000,
 };
 
-export function useDashboardSummary() {
+export function useDashboardSummary(startDate?: string, endDate?: string) {
   return useQuery({
-    queryKey: ['dashboard', 'summary'],
-    queryFn: dashboardApi.summary,
+    queryKey: ['dashboard', 'summary', startDate, endDate],
+    queryFn: () => dashboardApi.summary(startDate, endDate),
     ...realtimeDashboardQuery,
   });
 }
@@ -41,20 +42,29 @@ export function useRecentTransactions(enabled: boolean) {
   });
 }
 
-export function useDashboardRevenueTrend(enabled: boolean) {
+export function useDashboardRevenueTrend(enabled: boolean, startDate?: string, endDate?: string) {
   return useQuery({
     enabled,
-    queryKey: ['dashboard', 'revenue-trend', '7d'],
-    queryFn: dashboardApi.revenueTrend,
+    queryKey: ['dashboard', 'revenue-trend', '7d', startDate, endDate],
+    queryFn: () => dashboardApi.revenueTrend(startDate, endDate),
     ...realtimeDashboardQuery,
   });
 }
 
-export function useDashboardProfitTrend(enabled: boolean) {
+export function useDashboardProfitTrend(enabled: boolean, startDate?: string, endDate?: string) {
   return useQuery({
     enabled,
-    queryKey: ['dashboard', 'profit-trend', '7d'],
-    queryFn: dashboardApi.profitTrend,
+    queryKey: ['dashboard', 'profit-trend', '7d', startDate, endDate],
+    queryFn: () => dashboardApi.profitTrend(startDate, endDate),
+    ...realtimeDashboardQuery,
+  });
+}
+
+export function useTopProducts(enabled: boolean, days = 7, limit = 5, startDate?: string, endDate?: string) {
+  return useQuery({
+    enabled,
+    queryKey: ['dashboard', 'top-products', days, limit, startDate, endDate],
+    queryFn: () => dashboardApi.topProducts(days, limit, startDate, endDate),
     ...realtimeDashboardQuery,
   });
 }
@@ -83,5 +93,33 @@ export function useDashboardRecentActivities(enabled: boolean) {
     queryKey: ['dashboard', 'recent-activities', 5],
     queryFn: () => dashboardApi.recentActivities(5),
     ...realtimeDashboardQuery,
+  });
+}
+
+export function useDashboardPaymentMethods(enabled: boolean, days = 7) {
+  return useQuery({
+    enabled,
+    queryKey: ['dashboard', 'payment-methods', days],
+    queryFn: () => dashboardApi.paymentMethods(days),
+    ...realtimeDashboardQuery,
+  });
+}
+
+export interface AppNotification {
+  id: string;
+  type: 'operational' | 'stock' | 'purchase' | 'system';
+  priority: 'critical' | 'high' | 'medium' | 'info' | 'success';
+  title: string;
+  message: string;
+  createdAt: string;
+  path?: string;
+  referenceNumber?: string;
+}
+
+export function useDashboardNotifications() {
+  return useQuery<AppNotification[]>({
+    queryKey: ['dashboard', 'notifications'],
+    queryFn: () => apiClient.get<AppNotification[]>('/notifications'),
+    refetchInterval: 15_000,
   });
 }

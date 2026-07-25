@@ -17,6 +17,14 @@ export type ProductBatch = {
   initialStockBase: number;
   currentStockBase: number;
   hppBase: number;
+  costModalBase: number;
+  additionalCostBase: number;
+  sellingPriceDefault?: number;
+  sellingPriceBase?: number;
+  margin?: number;
+  marginPercent?: number;
+  nilaiPersediaan?: number;
+  potensiProfit?: number;
   isActive: boolean;
   status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK' | 'EXPIRED';
   product: Product;
@@ -37,6 +45,8 @@ export type CreateBatchPayload = {
   initialStockBase: number;
   currentStockBase: number;
   hppBase: number;
+  costModalBase?: number;
+  additionalCostBase?: number;
   prices: BatchPricePayload[];
 };
 

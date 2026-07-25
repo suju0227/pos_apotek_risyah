@@ -2,11 +2,11 @@
 document_name: "04_UI_UX_FLOW_POS_APOTEK"
 document_type: "UI/UX Flow Document"
 project_name: "POS Apotek"
-version: "1.1.0"
+version: "1.2.0"
 status: "Draft Revisi - Synchronized with PRD, SRS, SDD, Frontend, and Backend"
 prepared_for: "AI Vibe Coding / Codex GPT"
 prepared_by: "Suryadi Umar"
-last_updated: "2026-06-02"
+last_updated: "2026-07-25"
 source_documents:
   - "01_PRD_POS_APOTEK.md"
   - "02_SRS_POS_APOTEK.md"
@@ -28,6 +28,9 @@ revision_focus:
   - "penegasan role Pemilik sebagai opsional pada V1"
   - "penegasan jam realtime frontend hanya tampilan, waktu final dari backend"
   - "penambahan mapping error backend ke pesan UI"
+  - "penambahan UI Flow Manajemen Kategori Tree View dengan expand/collapse, visual indentation, dan parent selector dropdown"
+  - "penambahan UI Flow Topbar Notification Bell & Dropdown Panel Notifikasi dengan polling/fetch, filter tab, dan filter RBAC role"
+  - "penambahan UI Flow User Profile Dropdown & Modal Ganti Password pada Topbar"
 ---
 
 # UI/UX Flow - POS Apotek
@@ -36,11 +39,14 @@ revision_focus:
 
 Dokumen ini merupakan versi revisi sinkron dari `04_UI_UX_FLOW_POS_APOTEK.md`. Revisi ini menyelaraskan alur UI/UX dengan PRD, SRS, SDD, dokumen frontend, dan dokumen backend yang sudah diperbarui.
 
-Pembaruan utama pada versi 1.1.0 meliputi:
+Pembaruan utama pada versi 1.2.0 meliputi:
 
 - penyelarasan route frontend final ke istilah berbahasa Indonesia;
 - penegasan bahwa endpoint API backend tetap memakai bahasa Inggris teknis;
 - penambahan flow Manajemen User untuk Manager;
+- penambahan alur Manajemen Kategori Tree View (`/kategori`) dengan expand/collapse, visual indentation, dan parent selector dropdown (maksimal 3 level);
+- penambahan alur Topbar Notification Bell & Panel Dropdown Notifikasi dengan polling/fetch, filter tab, dan filter RBAC per role;
+- penambahan alur User Profile Dropdown & Modal Ganti Password pada Topbar;
 - penambahan aturan idempotency pada checkout, pembelian, retur, dan koreksi stok;
 - penegasan status role Pemilik sebagai opsional pada V1;
 - penegasan bahwa jam realtime frontend hanya informasi visual;
@@ -410,6 +416,96 @@ Aturan:
 - Tabel kompleks berubah menjadi list card.
 - Tombol aksi utama tetap mudah dijangkau.
 - Halaman kasir tetap dapat dipakai, tetapi pengalaman optimal tetap desktop/tablet.
+
+---
+
+## 6.4 UI Flow Topbar Notification Bell & Panel Dropdown Notifikasi
+
+**Komponen:** Topbar Notification Bell & Panel Dropdown Notifikasi  
+**Endpoint API:** `/api/notifications`, `/api/notifications/:id/read`, `/api/notifications/read-all`, `/api/notifications/:id`  
+**Aktor:** Kasir, Apoteker, Manager, Pemilik (sesuai filter RBAC role)
+
+### Fitur & Komponen Utama
+- **Notification Bell Icon**: Berada pada Topbar sebelah kanan. Menampilkan badge indikator berwarna merah dengan counter jumlah notifikasi unread (belum dibaca).
+- **Polling & Fetching**: Mendukung auto-polling background (interval 30-60 detik) serta refetch otomatis saat pengguna mengklik ikon lonceng.
+- **Dropdown Panel Notifikasi**: Panel popover/dropdown yang muncul saat ikon lonceng diklik:
+  - Header Panel: Judul "Notifikasi", counter unread, dan tombol "Tandai Semua Dibaca" (Mark All as Read).
+  - Filter Tabs:
+    - `Semua` (Menampilkan seluruh notifikasi role aktif)
+    - `Stok & Expired` (Alert stok kritis & batch mendekati expired)
+    - `Transaksi & PO` (Update status PO, resep, atau retur)
+    - `Sistem` (Pengumuman & audit log)
+  - Scrollable Notification List Container:
+    - Card Item Notifikasi: Icon tipe notifikasi, Judul, Pesan ringkas, Waktu relatif (misal "5 menit yang lalu"), indikator dot/background untuk status Unread.
+    - Aksi per Item: Klik card untuk beralih status ke Read & redirect ke halaman terkait (misal `/stok` atau `/pemesanan/:id`), tombol hapus/discard item notifikasi.
+  - Footer Panel: Link "Lihat Semua Notifikasi" atau tombol tutup panel.
+- **Filtering RBAC per Role**:
+  - `KASIR`: Hanya menerima notifikasi status retur penjualan & pengumuman sistem.
+  - `APOTEKER`: Menampilkan notifikasi stok rendah, expired batch, PO status, dan resep status.
+  - `MANAGER`: Menampilkan seluruh notifikasi operasional, finansial, dan audit.
+  - `PEMILIK`: Menampilkan notifikasi ringkasan harian laba/omzet & expired alert summary.
+
+### Flow Interaksi Notification Bell & Panel
+
+```mermaid
+flowchart TD
+    A[Pengguna Login] --> B[Background Polling GET /api/notifications]
+    B --> C[Update Counter Badge Unread di Topbar Bell Icon]
+    C --> D{Pengguna klik Bell Icon?}
+    D -->|Tidak| B
+    D -->|Ya| E[Buka Panel Dropdown Notifikasi]
+    E --> F[Pilih Tab Filter / Klik Action]
+    F -->|Tab Filter| G[Filter List berdasarkan Kategori Notifikasi]
+    F -->|Klik Item Notifikasi| H[Kirim PATCH /api/notifications/:id/read]
+    H --> I[Update Local State Read & Redirect ke Route Terkait]
+    F -->|Klik Tandai Semua Dibaca| J[Kirim POST /api/notifications/read-all]
+    J --> K[Set Seluruh Local State menjadi Read & Counter = 0]
+    F -->|Klik Hapus Item| L[Kirim DELETE /api/notifications/:id & Update Local State]
+```
+
+---
+
+## 6.5 UI Flow User Profile Dropdown & Modal Ganti Password
+
+**Komponen:** Topbar User Profile Button, Dropdown Menu, & Modal Ganti Password  
+**Endpoint API:** `GET /api/auth/me`, `POST /api/auth/change-password`, `POST /api/auth/logout`  
+**Aktor:** Semua User (Kasir, Apoteker, Manager, Pemilik)
+
+### Fitur & Komponen Utama
+- **User Profile Trigger Button**: Berada di pojok kanan Topbar. Menampilkan avatar/inisial user, nama lengkap user, dan badge Role (`KASIR`, `APOTEKER`, `MANAGER`, `PEMILIK`).
+- **Dropdown Menu Profile**:
+  - Ringkasan User Info (Nama, Username, Role).
+  - Opsi Menu:
+    1. `Profil Saya` (Membuka drawer/modal info profil singkat).
+    2. `Ganti Password` (Membuka Modal Form Ganti Password).
+    3. `Logout` (Mengabaikan/mencabut sesi, menghapus token local/cookie, redirect ke `/login`).
+- **Modal Form Ganti Password**:
+  - Field Input:
+    1. `Password Saat Ini` (Input Password, wajib).
+    2. `Password Baru` (Input Password, wajib, min 6/8 karakter).
+    3. `Konfirmasi Password Baru` (Input Password, wajib, harus persis sama dengan Password Baru).
+  - Validasi UI:
+    - Password saat ini tidak boleh kosong.
+    - Password baru tidak boleh sama dengan password saat ini.
+    - Konfirmasi password baru harus cocok.
+    - Menampilkan error pesan dari backend jika password saat ini salah.
+  - Aksi: Tombol "Batal" dan Tombol "Simpan Password" (dengan loading spinner saat submit).
+  - Success State: Toast notifikasi "Password berhasil diperbarui."
+
+### Flow Interaksi Profile & Ganti Password Modal
+
+```mermaid
+flowchart TD
+    A[User Klik Avatar / Profil Dropdown] --> B[Tampilkan Menu Dropdown Profil]
+    B --> C{Pilih Opsi Menu}
+    C -->|Logout| D[Panggil API Logout & Redirect ke /login]
+    C -->|Ganti Password| E[Buka Modal Ganti Password]
+    E --> F[User mengisi Password Saat Ini, Password Baru, & Konfirmasi]
+    F --> G[Klik Simpan Password]
+    G --> H{Validasi Frontend & Backend}
+    H -->|Validasi Gagal| I[Tampilkan Inline Validation Error / Toast Alert]
+    H -->|Berhasil| J[Tampilkan Toast Sukses & Tutup Modal]
+```
 
 ---
 
@@ -984,34 +1080,72 @@ flowchart TD
 
 ## 13. UI Flow Kategori
 
-## 13.1 Daftar Kategori
+## 13.1 Tree View Manajemen Kategori
 
 **Route:** `/kategori`  
 **Aktor:** Manager  
-**Referensi:** SRS-CAT-001
+**Referensi:** SRS-CAT-001, SDD Kategori Tree
 
-### Komponen
-- Search kategori.
-- Tombol tambah kategori.
-- Tabel kategori.
-- Status aktif/nonaktif.
-- Aksi edit dan nonaktifkan.
+### Fitur & Komponen Utama
+- **Header**: Judul "Manajemen Kategori", tombol "+ Tambah Kategori Root", search input filter nama/kode kategori.
+- **Visual Tree View Container**:
+  - **Visual Indentation**: Indentasi bertingkat horizontal yang jelas sesuai dengan level hirarki:
+    - Level 1 (Root Kategori): Tanpa indentasi, badge `Root` / `Level 1`.
+    - Level 2 (Sub-kategori): Indentasi 24px ke kanan, badge `Sub-kategori` / `Level 2`.
+    - Level 3 (Sub-sub-kategori): Indentasi 48px ke kanan, badge `Sub-sub` / `Level 3`.
+  - **Toggle Expand / Collapse**: Tombol ikon indikator (`▶` tersimpan/collapse, `▼` terbuka/expanded) pada setiap parent node yang memiliki child category.
+  - **Node Content**: Nama Kategori, Slug/Kode, Jumlah Produk Terikat, Status Aktif/Nonaktif.
+  - **Aksi Node**:
+    - Tombol `+ Sub-kategori` (hanya aktif jika level node saat ini < 3).
+    - Tombol `Edit` (membuka modal edit kategori).
+    - Tombol `Nonaktifkan / Aktifkan`.
+    - Tombol `Hapus` (memicu pengecekan proteksi hapus parent).
+- **Modal Form Tambah / Edit Kategori**:
+  - Field Nama Kategori (Input Text, wajib, unik per parent).
+  - Field Slug / Kode (Opsional / Auto-generated).
+  - Dropdown **Parent Selector** (Visual Parent Selection):
+    - Opsi teratas: `Tanpa Parent (Root / Utama)`.
+    - Daftar Kategori terurut dengan visual indentasi (menampilkan kategori level 1 dan level 2 saja sebagai opsi parent).
+    - **Proteksi Dropdown**: Kategori level 3 disembunyikan/disabled dari pilihan parent agar kedalaman tidak melebihi maks 3 level. Kategori yang sedang di-edit serta seluruh descendant-nya disembunyikan untuk mencegah circular parent loop.
+  - Radio/Switch Status Aktif.
+- **Modal Alert Proteksi Hapus Parent Category**:
+  - Peringatan khusus jika Manager mencoba menghapus kategori yang masih memiliki child category atau terikat pada produk:
+    ```text
+    Kategori tidak dapat dihapus!
+    Kategori ini masih memiliki 2 sub-kategori dan 5 produk terikat.
+    Silakan pindahkan atau hapus sub-kategori dan produk terlebih dahulu.
+    ```
 
-### Flow
+### Flow Interaksi Kategori Tree View
 
 ```mermaid
 flowchart TD
-    A[Manager membuka kategori] --> B[Memuat daftar kategori]
-    B --> C{Data ada?}
-    C -->|Tidak| D[Empty state]
-    C -->|Ya| E[Tampilkan tabel]
-    E --> F[Tambah/Edit/Nonaktifkan]
+    A[Manager membuka /kategori] --> B[Memuat Category Tree via GET /api/categories/tree]
+    B --> C{Data kategori ada?}
+    C -->|Tidak| D[Tampilkan Empty State]
+    C -->|Ya| E[Render Tree View dengan Expand/Collapse & Visual Indentation]
+    E --> F{Aksi Pengguna}
+    F -->|Klik Toggle ▶/▼| G[Expand / Collapse Node Anak]
+    F -->|Klik + Tambah / + Sub| H[Buka Modal Form Kategori]
+    H --> I[Pilih Parent Selector - Filtered Max Depth 3]
+    I --> J[Submit Form - Validasi Unik Nama per Parent]
+    F -->|Klik Hapus| K{Cek Sub-kategori & Produk}
+    K -->|Ada Child atau Produk| L[Tampilkan Alert Proteksi Hapus Parent]
+    K -->|Kosong| M[Tampilkan Confirm Dialog & Submit Hapus]
 ```
+
+### Validation UI
+| Kondisi | Pesan |
+|---|---|
+| Nama kategori kosong | Nama kategori wajib diisi |
+| Nama duplikat pada parent sama | Nama kategori sudah digunakan pada level parent ini |
+| Kedalaman > 3 level | Kategori tidak boleh melebihi 3 level hirarki |
+| Hapus parent dengan child/produk | Kategori masih memiliki sub-kategori atau produk terikat |
 
 ### Empty State
 ```text
 Belum ada kategori.
-Tambahkan kategori agar produk dapat dikelompokkan.
+Klik tombol "+ Tambah Kategori Root" untuk membuat kategori utama apotek.
 ```
 
 ---

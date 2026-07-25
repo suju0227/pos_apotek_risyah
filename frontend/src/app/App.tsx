@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './layout/AppShell';
 import { ProtectedRoute } from './routes/ProtectedRoute';
@@ -12,6 +13,7 @@ import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { ExportPage } from '../features/exports/ExportPage';
 import {
   CategoriesPage,
+  DosageFormsPage,
   ProductsPage,
   SuppliersPage,
   UnitsPage,
@@ -28,7 +30,10 @@ import { SettingsPage } from '../features/settings/SettingsPage';
 import { StockMutationsPage } from '../features/stock/StockMutationsPage';
 import { StockPage } from '../features/stock/StockPage';
 import { UsersPage } from '../features/users/UsersPage';
+import { ProfilePage } from '../features/profile/ProfilePage';
+import { EditProfilePage } from '../features/profile/EditProfilePage';
 import type { RoleName } from '../features/auth/auth.types';
+import { useSettingsStore } from '../features/settings/settings.store';
 
 const managerOnly: RoleName[] = ['MANAGER'];
 const dashboardRoles: RoleName[] = ['KASIR', 'APOTEKER', 'MANAGER', 'PEMILIK'];
@@ -36,6 +41,12 @@ const cashierAndManager: RoleName[] = ['KASIR', 'MANAGER'];
 const pharmacistAndManager: RoleName[] = ['APOTEKER', 'MANAGER'];
 
 export function App() {
+  const loadSettings = useSettingsStore((state) => state.load);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
   return (
     <>
       <Routes>
@@ -48,6 +59,11 @@ export function App() {
           }
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
+
+          {/* Profile — accessible by all authenticated roles */}
+          <Route path="/profil" element={<ProfilePage />} />
+          <Route path="/profil/edit" element={<EditProfilePage />} />
+
           <Route
             path="/dashboard"
             element={
@@ -93,6 +109,14 @@ export function App() {
             element={
               <ProtectedRoute allowedRoles={managerOnly}>
                 <CategoriesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bentuk-sediaan"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <DosageFormsPage />
               </ProtectedRoute>
             }
           />

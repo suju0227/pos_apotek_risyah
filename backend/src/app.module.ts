@@ -13,6 +13,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ExportsModule } from './modules/exports/exports.module';
 import { HealthModule } from './modules/health/health.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { DosageFormsModule } from './modules/dosage-forms/dosage-forms.module';
 import { PrescriptionsModule } from './modules/prescriptions/prescriptions.module';
 import { ProductsModule } from './modules/products/products.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
@@ -27,6 +28,10 @@ import { StockModule } from './modules/stock/stock.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { UnitsModule } from './modules/units/units.module';
 import { UsersModule } from './modules/users/users.module';
+import { SearchModule } from './modules/search/search.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+
+import { InventoryModule } from './modules/inventory/inventory.module';
 
 @Module({
   imports: [
@@ -43,6 +48,7 @@ import { UsersModule } from './modules/users/users.module';
     RolesModule,
     UsersModule,
     CategoriesModule,
+    DosageFormsModule,
     SuppliersModule,
     UnitsModule,
     ProductsModule,
@@ -52,6 +58,7 @@ import { UsersModule } from './modules/users/users.module';
     PurchasesModule,
     ReportsModule,
     StockModule,
+    InventoryModule,
     PrescriptionsModule,
     CounselingRecordsModule,
     DashboardModule,
@@ -59,6 +66,8 @@ import { UsersModule } from './modules/users/users.module';
     SettingsModule,
     SalesModule,
     SalesReturnsModule,
+    SearchModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

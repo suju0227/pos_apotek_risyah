@@ -8,8 +8,10 @@ import { PaymentService } from './payment.service';
 import { SalesController } from './sales.controller';
 import { SalesService } from './sales.service';
 
+import { InventoryModule } from '../inventory/inventory.module';
+
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, InventoryModule],
   controllers: [CashierProductsController, SalesController],
   providers: [
     DiscountService,

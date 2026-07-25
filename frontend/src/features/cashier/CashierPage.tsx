@@ -1,5 +1,6 @@
 import {
   Banknote,
+  Check,
   CreditCard,
   Minus,
   Plus,
@@ -15,6 +16,7 @@ import { Card } from '../../shared/components/Card';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Input } from '../../shared/components/Input';
+import { Select } from '../../shared/components/Select';
 import { LoadingSkeleton } from '../../shared/components/LoadingSkeleton';
 import { useToastStore } from '../../shared/components/toast.store';
 import { useConnectionStatus } from '../../shared/hooks/useConnectionStatus';
@@ -377,6 +379,8 @@ function ProductResult({
   product: CashierProduct;
   onAddItem: (product: CashierProduct, unit: CashierProductUnit) => void;
 }) {
+  const cartItems = useCashierCartStore((state) => state.items);
+
   return (
     <Card className="space-y-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -404,13 +408,17 @@ function ProductResult({
       </div>
 
       <div className="grid gap-2 md:grid-cols-2">
-        {product.units.map((unit) => (
-          <ProductUnitButton
-            key={unit.productUnitId}
-            unit={unit}
-            onClick={() => onAddItem(product, unit)}
-          />
-        ))}
+        {product.units.map((unit) => {
+          const isSelected = cartItems.some((item) => item.productUnitId === unit.productUnitId);
+          return (
+            <ProductUnitButton
+              key={unit.productUnitId}
+              unit={unit}
+              isSelected={isSelected}
+              onClick={() => onAddItem(product, unit)}
+            />
+          );
+        })}
       </div>
     </Card>
   );
@@ -491,9 +499,11 @@ function ReadyPrescriptionPanel({
 
 function ProductUnitButton({
   unit,
+  isSelected,
   onClick,
 }: {
   unit: CashierProductUnit;
+  isSelected?: boolean;
   onClick: () => void;
 }) {
   const isBelowMinimum = unit.stockAvailable < unit.minSaleQty;
@@ -502,7 +512,11 @@ function ProductUnitButton({
     <button
       type="button"
       disabled={isBelowMinimum}
-      className="rounded-md border border-slate-200 p-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70"
+      className={`rounded-lg border p-3 text-left transition-all duration-200 active:scale-[0.98] ${
+        isSelected
+          ? 'border-teal-600 bg-teal-50/70 text-teal-950 ring-2 ring-teal-500/20 shadow-xs'
+          : 'border-slate-200 bg-white text-slate-700 hover:border-teal-400 hover:bg-teal-50/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70'
+      }`}
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-3">
@@ -522,7 +536,7 @@ function ProductUnitButton({
             <div className="mt-1 text-xs text-slate-500">{unit.saleUnitNote}</div>
           ) : null}
         </div>
-        <div className="text-right text-sm font-semibold text-emerald-700">
+        <div className={`text-right text-sm font-semibold ${isSelected ? 'text-teal-700' : 'text-emerald-700'}`}>
           {formatRupiah(unit.sellingPrice)}
         </div>
       </div>
@@ -615,7 +629,7 @@ function PaymentPanel({
   onCheckout: () => void;
 }) {
   return (
-    <div className="rounded-md bg-slate-50 p-4">
+    <div className="rounded-lg border border-slate-200/50 bg-slate-100/50 p-5 shadow-xs">
       <div className="space-y-4">
         <div>
           <h3 className="text-sm font-semibold text-slate-950">Pembayaran</h3>
@@ -627,9 +641,9 @@ function PaymentPanel({
                 <button
                   key={method.value}
                   type="button"
-                  className={`flex h-10 items-center justify-center gap-2 rounded-md border text-sm font-semibold transition ${
+                  className={`flex h-10 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
                     active
-                      ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                      ? 'border-teal-600 bg-teal-50 text-teal-700 shadow-xs'
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                   }`}
                   disabled={isSubmitting}
@@ -644,25 +658,20 @@ function PaymentPanel({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
-              Jenis diskon
-            </span>
-            <select
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-50"
-              value={discountType}
-              disabled={isSubmitting}
-              onChange={(event) =>
-                onDiscountTypeChange(event.target.value as DiscountType)
-              }
-            >
-              {discountTypes.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Jenis diskon"
+            value={discountType}
+            disabled={isSubmitting}
+            onChange={(event) =>
+              onDiscountTypeChange(event.target.value as DiscountType)
+            }
+          >
+            {discountTypes.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </Select>
           <Input
             label={discountType === 'PERCENT' ? 'Diskon persen' : 'Diskon nominal'}
             type="number"
@@ -683,14 +692,16 @@ function PaymentPanel({
         </div>
 
         <div className="space-y-2 border-t border-slate-200 pt-4 text-sm">
-          <SummaryRow label="Subtotal" value={formatRupiah(subtotal)} />
-          <SummaryRow label="Diskon" value={formatRupiah(discountTotal)} />
+          <SummaryRow label="Subtotal" value={formatRupiah(subtotal)} type="subtotal" />
+          <SummaryRow label="Diskon" value={formatRupiah(discountTotal)} type="discount" />
+          <div className="border-t border-slate-200/50 my-1 pt-1" />
           <SummaryRow
             label="Grand total"
             value={formatRupiah(grandTotal)}
             strong
+            type="total"
           />
-          <SummaryRow label="Kembalian" value={formatRupiah(changeAmount)} />
+          <SummaryRow label="Kembalian" value={formatRupiah(changeAmount)} type="change" />
         </div>
 
         {checkoutError ? (
@@ -704,8 +715,14 @@ function PaymentPanel({
           fullWidth
           disabled={isSubmitting || isServerOffline}
           onClick={onCheckout}
+          className="gap-2"
         >
-          {isSubmitting ? 'Menyimpan...' : 'Simpan Transaksi'}
+          {isSubmitting ? 'Menyimpan...' : (
+            <>
+              <Check size={18} />
+              Simpan Transaksi
+            </>
+          )}
         </Button>
       </div>
     </div>
@@ -716,17 +733,22 @@ function SummaryRow({
   label,
   value,
   strong,
+  type = 'subtotal',
 }: {
   label: string;
   value: string;
   strong?: boolean;
+  type?: 'subtotal' | 'discount' | 'total' | 'change';
 }) {
+  const styles = {
+    subtotal: 'text-slate-600 text-xs',
+    discount: 'text-rose-600 text-xs font-medium',
+    total: 'text-base font-extrabold text-slate-950',
+    change: 'text-sm font-semibold text-emerald-600',
+  };
+
   return (
-    <div
-      className={`flex items-center justify-between gap-3 ${
-        strong ? 'text-base font-bold text-slate-950' : 'text-slate-600'
-      }`}
-    >
+    <div className={`flex items-center justify-between gap-3 ${styles[type]}`}>
       <span>{label}</span>
       <span>{value}</span>
     </div>

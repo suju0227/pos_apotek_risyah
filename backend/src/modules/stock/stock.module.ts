@@ -6,8 +6,10 @@ import { StockMutationsController } from './stock-mutations.controller';
 import { StockMutationsService } from './stock-mutations.service';
 import { StockService } from './stock.service';
 
+import { InventoryModule } from '../inventory/inventory.module';
+
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, InventoryModule],
   controllers: [StockMutationsController, StockController],
   providers: [IdempotencyService, StockService, StockMutationsService],
 })

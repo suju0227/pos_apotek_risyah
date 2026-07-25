@@ -18,10 +18,26 @@ import { UpdateProductUnitDto } from './dto/update-product-unit.dto';
 const productInclude = {
   category: true,
   baseUnit: true,
+  dosageForm: true,
+  storageLocation: true,
   productUnits: {
     where: { deletedAt: null },
     include: { unit: true },
     orderBy: [{ isDefaultSaleUnit: 'desc' }, { createdAt: 'asc' }],
+  },
+  batches: {
+    where: { deletedAt: null, isActive: true },
+    include: {
+      prices: {
+        where: { deletedAt: null, isActive: true },
+        include: {
+          productUnit: {
+            include: { unit: true },
+          },
+        },
+      },
+    },
+    orderBy: [{ expiredDate: 'asc' }, { createdAt: 'asc' }],
   },
 } satisfies Prisma.ProductInclude;
 
@@ -39,31 +55,49 @@ export class ProductsService {
     private readonly cacheService: CacheService,
   ) {}
 
-  async findAll(search?: string) {
-    // Don't cache search results
-    if (search) {
-      return this.queryProducts(search);
+  async findAll(role?: string, search?: string, categoryId?: string, dosageFormId?: string) {
+    let products: any[];
+    // Don't cache search or filtered results
+    if (search || categoryId || dosageFormId) {
+      products = await this.queryProducts(search, categoryId, dosageFormId);
+    } else {
+      // Try to get from cache
+      const cached = await this.cacheService.get<any[]>(this.cacheKey);
+      if (cached) {
+        products = cached;
+      } else {
+        // Query database
+        products = await this.queryProducts();
+        // Store in cache
+        await this.cacheService.set(this.cacheKey, products);
+      }
     }
 
-    // Try to get from cache
-    const cached = await this.cacheService.get<any>(this.cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    // Query database
-    const products = await this.queryProducts();
-
-    // Store in cache
-    await this.cacheService.set(this.cacheKey, products);
-
-    return products;
+    return products.map((product) => this.sanitizeProductResponse(product, role));
   }
 
-  private async queryProducts(search?: string) {
+  private async getDescendantCategoryIds(categoryId: string): Promise<string[]> {
+    const categories = await this.prisma.category.findMany({
+      where: { parentId: categoryId, deletedAt: null },
+      select: { id: true },
+    });
+    const ids = categories.map((c) => c.id);
+    const childIdsPromises = ids.map((id) => this.getDescendantCategoryIds(id));
+    const childIds = await Promise.all(childIdsPromises);
+    return [categoryId, ...ids, ...childIds.flat()];
+  }
+
+  private async queryProducts(search?: string, categoryId?: string, dosageFormId?: string) {
+    let categoryIds: string[] | undefined;
+    if (categoryId) {
+      categoryIds = await this.getDescendantCategoryIds(categoryId);
+    }
+
     const products = await this.prisma.product.findMany({
       where: {
         deletedAt: null,
+        ...(categoryIds ? { categoryId: { in: categoryIds } } : {}),
+        ...(dosageFormId ? { dosageFormId } : {}),
         ...(search
           ? {
               OR: [
@@ -81,13 +115,15 @@ export class ProductsService {
     return products.map((product) => this.toProductResponse(product));
   }
 
-  search(search?: string) {
-    return this.findAll(search);
+  search(role?: string, search?: string, categoryId?: string, dosageFormId?: string) {
+    return this.findAll(role, search, categoryId, dosageFormId);
   }
 
-  async create(dto: CreateProductDto) {
+  async create(dto: CreateProductDto, role?: string) {
     await this.ensureCategoryActive(dto.categoryId);
     await this.ensureUnitActive(dto.baseUnitId);
+    if (dto.dosageFormId) await this.ensureDosageFormActive(dto.dosageFormId);
+    if (dto.storageLocationId) await this.ensureStorageLocationActive(dto.storageLocationId);
 
     try {
       const product = await this.prisma.product.create({
@@ -98,7 +134,7 @@ export class ProductsService {
       // Invalidate cache
       await this.cacheService.del(this.cacheKey);
 
-      return this.toProductResponse(product);
+      return this.sanitizeProductResponse(this.toProductResponse(product), role);
     } catch (error) {
       if (isPrismaUniqueError(error)) {
         throw new BadRequestException('Kode, barcode, atau nama produk sudah digunakan');
@@ -107,9 +143,11 @@ export class ProductsService {
     }
   }
 
-  async update(id: string, dto: UpdateProductDto) {
+  async update(id: string, dto: UpdateProductDto, role?: string) {
     if (dto.categoryId) await this.ensureCategoryActive(dto.categoryId);
     if (dto.baseUnitId) await this.ensureUnitActive(dto.baseUnitId);
+    if (dto.dosageFormId) await this.ensureDosageFormActive(dto.dosageFormId);
+    if (dto.storageLocationId) await this.ensureStorageLocationActive(dto.storageLocationId);
 
     try {
       const product = await this.prisma.product.update({
@@ -121,7 +159,7 @@ export class ProductsService {
       // Invalidate cache
       await this.cacheService.del(this.cacheKey);
 
-      return this.toProductResponse(product);
+      return this.sanitizeProductResponse(this.toProductResponse(product), role);
     } catch (error) {
       if (isPrismaNotFoundError(error)) {
         throw new NotFoundException('Produk tidak ditemukan');
@@ -133,7 +171,7 @@ export class ProductsService {
     }
   }
 
-  async deactivate(id: string) {
+  async deactivate(id: string, role?: string) {
     try {
       const product = await this.prisma.product.update({
         where: { id },
@@ -157,7 +195,7 @@ export class ProductsService {
       // Invalidate cache
       await this.cacheService.del(this.cacheKey);
 
-      return this.toProductResponse(product);
+      return this.sanitizeProductResponse(this.toProductResponse(product), role);
     } catch (error) {
       if (isPrismaNotFoundError(error)) {
         throw new NotFoundException('Produk tidak ditemukan');
@@ -306,6 +344,26 @@ export class ProductsService {
     }
   }
 
+  private async ensureDosageFormActive(dosageFormId: string) {
+    const dosageForm = await this.prisma.dosageForm.findFirst({
+      where: { id: dosageFormId, isActive: true, deletedAt: null },
+    });
+
+    if (!dosageForm) {
+      throw new BadRequestException('Bentuk Sediaan tidak valid');
+    }
+  }
+
+  private async ensureStorageLocationActive(storageLocationId: string) {
+    const storageLocation = await this.prisma.storageLocation.findFirst({
+      where: { id: storageLocationId, isActive: true, deletedAt: null },
+    });
+
+    if (!storageLocation) {
+      throw new BadRequestException('Lokasi Penyimpanan tidak valid');
+    }
+  }
+
   private async ensureUnitActive(unitId: string) {
     const unit = await this.prisma.unit.findFirst({
       where: { id: unitId, isActive: true },
@@ -349,12 +407,137 @@ export class ProductsService {
   }
 
   private toProductResponse(product: ProductWithRelations) {
+    // Calculate financial summary
+    const today = new Date();
+    const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+
+    // Active batches for financials (isActive = true, expiredDate >= today, currentStockBase > 0)
+    const activeBatches = product.batches?.filter((b: any) =>
+      b.isActive &&
+      !b.deletedAt &&
+      new Date(b.expiredDate) >= todayUTC &&
+      Number(b.currentStockBase) > 0
+    ) || [];
+
+    const batchCount = activeBatches.length;
+
+    // Sum of inventory value and potential profit
+    let nilaiPersediaan = 0;
+    let potensiProfit = 0;
+    const hpps = activeBatches.map((b: any) => Number(b.hppBase));
+    const hppMin = hpps.length > 0 ? Math.min(...hpps) : 0;
+    const hppMax = hpps.length > 0 ? Math.max(...hpps) : 0;
+
+    activeBatches.forEach((batch: any) => {
+      const hpp = Number(batch.hppBase);
+      const stock = Number(batch.currentStockBase);
+      
+      const defaultPriceObj = batch.prices?.find((p: any) => p.productUnit?.isDefaultSaleUnit);
+      const sellingPriceDefault = defaultPriceObj ? Number(defaultPriceObj.sellingPrice) : 0;
+      const conversionToBase = defaultPriceObj ? Number(defaultPriceObj.productUnit.conversionToBase) : 1;
+      const sellingPriceBase = conversionToBase > 0 ? sellingPriceDefault / conversionToBase : 0;
+
+      const margin = sellingPriceBase - hpp;
+      nilaiPersediaan += hpp * stock;
+      potensiProfit += margin * stock;
+    });
+
+    const activeBatch = activeBatches[0];
+    let hppActive = 0;
+    let sellingPriceActive = 0;
+    let marginActive = 0;
+    let marginPercentActive = 0;
+
+    if (activeBatch) {
+      hppActive = Number(activeBatch.hppBase);
+      const defaultPriceObj = activeBatch.prices?.find((p: any) => p.productUnit?.isDefaultSaleUnit);
+      const sellingPriceDefault = defaultPriceObj ? Number(defaultPriceObj.sellingPrice) : 0;
+      const conversionToBase = defaultPriceObj ? Number(defaultPriceObj.productUnit.conversionToBase) : 1;
+      sellingPriceActive = conversionToBase > 0 ? sellingPriceDefault / conversionToBase : 0;
+
+      marginActive = sellingPriceActive - hppActive;
+      marginPercentActive = sellingPriceActive > 0 ? (marginActive / sellingPriceActive) * 100 : 0;
+    }
+
     return {
       ...product,
       minStockBase: Number(product.minStockBase),
       productUnits: product.productUnits.map((unit) =>
         this.toProductUnitResponse(unit),
       ),
+      batches: product.batches?.map((batch: any) => {
+        // Map batch pricing/status/financials
+        const defaultPriceObj = batch.prices?.find((p: any) => p.productUnit?.isDefaultSaleUnit);
+        const sellingPriceDefault = defaultPriceObj ? Number(defaultPriceObj.sellingPrice) : 0;
+        const conversionToBase = defaultPriceObj ? Number(defaultPriceObj.productUnit.conversionToBase) : 1;
+        const sellingPriceBase = conversionToBase > 0 ? sellingPriceDefault / conversionToBase : 0;
+
+        const hpp = Number(batch.hppBase);
+        const margin = sellingPriceBase - hpp;
+        const marginPercent = sellingPriceBase > 0 ? (margin / sellingPriceBase) * 100 : 0;
+        const stock = Number(batch.currentStockBase);
+
+        return {
+          ...batch,
+          initialStockBase: Number(batch.initialStockBase),
+          currentStockBase: stock,
+          costModalBase: Number(batch.costModalBase || 0),
+          additionalCostBase: Number(batch.additionalCostBase || 0),
+          hppBase: hpp,
+          sellingPriceDefault,
+          sellingPriceBase,
+          margin,
+          marginPercent,
+          nilaiPersediaan: hpp * stock,
+          potensiProfit: margin * stock,
+          prices: batch.prices?.map((price: any) => ({
+            ...price,
+            sellingPrice: Number(price.sellingPrice),
+            productUnit: {
+              ...price.productUnit,
+              conversionToBase: Number(price.productUnit.conversionToBase),
+            },
+          })) || [],
+        };
+      }) || [],
+      hppActive,
+      sellingPriceActive,
+      marginActive,
+      marginPercentActive,
+      batchCount,
+      nilaiPersediaan,
+      potensiProfit,
+      hppMin,
+      hppMax,
+    };
+  }
+
+  private sanitizeProductResponse(product: any, role?: string) {
+    const isSanitized = role !== 'MANAGER' && role !== 'PEMILIK';
+    if (!isSanitized) {
+      return product;
+    }
+
+    return {
+      ...product,
+      hppActive: 0,
+      sellingPriceActive: product.sellingPriceActive,
+      marginActive: 0,
+      marginPercentActive: 0,
+      nilaiPersediaan: 0,
+      potensiProfit: 0,
+      hppMin: 0,
+      hppMax: 0,
+      batches: product.batches?.map((batch: any) => ({
+        ...batch,
+        costModalBase: 0,
+        additionalCostBase: 0,
+        hppBase: 0,
+        margin: 0,
+        marginPercent: 0,
+        nilaiPersediaan: 0,
+        potensiProfit: 0,
+      })) || [],
     };
   }
 

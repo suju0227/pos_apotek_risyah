@@ -11,14 +11,20 @@ import type {
   Supplier,
   Unit,
   UpdateProductUnitPayload,
+  DosageForm,
+  CreateDosageFormPayload,
+  UpdateDosageFormPayload,
 } from './masterData.types';
 
 export const masterDataApi = {
   categories: () => apiClient.get<Category[]>('/categories'),
+  categoriesTree: () => apiClient.get<Category[]>('/categories/tree'),
   createCategory: (payload: CreateCategoryPayload) =>
     apiClient.post<Category>('/categories', payload),
   deactivateCategory: (id: string) =>
     apiClient.patch<Category>(`/categories/${id}/deactivate`),
+  deleteCategory: (id: string) =>
+    apiClient.del<Category>(`/categories/${id}`),
 
   suppliers: () => apiClient.get<Supplier[]>('/suppliers'),
   createSupplier: (payload: CreateSupplierPayload) =>
@@ -32,9 +38,11 @@ export const masterDataApi = {
   deactivateUnit: (id: string) =>
     apiClient.patch<Unit>(`/units/${id}/deactivate`),
 
-  products: (q?: string) => {
+  products: (q?: string, categoryId?: string, dosageFormId?: string) => {
     const params = new URLSearchParams();
     if (q?.trim()) params.set('q', q.trim());
+    if (categoryId) params.set('categoryId', categoryId);
+    if (dosageFormId) params.set('dosageFormId', dosageFormId);
     const query = params.toString();
     return apiClient.get<Product[]>(`/products${query ? `?${query}` : ''}`);
   },
@@ -60,4 +68,14 @@ export const masterDataApi = {
     apiClient.patch<ProductUnit>(
       `/products/${productId}/units/${productUnitId}/deactivate`,
     ),
+
+  dosageForms: () => apiClient.get<DosageForm[]>('/dosage-forms'),
+  createDosageForm: (payload: CreateDosageFormPayload) =>
+    apiClient.post<DosageForm>('/dosage-forms', payload),
+  updateDosageForm: (id: string, payload: UpdateDosageFormPayload) =>
+    apiClient.patch<DosageForm>(`/dosage-forms/${id}`, payload),
+  deactivateDosageForm: (id: string) =>
+    apiClient.patch<DosageForm>(`/dosage-forms/${id}/deactivate`),
+  deleteDosageForm: (id: string) =>
+    apiClient.del<DosageForm>(`/dosage-forms/${id}`),
 };

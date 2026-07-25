@@ -2,11 +2,11 @@
 document_name: "07_BACKEND_ONLY_POS_APOTEK"
 document_type: "Backend Analysis / Backend Architecture Guide"
 project_name: "POS Apotek"
-version: "1.0.0"
-status: "Draft"
+version: "1.1.0"
+status: "Approved"
 prepared_for: "AI Vibe Coding / Codex GPT"
 prepared_by: "Suryadi Umar"
-last_updated: "2026-06-02"
+last_updated: "2026-07-25"
 source_documents:
   - "01_PRD_POS_APOTEK.md"
   - "02_SRS_POS_APOTEK.md"
@@ -766,6 +766,26 @@ Tanggung jawab:
 - ekspor laporan laba ke Excel;
 - ekspor laporan ke PDF jika fitur diaktifkan;
 - memastikan isi export sama dengan filter laporan.
+
+### 10.17 CategoriesService
+
+Tanggung jawab:
+
+- mengelola CRUD master data kategori bertingkat (hirarki hingga 3 level);
+- memvalidasi batas kedalaman maksimal 3 level (`CATEGORY_DEPTH_EXCEEDED`);
+- mencegah relasi sirkular (`parentId` menunjuk ke diri sendiri atau keturunannya);
+- melakukan pengurutan berdasarkan `sortOrder`;
+- mengelola caching Redis untuk `categories:tree` (struktur pohon) dan `categories:flat` (daftar flat);
+- melakukan invalidasi otomatis key Redis `categories:tree` dan `categories:flat` saat terjadi mutasi data (create, update, delete).
+
+### 10.18 NotificationsService
+
+Tanggung jawab:
+
+- mengelola sintesis pemberitahuan operasional dinamis berbasis query real-time tanpa tabel terpisah di database;
+- melakukan query paralel ke tabel `products` (stok tipis `currentStockBase <= minStockBase`) dan `batches` (batch mendekati kadaluarsa `<= 30 hari` atau sudah expired);
+- mensintesis pemberitahuan dalam memori backend dengan ID deterministik (`low-stock-{productId}`, `expiring-batch-{batchId}`);
+- mengembalikan payload JSON pemberitahuan terurut berdasarkan tingkat urgensi (HIGH, MEDIUM, LOW) untuk konsumsi frontend NotificationCenter.
 
 ---
 

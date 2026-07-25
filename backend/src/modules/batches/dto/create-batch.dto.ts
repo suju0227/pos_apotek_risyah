@@ -41,6 +41,18 @@ export class CreateBatchDto {
   @Min(0)
   hppBase!: number;
 
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  costModalBase?: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  additionalCostBase?: number;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

@@ -10,6 +10,7 @@ import { isPrismaUniqueError } from '../../common/utils/prisma-error';
 import { PrismaService } from '../../database/prisma.service';
 import { IdempotencyService } from '../sales/idempotency.service';
 import { CreateSalesReturnDto } from './dto/create-sales-return.dto';
+import { InventoryService } from '../inventory/inventory.service';
 
 const SALES_RETURN_ACTION = 'SALES_RETURN';
 
@@ -51,6 +52,7 @@ type LockedAllocationRow = {
   discountAmount: Prisma.Decimal;
   profitAmount: Prisma.Decimal;
   currentStockBase: Prisma.Decimal;
+  expiredDate: Date;
 };
 
 @Injectable()
@@ -58,6 +60,7 @@ export class SalesReturnsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly idempotencyService: IdempotencyService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   async findAll(user: AuthUser) {
@@ -147,8 +150,12 @@ export class SalesReturnsService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        const isIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.saleId);
         const sale = await tx.sale.findFirst({
-          where: { id: dto.saleId, deletedAt: null },
+          where: { 
+            ...(isIdUuid ? { id: dto.saleId } : { saleNumber: dto.saleId }),
+            deletedAt: null 
+          },
           select: { id: true, saleNumber: true },
         });
 
@@ -160,7 +167,7 @@ export class SalesReturnsService {
 
         for (const item of dto.items) {
           const allocation = await this.lockAllocation(tx, item.saleBatchAllocationId);
-          if (!allocation || allocation.saleId !== dto.saleId) {
+          if (!allocation || allocation.saleId !== sale.id) {
             throw new BadRequestException('Item retur tidak sesuai transaksi asal');
           }
 
@@ -211,7 +218,7 @@ export class SalesReturnsService {
 
         const createdReturn = await tx.salesReturn.create({
           data: {
-            saleId: dto.saleId,
+            saleId: sale.id,
             cashierId: user.id,
             returnNumber: this.generateReturnNumber(),
             reason,
@@ -223,7 +230,7 @@ export class SalesReturnsService {
         });
 
         for (const item of preparedItems) {
-          await tx.salesReturnItem.create({
+          const detailItem = await tx.salesReturnItem.create({
             data: {
               salesReturnId: createdReturn.id,
               saleBatchAllocationId: item.allocation.id,
@@ -245,25 +252,26 @@ export class SalesReturnsService {
             },
           });
 
-          await tx.productBatch.update({
-            where: { id: item.allocation.batchId },
-            data: { currentStockBase: item.qtyAfter },
-          });
-
-          await tx.stockMutation.create({
-            data: {
-              productId: item.allocation.productId,
-              batchId: item.allocation.batchId,
-              createdById: user.id,
-              mutationType: 'SALES_RETURN_IN',
-              referenceType: 'SALES_RETURN',
-              referenceId: createdReturn.id,
-              qtyBefore: item.qtyBefore,
-              qtyChange: item.qtyBaseReturned,
-              qtyAfter: item.qtyAfter,
-              reason: `Retur ${createdReturn.returnNumber} dari ${sale.saleNumber}`,
-            },
-          });
+          await this.inventoryService.receiveStock(
+            item.allocation.productId,
+            item.allocation.batchNumber,
+            item.allocation.expiredDate,
+            item.qtyBaseReturned,
+            item.allocation.hppBaseSnapshot.toString(),
+            undefined, // purchaseId
+            undefined, // storageLocationId
+            {
+              saleReturnNumber: createdReturn.returnNumber,
+              originalInvoice: sale.saleNumber,
+              customer: 'Default Customer',
+              reason: createdReturn.reason,
+              returnedBy: user.username,
+              approvedBy: user.username,
+              // Tambahkan flag internal agar receiveStockHandler bisa me-resolve detail item retur & reference id mutasi dengan benar
+              saleReturnItemId: detailItem.id,
+            } as any,
+            user.id,
+          );
         }
 
         const salesReturn = await tx.salesReturn.findUniqueOrThrow({
@@ -300,7 +308,8 @@ export class SalesReturnsService {
         sba.subtotal,
         sba.discount_amount AS "discountAmount",
         sba.profit_amount AS "profitAmount",
-        pb.current_stock_base AS "currentStockBase"
+        pb.current_stock_base AS "currentStockBase",
+        pb.expired_date AS "expiredDate"
       FROM sale_batch_allocations sba
       JOIN sale_items si ON si.id = sba.sale_item_id
       JOIN product_batches pb ON pb.id = sba.batch_id
@@ -313,7 +322,7 @@ export class SalesReturnsService {
     salesReturn: SalesReturnWithRelations,
     role: string,
   ) {
-    const isManager = role === 'MANAGER';
+    const isManager = role === 'MANAGER' || role === 'PEMILIK';
     const response = {
       id: salesReturn.id,
       saleId: salesReturn.saleId,

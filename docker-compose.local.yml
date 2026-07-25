@@ -1,4 +1,21 @@
 services:
+  zerotier:
+    image: zerotier/zerotier:latest
+    container_name: pos_apotek_zerotier
+    restart: unless-stopped
+    network_mode: host   # ZeroTier butuh akses langsung ke network stack host untuk TUN/TAP
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    devices:
+      - /dev/net/tun
+    volumes:
+      - pos_apotek_zerotier_data:/var/lib/zerotier-one
+    # Untuk join network ZeroTier, jalankan setelah container up:
+    #   docker exec pos_apotek_zerotier zerotier-cli join <NETWORK_ID>
+    # Untuk melihat status:
+    #   docker exec pos_apotek_zerotier zerotier-cli status
+
   postgres:
     image: postgres:16-alpine
     container_name: pos_apotek_postgres
@@ -16,6 +33,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    ports:
+      - "5432:5432"
     networks:
       - pos_apotek_network
 
@@ -39,6 +58,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     networks:
       - pos_apotek_network
 
@@ -52,8 +77,10 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      # - "443:443" # Uncomment if enabling HTTPS in frontend/nginx.conf
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - pos_apotek_network
 
@@ -69,6 +96,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    ports:
+      - "6379:6379"
     networks:
       - pos_apotek_network
     command: redis-server --appendonly yes
@@ -92,6 +121,7 @@ services:
 volumes:
   pos_apotek_pgdata:
   pos_apotek_redis_data:
+  pos_apotek_zerotier_data:
 
 networks:
   pos_apotek_network:

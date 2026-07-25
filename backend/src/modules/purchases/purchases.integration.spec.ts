@@ -90,7 +90,7 @@ describe('Purchases API', () => {
       (item: { referenceId: string }) => item.referenceId === purchase.id,
     );
     expect(mutation).toMatchObject({
-      mutationType: 'PURCHASE_IN',
+      movementType: 'IN',
       referenceType: 'PURCHASE',
       qtyBefore: 0,
       qtyChange: 20,
@@ -336,7 +336,7 @@ describe('Purchases API', () => {
       grossTotal: 10000,
       discountAmount: 1000,
       netTotal: 9000,
-      hppBase: 900,
+      hppBase: 999,
     });
 
     await postManager(

@@ -1,12 +1,12 @@
 ---
-document_name: "02_SRS_POS_APOTEK_REVISI_V1_1"
+document_name: "02_SRS_POS_APOTEK_REVISI_V1_2"
 document_type: "Software Requirements Specification"
 project_name: "POS Apotek"
-version: "1.1.0"
+version: "1.2.0"
 status: "Draft Revisi"
 prepared_for: "AI Vibe Coding / Codex GPT"
 prepared_by: "Suryadi Umar"
-last_updated: "2026-06-02"
+last_updated: "2026-07-25"
 source_documents:
   - "01_PRD_POS_APOTEK.md"
   - "02_SRS_POS_APOTEK.md"
@@ -20,7 +20,7 @@ related_documents:
 
 # SRS - POS Apotek
 
-## Versi Revisi 1.1.0
+## Versi Revisi 1.2.0
 
 ## 0. Instruksi Pembacaan untuk AI Coding
 
@@ -591,6 +591,36 @@ Sistem harus membatasi akses halaman, menu, dan endpoint berdasarkan role penggu
 - Kategori aktif dapat dipilih pada produk.
 - Kategori nonaktif tidak muncul sebagai pilihan produk baru.
 - Produk lama yang memakai kategori nonaktif tetap dapat dibaca.
+
+---
+
+## SRS-CAT-002 / FR-CAT-002: Kategori Hirarki (Hierarchical Category System)
+
+**Prioritas:** Must Have
+**Aktor:** Manager
+
+### Input
+
+- nama kategori;
+- `parentId` (ID kategori induk opsional);
+- `sortOrder` (nomor urut penataan);
+- deskripsi opsional;
+- status aktif.
+
+### Validation Rules
+
+| ID | Aturan |
+|---|---|
+| VAL-CAT-004 | `parentId` tidak boleh menunjuk ke ID kategori itu sendiri atau ke keturunannya (Cycle Prevention) |
+| VAL-CAT-005 | `sortOrder` wajib berupa bilangan bulat (integer) untuk menentukan urutan visual cabang kategori |
+| VAL-CAT-006 | Kategori induk yang masih memiliki anak kategori aktif atau produk terikat tidak boleh dihapus permanen (Deletion Guard) |
+
+### Acceptance Criteria
+
+- Manager dapat membuat kategori induk (root) dan sub-kategori bertingkat (tree structure).
+- Backend menyediakan endpoint pohon hirarki (`GET /api/categories/tree`) dan daftar rata (`GET /api/categories/flat`).
+- Sistem menolak pembaruan `parentId` yang akan menghasilkan hubungan sirkular.
+- Sistem menolak penghapusan kategori induk jika masih memiliki anak kategori atau produk terasosiasi.
 
 ---
 
@@ -1805,6 +1835,33 @@ laba_periode = jumlah_laba_detail - koreksi_laba_retur
 
 ---
 
+# 8.16 Modul Notifikasi Operasional
+
+## SRS-NOTIF-001 / FR-NOTIF-001: Pusat Notifikasi Operasional (Notification Center)
+
+**Prioritas:** Should Have
+**Aktor:** Kasir, Apoteker, Manager, Pemilik
+
+### Deskripsi
+Sistem menyediakan Pusat Notifikasi Operasional berbasis sintesis dinamis (dynamic synthesis) yang mengagregasikan peringatan stok kritis, batch mendekati kedaluwarsa/kedaluwarsa, status PO pending, dan resep siap bayar dengan penyaringan hak akses (RBAC filtering) serta manajemen status dibaca/diabaikan di tingkat klien (local client state).
+
+### Validation Rules
+
+| ID | Aturan |
+|---|---|
+| VAL-NOTIF-001 | Dynamic synthesis wajib mengumpulkan item stok kritis, batch expired, PO pending, dan resep `READY_FOR_PAYMENT` secara realtime dari database backend |
+| VAL-NOTIF-002 | RBAC filtering wajib menyaring isi notifikasi sesuai token pengguna (Kasir tidak melihat alert yang berisikan HPP/laba/financial summary) |
+| VAL-NOTIF-003 | Status `read` dan `dismissed` dikelola pada local client state agar tidak menambah beban mutasi database transaksi |
+
+### Acceptance Criteria
+
+- Endpoint `GET /api/notifications` mengembalikan daftar notifikasi tersintesis sesuai role pengakses.
+- Kasir menerima notifikasi stok kritis dan resep siap bayar (`READY_FOR_PAYMENT`).
+- Manager dan Pemilik menerima notifikasi lengkap termasuk stok kritis, batch kedaluwarsa, PO pending, dan status pembelian.
+- Tampilan notifikasi pada UI mendukung penandaan dibaca/diabaikan pada local client state.
+
+---
+
 ## 9. Kebutuhan Data Tingkat SRS
 
 Bagian ini mendefinisikan entitas konseptual. Struktur tabel final, tipe data, relasi, index, dan constraint dibuat pada SDD.
@@ -1979,6 +2036,29 @@ Catatan:
 | Koreksi stok | stock, stock-mutations, dashboard |
 | Update produk | products, cashier search |
 | Update batch | batches, stock, cashier search |
+
+### 10.8 Daftar Endpoint API Backend Utama
+
+Berikut adalah daftar endpoint API backend utama yang digunakan untuk sinkronisasi kebutuhan SRS:
+
+| Endpoint | Method | Deskripsi | Minimum Role |
+|---|---|---|---|
+| `/api/auth/login` | POST | Login pengguna dan perolehan JWT access/refresh token | Public |
+| `/api/notifications` | GET | Pusat Notifikasi Operasional (dynamic synthesis & RBAC filtering) | All Users |
+| `/api/categories/tree` | GET | Struktur pohon kategori hirarki | All Users |
+| `/api/categories/flat` | GET | Daftar kategori rata (flat list) | All Users |
+| `/api/categories` | GET, POST, PUT, DELETE | CRUD Kategori (dukungan `parentId` & `sortOrder`) | Manager |
+| `/api/products` | GET, POST, PUT | CRUD Master Produk Obat | Manager |
+| `/api/products/search` | GET | Pencarian produk kasir | Kasir, Manager |
+| `/api/sales` | GET, POST | Transaksi penjualan & riwayat | Kasir (penjualan/riwayat kustom), Manager |
+| `/api/sales-returns` | POST | Transaksi retur penjualan | Kasir, Manager |
+| `/api/purchases` | GET, POST | Transaksi pembelian supplier | Manager |
+| `/api/purchase-orders` | GET, POST | Purchase Order obat | Apoteker, Manager |
+| `/api/prescriptions` | GET, POST | Pelayanan resep dasar | Apoteker, Manager |
+| `/api/prescriptions/ready-for-payment` | GET | Daftar resep siap bayar untuk ditarik kasir | Kasir, Apoteker, Manager |
+| `/api/reports/sales` | GET | Laporan penjualan | Manager, Pemilik |
+| `/api/reports/profit` | GET | Laporan laba | Manager, Pemilik |
+| `/api/dashboard/summary` | GET | Ringkasan dashboard operasional | Manager, Pemilik |
 
 ---
 

@@ -1,12 +1,12 @@
-﻿---
+---
 document_name: "05_TASK_BREAKDOWN_POS_APOTEK_REVISI_SINKRON"
 document_type: "Task Breakdown / Implementation Plan"
 project_name: "POS Apotek"
-version: "1.1.0"
+version: "1.2.0"
 status: "Draft Revisi - Synchronized with PRD, SRS, SDD, UI/UX, Frontend, and Backend"
 prepared_for: "AI Vibe Coding / Codex GPT"
 prepared_by: "Suryadi Umar"
-last_updated: "2026-06-02"
+last_updated: "2026-07-25"
 source_documents:
   - "01_PRD_POS_APOTEK.md"
   - "02_SRS_POS_APOTEK.md"
@@ -29,6 +29,8 @@ revision_focus:
   - "penguatan testing concurrency, role sanitization, histori transaksi, dan idempotency"
   - "penegasan Presisi Harga Modal dan HPP"
   - "penambahan task PO, pembelian dari PO, pelayanan resep dasar, konseling, dan pembatasan satuan jual"
+  - "pembaruan status penyelesaian task hingga rilis Juli 2026"
+  - "penambahan task explicit Refaktor Category Tree dan Integrasi Notification Center"
 ---
 
 # Task Breakdown - POS Apotek
@@ -947,19 +949,67 @@ Membuat repository proyek dan struktur folder dasar sesuai SDD.
 **Related UI:** UI Flow Kategori
 
 ### Checklist
-- [ ] Buat halaman `/kategori`.
-- [ ] Buat tabel kategori.
-- [ ] Buat search kategori.
-- [ ] Buat modal/form tambah kategori.
-- [ ] Buat edit kategori.
-- [ ] Buat aksi nonaktifkan.
-- [ ] Tambahkan empty state.
-- [ ] Tambahkan loading state.
-- [ ] Tambahkan error state.
+- [x] Buat halaman `/kategori`.
+- [x] Buat tabel kategori.
+- [x] Buat search kategori.
+- [x] Buat modal/form tambah kategori.
+- [x] Buat edit kategori.
+- [x] Buat aksi nonaktifkan.
+- [x] Tambahkan empty state.
+- [x] Tambahkan loading state.
+- [x] Tambahkan error state.
 
 ### Definition of Done
 - Manager dapat mengelola kategori dari UI.
 - Empty state muncul jika data kosong.
+
+---
+
+## TASK-BE-003B: Refaktor API Category Tree & Constraints
+
+**Type:** Backend  
+**Priority:** P1  
+**Complexity:** M  
+**Related SRS:** SRS-CAT-001  
+**Related SDD:** SDD Category Tree
+
+### Description
+Mengembangkan endpoint hirarki pohon kategori (Category Tree) dengan constraint validasi kedalaman maksimal 3 level, keunikan nama per parentId, serta proteksi penghapusan parent.
+
+### Checklist
+- [x] Tambahkan field `parent_id` (nullable) pada tabel `categories`.
+- [x] Buat endpoint `GET /api/categories/tree` untuk mengembalikan hirarki pohon kategori terstruktur.
+- [x] Tambahkan validasi keunikan nama kategori pada parent yang sama (`parentId`).
+- [x] Tambahkan validasi kedalaman maksimal 3 level (Root -> Sub -> Sub-sub).
+- [x] Tambahkan proteksi backend agar parent category tidak dapat dihapus jika masih memiliki child categories atau terikat pada produk.
+
+### Definition of Done
+- Endpoint `/api/categories/tree` mengembalikan data berbentuk hirarki pohon.
+- Constraint unique name per parentId & max depth 3 terenkapsulasi di service layer.
+- Pengecekan proteksi hapus parent berjalan dan mengembalikan error code yang sesuai.
+
+---
+
+## TASK-FE-003B: UI Manajemen Kategori Tree View
+
+**Type:** Frontend  
+**Priority:** P1  
+**Complexity:** M  
+**Related UI:** UI Flow Kategori Tree View
+
+### Description
+Membangun antarmuka manajemen kategori berbasis Tree View pada route `/kategori`.
+
+### Checklist
+- [x] Buat komponen Tree View dengan expand/collapse toggle (`▶`/`▼`) pada parent node.
+- [x] Terapkan visual indentation bertingkat (Level 1: 0px, Level 2: 24px, Level 3: 48px) dan level badge.
+- [x] Buat dropdown Parent Selector pada modal tambah/edit kategori dengan filter maksimal level 2 parent dan pencegahan circular parent loop.
+- [x] Buat modal alert warning jika Manager mencoba menghapus parent category yang masih memiliki child categories atau produk terikat.
+
+### Definition of Done
+- Tree View kategori dapat di-expand/collapse dengan visual hirarki yang rapi.
+- Modal Form Tambah/Edit Kategori membatasi pilihan parent sesuai aturan max depth 3.
+- Error/Warning proteksi hapus parent category tampil jelas di UI.
 
 ---
 
@@ -2321,6 +2371,74 @@ Membuat repository proyek dan struktur folder dasar sesuai SDD.
 - Manager dapat mengunduh laporan.
 - Export memakai filter aktif.
 - Error export ditampilkan jelas.
+
+---
+
+# PHASE 10B - Notification Center & User Profile
+
+## TASK-BE-NOTIF-001: Backend Service Notifikasi & Filter RBAC
+
+**Type:** Backend  
+**Priority:** P1  
+**Complexity:** M  
+**Related SDD:** SDD Notification Center
+
+### Description
+Mengembangkan service backend notifikasi dengan pencatatan event otomatis dan penyaringan akses RBAC per role pengguna.
+
+### Checklist
+- [x] Buat migration tabel `notifications`.
+- [x] Buat NotificationService untuk menangkap event notifikasi (stok kritis, expired alert, PO status, retur, audit log).
+- [x] Buat endpoint `GET /api/notifications` dengan filtering RBAC eksplisit berdasarkan role user login (`KASIR`, `APOTEKER`, `MANAGER`, `PEMILIK`).
+- [x] Buat endpoint `PATCH /api/notifications/:id/read` dan `POST /api/notifications/read-all`.
+- [x] Buat endpoint `DELETE /api/notifications/:id`.
+
+### Definition of Done
+- Endpoint notifikasi terproteksi RBAC dan hanya mengembalikan notifikasi sesuai role.
+- Status read/unread dan penandaan massal berjalan akurat.
+
+---
+
+## TASK-FE-NOTIF-001: Component Topbar Notification Bell & Panel Dropdown Notifikasi
+
+**Type:** Frontend  
+**Priority:** P1  
+**Complexity:** M  
+**Related UI:** UI Flow Topbar Notification Bell
+
+### Description
+Membangun komponen Topbar Notification Bell dengan badge counter unread, polling/refetch, dan panel dropdown notifikasi.
+
+### Checklist
+- [x] Buat komponen Topbar Bell Icon dengan counter unread badge.
+- [x] Implementasikan auto-polling background / refetching untuk update data notifikasi realtime.
+- [x] Buat dropdown panel notifikasi dengan Tab Filter (Semua, Stok & Expired, Transaksi & PO, Sistem).
+- [x] Buat card list item notifikasi dengan indikator visual read/unread dan aksi cepat (Mark as Read, Delete, Redirect).
+
+### Definition of Done
+- Bell icon menampilkan counter unread dengan akurat.
+- Dropdown panel notifikasi berfungsi responsif dengan tab filter dan aksi lokal.
+
+---
+
+## TASK-FE-USER-002: User Profile Dropdown & Modal Ganti Password
+
+**Type:** Frontend  
+**Priority:** P1  
+**Complexity:** S  
+**Related UI:** UI Flow User Profile & Ganti Password Modal
+
+### Description
+Membangun komponen User Profile Dropdown di Topbar beserta Modal Form Ganti Password.
+
+### Checklist
+- [x] Buat komponen User Profile Dropdown di Topbar (menampilkan nama, avatar, dan role badge).
+- [x] Buat Modal Form Ganti Password dengan validasi password saat ini, password baru, dan konfirmasi password.
+- [x] Hubungkan dengan endpoint `POST /api/auth/change-password` dan tangani feedback error/sukses.
+
+### Definition of Done
+- User dapat membuka menu profil dan mengganti password dari Topbar.
+- Validasi input & feedback modal berjalan sesuai spesifikasi.
 
 ---
 

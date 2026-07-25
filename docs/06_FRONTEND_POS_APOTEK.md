@@ -2,18 +2,18 @@
 document_name: "06_FRONTEND_ONLY_POS_APOTEK"
 document_type: "Frontend Specification / Frontend Analysis"
 project_name: "POS Apotek"
-version: "1.0.0"
-status: "Draft"
+version: "1.1.0"
+status: "Approved"
 prepared_for: "AI Vibe Coding / Codex GPT"
 prepared_by: "Suryadi Umar"
-last_updated: "2026-06-02"
+last_updated: "2026-07-25"
 source_documents:
   - "01_PRD_POS_APOTEK.md"
   - "02_SRS_POS_APOTEK.md"
 related_documents:
   - "01_PRD_POS_APOTEK.md"
   - "02_SRS_POS_APOTEK.md"
-  - "03_BACKEND_ANALYSIS_POS_APOTEK.md"
+  - "07_BACKEND_POS_APOTEK.md"
   - "04_UI_UX_FLOW_POS_APOTEK.md"
   - "05_TASK_BREAKDOWN_POS_APOTEK.md"
 ---
@@ -1682,6 +1682,36 @@ ExportButton
 ```
 
 Komponen domain harus dibuat reusable agar tidak setiap halaman menciptakan versi sendiri seperti manusia yang menganggap copy-paste sebagai arsitektur.
+
+### 28.3 Specialized Component Specifications
+
+#### 1. CategoryTreeView (`src/components/categories/CategoryTreeView.tsx`)
+- **Fungsi:** Komponen visualisasi pohon hirarki kategori (hingga 3 level kedalaman) dengan fitur *expand/collapse*, drag/sort order, dan tombol aksi (tambah sub-kategori, edit, hapus).
+- **Props:**
+  - `categories: CategoryTreeNode[]`: Array node kategori hirarkis dari `GET /api/categories/tree`.
+  - `onSelectCategory?: (id: string) => void`: Callback saat kategori dipilih.
+  - `onEditCategory?: (category: Category) => void`: Callback untuk mengedit node.
+  - `onAddSubCategory?: (parentId: string) => void`: Callback untuk membuat sub-kategori baru di bawah parent.
+- **Perilaku UI:**
+  - Menggunakan indentasi visual (padding-left per kedalaman level 1, 2, 3).
+  - Menampilkan badge jumlah produk yang terhubung ke kategori tersebut.
+
+#### 2. NotificationBell (`src/components/notifications/NotificationBell.tsx`)
+- **Fungsi:** Tombol lonceng pemberitahuan pada Navbar utama aplikasi dengan indikator badge merah berisi jumlah notifikasi *unread*.
+- **State Management:** Mengonsumsi `useNotificationsQuery()` (TanStack Query) dan menghitung `unreadCount` dengan memfilter ID yang ada di LocalStorage `pos_read_notifications` dan `pos_deleted_notifications`.
+- **Interaksi:** Membuka Popover / Sheet `NotificationCenter` saat diklik.
+
+#### 3. NotificationCenter (`src/components/notifications/NotificationCenter.tsx`)
+- **Fungsi:** Panel drawer/sheet pusat pemberitahuan operasional (Stok Tipis `LOW_STOCK`, Batch Kadaluarsa `EXPIRING_BATCH`, Batch Expired `EXPIRED_BATCH`).
+- **Fitur Utama:**
+  - Tab Filter: *Semua*, *Stok Tipis*, *Kadaluarsa*.
+  - Tombol "Tandai Semua Dibaca": Menyimpan seluruh ID notifikasi saat ini ke LocalStorage `pos_read_notifications`.
+  - Tombol Hapus per Notifikasi: Menyimpan ID notifikasi ke LocalStorage `pos_deleted_notifications`.
+  - Action Link: Navigasi cepat ke `/stok` atau `/batch` terkait.
+
+#### 4. UserProfileMenu (`src/components/layout/UserProfileMenu.tsx`)
+- **Fungsi:** Menampilkan avatar user aktif, nama lengkap, role badge (`KASIR`, `APOTEKER`, `MANAGER`), serta menu navigasi cepat (Profil Saya, Pengaturan Sistem, Logout).
+- **Security Control:** Menyembunyikan opsi "Pengaturan Sistem" dan "Manajemen User" jika pengguna ber-role `KASIR` atau `APOTEKER`.
 
 ---
 

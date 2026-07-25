@@ -7,6 +7,8 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { IdempotencyService } from '../sales/idempotency.service';
+import { InventoryService } from '../inventory/inventory.service';
+import { randomUUID } from 'crypto';
 
 const productStockInclude = {
   category: true,
@@ -32,6 +34,7 @@ export class StockService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly idempotencyService: IdempotencyService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   async findAll() {
@@ -118,73 +121,66 @@ export class StockService {
     reason: string,
     userId: string,
   ) {
-    const adjustment = await this.prisma.$transaction(async (tx) => {
-      const batch = await tx.productBatch.findFirst({
-        where: { id: batchId, deletedAt: null },
-      });
+    const batch = await this.prisma.productBatch.findFirstOrThrow({
+      where: { id: batchId, deletedAt: null },
+    });
 
-      if (!batch) {
-        throw new NotFoundException('Batch tidak ditemukan');
-      }
+    const oldQty = Number(batch.currentStockBase);
+    const difference = newQtyBase - oldQty;
 
-      const oldQty = Number(batch.currentStockBase);
-      const difference = newQtyBase - oldQty;
+    if (difference === 0) {
+      throw new BadRequestException('Qty baru harus berbeda dari qty lama');
+    }
 
-      if (difference === 0) {
-        throw new BadRequestException('Qty baru harus berbeda dari qty lama');
-      }
+    const adjustmentType = difference > 0 ? 'INCREASE' : 'DECREASE';
+    const quantityChange = Math.abs(difference);
+    const adjustmentId = randomUUID();
 
-      const updatedBatch = await tx.productBatch.update({
-        where: { id: batch.id },
-        data: {
-          currentStockBase: newQtyBase,
-          isActive: true,
-        },
-      });
+    // Pastikan stockAdjustment di-record duluan agar referenceId (adjustmentId) valid
+    const createdAdjustment = await this.prisma.stockAdjustment.create({
+      data: {
+        id: adjustmentId,
+        batchId,
+        productId: batch.productId,
+        createdById: userId,
+        adjustmentType,
+        oldQty,
+        newQty: newQtyBase,
+        difference,
+        reason,
+      },
+    });
 
-      const createdAdjustment = await tx.stockAdjustment.create({
-        data: {
-          batchId,
-          createdById: userId,
-          oldQty,
-          newQty: newQtyBase,
-          difference,
-          reason,
-        },
-      });
+    await this.inventoryService.adjustStock(
+      batchId,
+      adjustmentType,
+      quantityChange,
+      adjustmentId,
+      {
+        adjustmentType,
+        reason,
+        beforeQty: oldQty.toString(),
+        afterQty: newQtyBase.toString(),
+        approvedBy: userId,
+      },
+      userId,
+    );
 
-      await tx.stockMutation.create({
-        data: {
-          productId: batch.productId,
-          batchId,
-          createdById: userId,
-          mutationType:
-            difference > 0 ? 'STOCK_ADJUSTMENT_IN' : 'STOCK_ADJUSTMENT_OUT',
-          referenceType: 'STOCK_ADJUSTMENT',
-          referenceId: createdAdjustment.id,
-          qtyBefore: oldQty,
-          qtyChange: difference,
-          qtyAfter: newQtyBase,
-          reason,
-        },
-      });
-
-      return {
-        adjustment: createdAdjustment,
-        batch: updatedBatch,
-      };
+    // Ambil data batch ter-update
+    const dbBatch = await this.prisma.productBatch.findFirstOrThrow({
+      where: { id: batchId },
     });
 
     return {
-      ...adjustment.adjustment,
-      oldQty: Number(adjustment.adjustment.oldQty),
-      newQty: Number(adjustment.adjustment.newQty),
-      difference: Number(adjustment.adjustment.difference),
+      ...createdAdjustment,
+      oldQty: Number(createdAdjustment.oldQty),
+      newQty: Number(createdAdjustment.newQty),
+      difference: Number(createdAdjustment.difference),
       batch: {
-        ...adjustment.batch,
-        initialStockBase: Number(adjustment.batch.initialStockBase),
-        currentStockBase: Number(adjustment.batch.currentStockBase),
-        hppBase: Number(adjustment.batch.hppBase),
+        ...dbBatch,
+        initialStockBase: Number(dbBatch.initialStockBase),
+        currentStockBase: Number(dbBatch.currentStockBase),
+        hppBase: Number(dbBatch.hppBase),
       },
     };
   }

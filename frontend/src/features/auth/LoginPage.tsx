@@ -8,6 +8,7 @@ import { Button } from '../../shared/components/Button';
 import { Card } from '../../shared/components/Card';
 import { Input } from '../../shared/components/Input';
 import { useToastStore } from '../../shared/components/toast.store';
+import { useSettingsStore } from '../settings/settings.store';
 import { useAuthStore } from './auth.store';
 import type { LoginResponse, RoleName } from './auth.types';
 
@@ -45,6 +46,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToastStore((state) => state.show);
+  const publicSettings = useSettingsStore((state) => state.publicSettings);
   const { accessToken, user, setSession } = useAuthStore();
   const from = (location.state as { from?: Location })?.from?.pathname ?? '/dashboard';
   const form = useForm<LoginFormValues>({
@@ -58,7 +60,6 @@ export function LoginPage() {
   if (accessToken && user) {
     return <Navigate to={resolvePostLoginPath(user.role, from)} replace />;
   }
-
   const onSubmit = form.handleSubmit(async (values) => {
     try {
       const session = await apiClient.post<LoginResponse>('/auth/login', values);
@@ -79,13 +80,17 @@ export function LoginPage() {
       <Card className="relative z-10 w-full max-w-md border border-slate-200/40 bg-white/90 shadow-xl shadow-slate-100/50 backdrop-blur-md rounded-2xl p-8 sm:p-10 transition-all duration-300">
         <div className="mb-8 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white shadow-md font-heading font-black text-xl tracking-tighter">
-            AR
+            {publicSettings?.branding?.logoPath ? (
+              <img src={publicSettings.branding.logoPath} alt="Logo" className="h-8 w-8 object-contain" />
+            ) : (
+              publicSettings?.app?.shortName || 'AR'
+            )}
           </div>
           <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-slate-900 font-heading">
-            POS Apotek Risyah
+            {publicSettings?.app?.applicationName || 'POS Apotek Risyah'}
           </h1>
           <p className="mt-2 text-sm text-slate-500 font-medium">
-            Masuk untuk mengakses area kerja sesuai role Anda.
+            {publicSettings?.app?.tagline || 'Masuk untuk mengakses area kerja sesuai role Anda.'}
           </p>
         </div>
         <form className="space-y-5" onSubmit={onSubmit}>

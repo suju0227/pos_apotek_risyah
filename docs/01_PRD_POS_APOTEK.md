@@ -2,11 +2,11 @@
 document_name: "01_PRD_POS_APOTEK"
 document_type: "Product Requirements Document"
 project_name: "POS Apotek"
-version: "1.1.0"
+version: "1.2.0"
 status: "Approved for Technical Derivation"
 prepared_for: "AI Vibe Coding / Codex GPT"
 prepared_by: "Suryadi Umar"
-last_updated: "2026-06-02"
+last_updated: "2026-07-25"
 related_documents:
   - "02_SRS_POS_APOTEK.md"
   - "03_SDD_SYSTEM_DESIGN_POS_APOTEK.md"
@@ -81,6 +81,7 @@ Pemesanan / PO Obat
 -> Pelayanan Resep Dasar
 -> Kasir
 -> Laporan
+-> Pusat Notifikasi Operasional
 ```
 
 ---
@@ -163,6 +164,7 @@ Fitur berikut wajib masuk versi pertama:
 | PRD-AUTH-001 | Login dan role pengguna | Must Have | Role minimal: Kasir dan Manager |
 | PRD-PROD-001 | Manajemen produk obat | Must Have | Tambah, ubah, nonaktifkan, cari produk |
 | PRD-CAT-001 | Manajemen kategori | Must Have | Kategori dipakai untuk filter produk |
+| PRD-CAT-002 | Kategori Hirarki | Must Have | Kategori hirarki (tree structure, parentId, sortOrder, cycle prevention, deletion guard) |
 | PRD-SUP-001 | Manajemen supplier | Must Have | Supplier dipakai pada pembelian |
 | PRD-UNIT-001 | Konversi satuan produk | Must Have | Satuan besar, menengah, dan terkecil |
 | PRD-UNIT-002 | Pembatasan satuan jual produk | Must Have | Manager menentukan satuan apa saja yang boleh dipilih kasir |
@@ -186,6 +188,8 @@ Fitur berikut wajib masuk versi pertama:
 | PRD-REPORT-001 | Laporan penjualan dan laba | Must Have | Harian, mingguan, bulanan, tahunan, rentang tanggal |
 | PRD-EXPORT-001 | Ekspor laporan | Should Have | Excel dan PDF |
 | PRD-USER-001 | Manajemen user | Should Have | Manager dapat membuat, mengubah, dan menonaktifkan akun pengguna |
+| PRD-USER-002 | Profil pengguna & self-service password | Should Have | Pengguna dapat memperbarui profil mandiri dan mengubah password sendiri |
+| PRD-NOTIF-001 | Pusat Notifikasi Operasional | Should Have | Dynamic alert synthesis untuk stok, expired, PO pending, dan resep siap bayar sesuai RBAC |
 | PRD-SET-001 | Pengaturan profil apotek | Should Have | Manager dapat mengatur identitas dasar apotek untuk tampilan dan laporan |
 | PRD-KASIR-UX-001 | Shortcut dan input cepat kasir | Should Have | Membantu transaksi lebih cepat |
 
@@ -328,6 +332,29 @@ Sistem harus menyediakan master data produk obat sebagai dasar transaksi, batch,
 - Produk nonaktif tidak muncul sebagai pilihan transaksi baru.
 - Histori transaksi produk nonaktif tetap dapat dibaca.
 - Kode produk unik dan tidak duplikat.
+
+---
+
+### 8.2A PRD-CAT-002: Kategori Hirarki (Hierarchical Category System)
+
+**Deskripsi:**
+Sistem harus mendukung manajemen kategori produk berhirarki (tree structure) dengan relasi parent-child, urutan penataan (`sortOrder`), pencegahan siklus sirkular (cycle prevention), dan proteksi penghapusan (deletion guard).
+
+**Aktor:**
+- Manager
+
+**Prioritas:** Must Have
+
+**Kebutuhan Produk:**
+- Kategori dapat memiliki parent category (`parentId`) untuk membentuk struktur pohon multi-level.
+- Setiap kategori memiliki nomor urut (`sortOrder`) untuk penataan tampilan.
+- Sistem mencegah pembuatan siklus hubungan parent-child sirkular.
+- Kategori yang masih memiliki sub-kategori aktif atau produk terikat tidak boleh dihapus (deletion guard).
+
+**Acceptance Criteria:**
+- Manager dapat membuat kategori induk dan sub-kategori bertingkat.
+- Sistem menolak penetapan parent category yang memicu siklus sirkular.
+- Penghapusan kategori yang masih memiliki anak kategori atau produk terikat ditolak oleh sistem.
 
 ---
 
@@ -846,6 +873,27 @@ Catatan:
 
 ---
 
+### 8.17A PRD-USER-002: Profil Pengguna & Self-Service Password
+
+**Deskripsi:**
+Sistem menyediakan fitur kelola profil pengguna dan penggantian password mandiri (self-service password change) untuk semua pengguna login (Kasir, Apoteker, Manager, Pemilik).
+
+**Aktor:**
+- Semua Pengguna (Kasir, Apoteker, Manager, Pemilik)
+
+**Prioritas:** Should Have
+
+**Kebutuhan Produk:**
+- Pengguna yang sedang login dapat melihat data profil dirinya (nama, email/username, role).
+- Pengguna dapat mengubah password sendiri dengan memvalidasi password lama terlebih dahulu.
+- Pengguna dapat memperbarui nama atau informasi kontak profil pribadinya.
+
+**Acceptance Criteria:**
+- Pengguna berhasil mengubah password jika password lama cocok dan password baru memenuhi standar keamanan.
+- Sistem menolak penggantian password jika password lama tidak sesuai.
+
+---
+
 ### 8.18 PRD-SET-001: Pengaturan Profil Apotek
 
 **Deskripsi:**
@@ -869,6 +917,30 @@ Sistem sebaiknya menyediakan pengaturan profil apotek untuk menampilkan identita
 - Manager dapat memperbarui profil apotek.
 - Kasir tidak dapat membuka halaman pengaturan.
 - Perubahan pengaturan tidak mengubah histori transaksi lama.
+
+---
+
+### 8.19 PRD-NOTIF-001: Pusat Notifikasi Operasional (Notification Center)
+
+**Deskripsi:**
+Sistem menyediakan Pusat Notifikasi Operasional yang mengagregasikan peringatan dan status sistem (stok minimum, batch expired/mendekati expired, PO pending, dan resep siap bayar) secara dinamis sesuai role pengguna.
+
+**Aktor:**
+- Kasir, Apoteker, Manager, Pemilik
+
+**Prioritas:** Should Have
+
+**Kebutuhan Produk:**
+- Sistem mensintesis notifikasi dari data operasional secara realtime/dinamis.
+- Notifikasi disaring berdasarkan role pengakses (RBAC filtering).
+- Kasir hanya menerima notifikasi relevan operasional (seperti resep siap bayar atau stok kritis).
+- Manager/Pemilik menerima notifikasi lengkap termasuk stok kritis, batch kedaluwarsa, dan status PO/pembelian.
+- Status dibaca/diabaikan (`read`/`dismissed`) dikelola pada local client state agar tidak merusak data transaksi server.
+
+**Acceptance Criteria:**
+- Pusat notifikasi menampilkan daftar peringatan operasional terkini.
+- Pengguna kasir tidak dapat melihat notifikasi yang mengandung informasi sensitif HPP/laba.
+- Pengguna dapat menandai notifikasi sebagai dibaca/diabaikan di UI.
 
 ---
 
@@ -1310,6 +1382,9 @@ AI coding wajib mengikuti batasan berikut:
 | PRD-EXPORT-001 | SRS-EXPORT-* | SDD-SERVICE-EXPORT-* | UX-REPORT-* | TASK-EXPORT-* |
 | PRD-HIST-001 | SRS-HIST-* | SDD-API-SALE-* | UX-RIWAYAT-* | TASK-HIST-* |
 | PRD-USER-001 | SRS-USER-* | SDD-AUTH-USER-* | UX-USER-* | TASK-USER-* |
+| PRD-USER-002 | SRS-USER-* | SDD-AUTH-USER-* | UX-USER-* | TASK-USER-* |
+| PRD-NOTIF-001 | SRS-NOTIF-* | SDD-NOTIF-* | UX-NOTIF-* | TASK-NOTIF-* |
+| PRD-CAT-002 | SRS-CAT-* | SDD-DB-CAT-* | UX-CAT-* | TASK-CAT-* |
 | PRD-SET-001 | SRS-SET-* | SDD-API-SETTINGS-* | UX-SETTINGS-* | TASK-SETTINGS-* |
 
 ---
@@ -1361,15 +1436,13 @@ Jika kebutuhan produk berubah, pembaruan harus dimulai dari PRD, lalu diturunkan
 
 ---
 
-## 20. Ringkasan Perubahan Versi 1.1.0
+## 20. Ringkasan Perubahan Versi 1.2.0
 
 | Area | Perubahan |
 |---|---|
-| Metadata | Versi dinaikkan ke 1.1.0, status diperbarui, dan tanggal disinkronkan |
-| Related documents | Menambahkan dokumen frontend dan backend |
-| Instruksi pembacaan | Menambahkan urutan prioritas dokumen jika terjadi konflik |
-| Prinsip produk | Menambahkan keputusan pemisahan tanggung jawab frontend dan backend |
-| Scope V1 | Menambahkan riwayat transaksi, manajemen user, dan pengaturan profil apotek |
-| Acceptance criteria | Menambahkan kriteria riwayat transaksi, user nonaktif, dan settings |
-| Traceability | Menambahkan mapping untuk riwayat transaksi, user, dan settings |
-| Catatan sinkronisasi | Menjelaskan dokumen turunan yang harus tetap selaras |
+| Metadata | Versi dinaikkan ke 1.2.0, status diperbarui, dan tanggal disinkronkan ke Juli 2026 |
+| Operational Flow | Menambahkan Pusat Notifikasi Operasional ke dalam alur operasional utama |
+| Product Scope | Menambahkan PRD-CAT-002 (Kategori Hirarki - tree structure, parentId, sortOrder, cycle prevention, deletion guard) |
+| User Scope | Menambahkan PRD-USER-002 (Profil Pengguna & Self-Service Password) |
+| Notification Scope | Menambahkan PRD-NOTIF-001 (Pusat Notifikasi Operasional - dynamic synthesis & RBAC filtering) |
+| Traceability | Menambahkan traceability mapping untuk Kategori Hirarki, Profil Pengguna, dan Pusat Notifikasi |

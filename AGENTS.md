@@ -15,10 +15,12 @@ Sebelum mengubah kode, baca dokumen berikut secara berurutan:
 5. docs/07_BACKEND_POS_APOTEK.md
 6. docs/04_UI_UX_FLOW_POS_APOTEK.md
 7. docs/05_TASK_BREAKDOWN_POS_APOTEK.md
+8. docs/domains/* (Product, Inventory, Purchasing, Sales Domain Specs)
+9. docs/adr/* (Architecture Decision Records)
 
 Jika terjadi konflik:
 1. PRD dan SRS mengatur kebutuhan bisnis dan perilaku sistem.
-2. SDD mengatur desain teknis final.
+2. SDD, Domain Specs, dan ADR mengatur desain teknis final.
 3. Backend document mengatur implementasi backend.
 4. Frontend document mengatur implementasi frontend.
 5. UI/UX Flow dan Task Breakdown mengatur alur dan urutan kerja.

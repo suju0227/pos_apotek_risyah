@@ -68,6 +68,10 @@ export class ReceiveStockHandler implements ICommandHandler<ReceiveStockCommand>
 
       const qtyAfter = qtyBefore.plus(qtyDecimal);
 
+      // Cek apakah ada referenceType & referenceId spesifik yang dikirim lewat metadata (misal dari sales return)
+      const refType = (metadata as any).saleReturnNumber ? 'SALE_RETURN' : (purchaseId ? 'PURCHASE' : 'OPENING_BALANCE');
+      const refId = (metadata as any).saleReturnItemId || purchaseId || null;
+
       // 2. Tulis record Immutable Ledger ke StockMutation
       const mutation = await tx.stockMutation.create({
         data: {
@@ -75,8 +79,8 @@ export class ReceiveStockHandler implements ICommandHandler<ReceiveStockCommand>
           batchId: batch.id,
           createdById: userId,
           movementType: 'IN',
-          referenceType: purchaseId ? 'PURCHASE' : 'OPENING_BALANCE',
-          referenceId: purchaseId || null,
+          referenceType: refType,
+          referenceId: refId,
           qtyBefore,
           qtyChange: qtyDecimal,
           qtyAfter,

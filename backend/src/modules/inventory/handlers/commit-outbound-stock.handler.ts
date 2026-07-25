@@ -99,7 +99,7 @@ export class CommitOutboundStockHandler
             batchId: alloc.batchId,
             createdById: userId,
             movementType: 'OUT',
-            referenceType: referenceType === 'SALE' ? 'SALE' : 'SALE_RETURN',
+            referenceType: referenceType === 'SALE' ? 'SALE' : referenceType === 'SALE_RETURN' ? 'SALE_RETURN' : 'PURCHASE_RETURN',
             referenceId: referenceId,
             qtyBefore,
             qtyChange: qtyAllocatedDecimal.negated(),

@@ -10,6 +10,7 @@ import { isPrismaUniqueError } from '../../common/utils/prisma-error';
 import { PrismaService } from '../../database/prisma.service';
 import { IdempotencyService } from '../sales/idempotency.service';
 import { CreateSalesReturnDto } from './dto/create-sales-return.dto';
+import { InventoryService } from '../inventory/inventory.service';
 
 const SALES_RETURN_ACTION = 'SALES_RETURN';
 
@@ -51,6 +52,7 @@ type LockedAllocationRow = {
   discountAmount: Prisma.Decimal;
   profitAmount: Prisma.Decimal;
   currentStockBase: Prisma.Decimal;
+  expiredDate: Date;
 };
 
 @Injectable()
@@ -58,6 +60,7 @@ export class SalesReturnsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly idempotencyService: IdempotencyService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   async findAll(user: AuthUser) {
@@ -227,7 +230,7 @@ export class SalesReturnsService {
         });
 
         for (const item of preparedItems) {
-          await tx.salesReturnItem.create({
+          const detailItem = await tx.salesReturnItem.create({
             data: {
               salesReturnId: createdReturn.id,
               saleBatchAllocationId: item.allocation.id,
@@ -249,25 +252,26 @@ export class SalesReturnsService {
             },
           });
 
-          await tx.productBatch.update({
-            where: { id: item.allocation.batchId },
-            data: { currentStockBase: item.qtyAfter },
-          });
-
-          await tx.stockMutation.create({
-            data: {
-              productId: item.allocation.productId,
-              batchId: item.allocation.batchId,
-              createdById: user.id,
-              movementType: 'IN',
-              referenceType: 'SALE_RETURN',
-              referenceId: createdReturn.id,
-              qtyBefore: item.qtyBefore,
-              qtyChange: item.qtyBaseReturned,
-              qtyAfter: item.qtyAfter,
-              metadata: { reason: `Retur ${createdReturn.returnNumber} dari ${sale.saleNumber}` },
-            },
-          });
+          await this.inventoryService.receiveStock(
+            item.allocation.productId,
+            item.allocation.batchNumber,
+            item.allocation.expiredDate,
+            item.qtyBaseReturned,
+            item.allocation.hppBaseSnapshot.toString(),
+            undefined, // purchaseId
+            undefined, // storageLocationId
+            {
+              saleReturnNumber: createdReturn.returnNumber,
+              originalInvoice: sale.saleNumber,
+              customer: 'Default Customer',
+              reason: createdReturn.reason,
+              returnedBy: user.username,
+              approvedBy: user.username,
+              // Tambahkan flag internal agar receiveStockHandler bisa me-resolve detail item retur & reference id mutasi dengan benar
+              saleReturnItemId: detailItem.id,
+            } as any,
+            user.id,
+          );
         }
 
         const salesReturn = await tx.salesReturn.findUniqueOrThrow({
@@ -304,7 +308,8 @@ export class SalesReturnsService {
         sba.subtotal,
         sba.discount_amount AS "discountAmount",
         sba.profit_amount AS "profitAmount",
-        pb.current_stock_base AS "currentStockBase"
+        pb.current_stock_base AS "currentStockBase",
+        pb.expired_date AS "expiredDate"
       FROM sale_batch_allocations sba
       JOIN sale_items si ON si.id = sba.sale_item_id
       JOIN product_batches pb ON pb.id = sba.batch_id

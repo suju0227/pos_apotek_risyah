@@ -10,6 +10,7 @@ import { isPrismaUniqueError } from '../../common/utils/prisma-error';
 import { PrismaService } from '../../database/prisma.service';
 import { IdempotencyService } from '../sales/idempotency.service';
 import { CreatePurchaseReturnDto } from './dto/create-purchase-return.dto';
+import { InventoryService } from '../inventory/inventory.service';
 
 const PURCHASE_RETURN_ACTION = 'PURCHASE_RETURN';
 
@@ -46,6 +47,7 @@ export class PurchaseReturnsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly idempotencyService: IdempotencyService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   async findAll() {
@@ -134,14 +136,14 @@ export class PurchaseReturnsService {
     try {
       return await this.prisma.$transaction(async (tx) => {
         let finalPurchaseId = dto.purchaseId;
+        let purchase: any = null;
         if (dto.purchaseId) {
           const isIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.purchaseId);
-          const purchase = await tx.purchase.findFirst({
+          purchase = await tx.purchase.findFirst({
             where: { 
               ...(isIdUuid ? { id: dto.purchaseId } : { purchaseNumber: dto.purchaseId }),
               deletedAt: null 
             },
-            select: { id: true },
           });
 
           if (!purchase) {
@@ -199,7 +201,7 @@ export class PurchaseReturnsService {
         });
 
         for (const item of preparedItems) {
-          await tx.purchaseReturnItem.create({
+          const detailItem = await tx.purchaseReturnItem.create({
             data: {
               purchaseReturnId: createdReturn.id,
               productId: item.batch.productId,
@@ -210,25 +212,20 @@ export class PurchaseReturnsService {
             },
           });
 
-          await tx.productBatch.update({
-            where: { id: item.batch.id },
-            data: { currentStockBase: item.qtyAfter },
-          });
-
-          await tx.stockMutation.create({
-            data: {
-              productId: item.batch.productId,
-              batchId: item.batch.id,
-              createdById: user.id,
-              movementType: 'OUT',
-              referenceType: 'PURCHASE_RETURN',
-              referenceId: createdReturn.id,
-              qtyBefore: item.qtyBefore,
-              qtyChange: -item.qtyBaseReturned,
-              qtyAfter: item.qtyAfter,
-              metadata: { reason: `Retur pembelian ${createdReturn.returnNumber}` },
+          await this.inventoryService.commitOutboundStock(
+            item.batch.productId,
+            item.qtyBaseReturned,
+            detailItem.id, // referenceId diisi detail ID item retur pembelian
+            'PURCHASE_RETURN',
+            {
+              purchaseReturnNumber: createdReturn.returnNumber,
+              originalPurchaseNumber: purchase?.purchaseNumber || 'N/A',
+              supplier: (await tx.supplier.findUnique({ where: { id: purchase?.supplierId || '' } }))?.name || 'Unknown',
+              reason: createdReturn.reason,
+              approvedBy: user.username,
             },
-          });
+            user.id,
+          );
         }
 
         const purchaseReturn = await tx.purchaseReturn.findUniqueOrThrow({

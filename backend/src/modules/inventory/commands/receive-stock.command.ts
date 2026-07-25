@@ -1,4 +1,4 @@
-import { PurchaseMetadata, PurchaseReturnMetadata } from '../types/movement-metadata.type';
+import { PurchaseMetadata, PurchaseReturnMetadata, SaleReturnMetadata } from '../types/movement-metadata.type';
 
 export class ReceiveStockCommand {
   constructor(
@@ -9,7 +9,7 @@ export class ReceiveStockCommand {
     readonly unitCostRaw: string, // Decimal string
     readonly purchaseId: string | undefined,
     readonly storageLocationId: string | undefined,
-    readonly metadata: PurchaseMetadata | PurchaseReturnMetadata,
+    readonly metadata: PurchaseMetadata | PurchaseReturnMetadata | SaleReturnMetadata,
     readonly userId: string,
   ) {}
 }

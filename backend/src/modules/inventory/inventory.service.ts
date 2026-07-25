@@ -19,7 +19,7 @@ export class InventoryService {
     unitCostRaw: string,
     purchaseId: string | undefined,
     storageLocationId: string | undefined,
-    metadata: PurchaseMetadata | PurchaseReturnMetadata,
+    metadata: PurchaseMetadata | PurchaseReturnMetadata | SaleReturnMetadata,
     userId: string,
   ): Promise<string> {
     return this.commandBus.execute(
@@ -41,8 +41,8 @@ export class InventoryService {
     productId: string,
     quantity: number,
     referenceId: string,
-    referenceType: 'SALE' | 'SALE_RETURN',
-    metadata: SaleMetadata | SaleReturnMetadata,
+    referenceType: 'SALE' | 'SALE_RETURN' | 'PURCHASE_RETURN',
+    metadata: SaleMetadata | SaleReturnMetadata | PurchaseReturnMetadata,
     userId: string,
   ): Promise<string[]> {
     return this.commandBus.execute(

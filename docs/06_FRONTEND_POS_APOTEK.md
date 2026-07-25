@@ -13,7 +13,7 @@ source_documents:
 related_documents:
   - "01_PRD_POS_APOTEK.md"
   - "02_SRS_POS_APOTEK.md"
-  - "03_BACKEND_ANALYSIS_POS_APOTEK.md"
+  - "07_BACKEND_POS_APOTEK.md"
   - "04_UI_UX_FLOW_POS_APOTEK.md"
   - "05_TASK_BREAKDOWN_POS_APOTEK.md"
 ---

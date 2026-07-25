@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { CqrsModule } from '@nestjs/cqrs';
 import { InventoryService } from './inventory.service';
 import { InventoryModule } from './inventory.module';
-import { PrismaService } from '../../../database/prisma.service';
+import { PrismaService } from '../../database/prisma.service';
 import { InsufficientStockException } from './exceptions/insufficient-stock.exception';
 import { Prisma } from '@prisma/client';
 
@@ -15,11 +16,15 @@ describe('Inventory CQRS Integration Tests', () => {
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [InventoryModule],
+      imports: [CqrsModule, InventoryModule],
     }).compile();
 
     service = module.get<InventoryService>(InventoryService);
     prisma = module.get<PrismaService>(PrismaService);
+
+    // Jalankan onModuleInit agar CQRS CommandBus mendaftarkan semua Command Handlers secara internal
+    const app = module.createNestApplication();
+    await app.init();
 
     // Setup basic master fixtures
     testUser = await prisma.user.findFirst();
@@ -41,23 +46,39 @@ describe('Inventory CQRS Integration Tests', () => {
       data: { name: `Test Cat ${Date.now()}` },
     });
 
-    testUnit = await prisma.unit.create({
-      data: { name: 'Pcs', symbol: 'pcs' },
-    });
+    testUnit = await prisma.unit.findFirst({ where: { name: 'Pcs' } });
+    if (!testUnit) {
+      testUnit = await prisma.unit.create({
+        data: { name: 'Pcs', symbol: 'pcs' },
+      });
+    }
   });
 
   afterAll(async () => {
-    // Clean up dynamic fixtures
-    if (testProduct) {
-      await prisma.productBatch.deleteMany({ where: { productId: testProduct.id } });
-      await prisma.stockMutation.deleteMany({ where: { productId: testProduct.id } });
-      await prisma.product.delete({ where: { id: testProduct.id } });
+    // Drop trigger untuk menghapus data mutasi test
+    await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS trg_stock_mutations_immutable ON stock_mutations;`);
+
+    // Cari dan hapus semua productBatch, stockMutation, dan product yang terikat ke testCategory yang kita buat
+    const productsToDelete = await prisma.product.findMany({
+      where: { categoryId: testCategory.id },
+    });
+
+    for (const prod of productsToDelete) {
+      await prisma.stockMutation.deleteMany({ where: { productId: prod.id } });
+      await prisma.productBatch.deleteMany({ where: { productId: prod.id } });
+      await prisma.product.delete({ where: { id: prod.id } });
     }
+
+    // Re-enable trigger
+    await prisma.$executeRawUnsafe(`
+      CREATE TRIGGER trg_stock_mutations_immutable
+      BEFORE UPDATE OR DELETE ON stock_mutations
+      FOR EACH ROW
+      EXECUTE FUNCTION prevent_stock_mutation_mutation();
+    `);
+
     if (testCategory) {
       await prisma.category.delete({ where: { id: testCategory.id } });
-    }
-    if (testUnit) {
-      await prisma.unit.delete({ where: { id: testUnit.id } });
     }
   });
 
@@ -75,9 +96,16 @@ describe('Inventory CQRS Integration Tests', () => {
 
   afterEach(async () => {
     if (testProduct) {
-      await prisma.productBatch.deleteMany({ where: { productId: testProduct.id } });
+      await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS trg_stock_mutations_immutable ON stock_mutations;`);
       await prisma.stockMutation.deleteMany({ where: { productId: testProduct.id } });
+      await prisma.productBatch.deleteMany({ where: { productId: testProduct.id } });
       await prisma.product.delete({ where: { id: testProduct.id } });
+      await prisma.$executeRawUnsafe(`
+        CREATE TRIGGER trg_stock_mutations_immutable
+        BEFORE UPDATE OR DELETE ON stock_mutations
+        FOR EACH ROW
+        EXECUTE FUNCTION prevent_stock_mutation_mutation();
+      `);
       testProduct = null;
     }
   });
@@ -141,10 +169,11 @@ describe('Inventory CQRS Integration Tests', () => {
     });
 
     // Commit penjualan outbound total 15 unit (harusnya memotong 10 dari BATCH-NEAR dan 5 dari BATCH-FAR)
+    const testReferenceId = 'e2e6fa8b-302a-43d8-a89f-ea90ea76a8bf';
     const mutationIds = await service.commitOutboundStock(
       testProduct.id,
       15,
-      'dummy-invoice-id',
+      testReferenceId,
       'SALE_RETURN', // Menggunakan SALE_RETURN agar tidak memerlukan detail saleItemId yang berelasi kompleks
       { invoiceNumber: 'INV-SALE-999', cashier: 'Budi', cashierCode: 'C1', unitPrice: '7000', discount: '0', saleUnitName: 'Pcs', conversionToBase: '1' },
       testUser.id,
@@ -179,11 +208,12 @@ describe('Inventory CQRS Integration Tests', () => {
     });
 
     // Coba potong 10 unit padahal stok hanya ada 5
+    const testReferenceId = 'e2e6fa8b-302a-43d8-a89f-ea90ea76a8bf';
     await expect(
       service.commitOutboundStock(
         testProduct.id,
         10,
-        'dummy-invoice-id',
+        testReferenceId,
         'SALE_RETURN',
         { invoiceNumber: 'INV-SALE-888', cashier: 'Budi', cashierCode: 'C1', unitPrice: '7000', discount: '0', saleUnitName: 'Pcs', conversionToBase: '1' },
         testUser.id,

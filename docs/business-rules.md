@@ -41,6 +41,21 @@ Frontend hanya boleh menghitung estimasi tampilan.
 - Harga modal/HPP/laba internal memakai presisi tinggi.
 - Uang, HPP, pajak, diskon, dan laba tidak boleh memakai `FLOAT`, `DOUBLE`, atau `REAL`.
 
+## Master Data & Kategori Tree
+
+- Kategori mendukung struktur hirarki pohon (Category Tree).
+- Nama kategori harus unik pada parent yang sama (unique name per `parentId`).
+- Kedalaman hirarki kategori maksimal 3 level (Level 1 Root -> Level 2 Sub-kategori -> Level 3 Sub-sub-kategori).
+- Parent category tidak boleh dihapus jika masih memiliki sub-kategori (children) atau masih terikat pada produk aktif/historis.
+
+## Notification Center & RBAC Notifikasi
+
+- Notifikasi disaring secara eksplisit di backend berdasarkan role pengguna:
+  - `KASIR`: Notifikasi status retur penjualan dan pengumuman sistem. Kasir tidak menerima notifikasi stok, expired, PO, atau finansial.
+  - `APOTEKER`: Notifikasi stok kritis/rendah, alert batch mendekati expired, update status PO, update status resep, dan pengumuman sistem.
+  - `MANAGER`: Seluruh notifikasi (stok rendah, batch expired, update status PO, alert finansial/laba, status retur, audit log user, dan pengumuman sistem).
+  - `PEMILIK`: Notifikasi ringkasan tingkat tinggi (ringkasan batch expired, ringkasan harian penjualan/laba, dan pengumuman sistem).
+
 ## Role dan Data Sensitif
 
 Role minimum V1:

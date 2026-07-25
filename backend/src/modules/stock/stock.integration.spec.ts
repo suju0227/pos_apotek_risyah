@@ -93,7 +93,7 @@ describe('Stock API', () => {
     );
 
     expect(mutation).toMatchObject({
-      movementType: 'IN',
+      movementType: 'ADJUSTMENT',
       referenceType: 'ADJUSTMENT',
       qtyBefore: 8,
       qtyChange: 7,

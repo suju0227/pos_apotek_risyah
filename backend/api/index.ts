@@ -54,6 +54,10 @@ export default async function vercelHandler(
   req: VercelRequest,
   res: VercelResponse,
 ) {
+  process.env.DATABASE_URL ??=
+    process.env.NEON_POSTGRES_PRISMA_URL ??
+    process.env.POSTGRES_PRISMA_URL ??
+    process.env.NEON_POSTGRES_URL;
   handler ??= await createHandler();
   return handler(
     req as unknown as Request,

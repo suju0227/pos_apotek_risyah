@@ -1,4 +1,5 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '/api';
 export const APP_TIMEZONE =
   import.meta.env.VITE_APP_TIMEZONE || 'Asia/Makassar';
 export const LOCAL_NETWORK_MODE =

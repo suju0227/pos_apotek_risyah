@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { decimal, roundMoney } from '../../common/utils/money.util';
 import { PaymentMethod } from './dto/create-sale.dto';
 
 type PaymentResult = {
@@ -11,30 +13,27 @@ export class PaymentService {
   validatePayment(
     paymentMethod: PaymentMethod,
     paidAmount: number,
-    grandTotal: number,
+    grandTotal: Prisma.Decimal | number,
   ): PaymentResult {
-    if (paidAmount < 0) {
+    const paid = decimal(paidAmount);
+    if (paid.isNegative()) {
       throw new BadRequestException('Nominal pembayaran tidak boleh negatif');
     }
 
     if (paymentMethod === 'CASH') {
-      if (paidAmount < grandTotal) {
+      if (paid.lessThan(grandTotal)) {
         throw new BadRequestException('Nominal pembayaran belum mencukupi');
       }
 
       return {
-        paidAmount,
-        changeAmount: this.roundMoney(paidAmount - grandTotal),
+        paidAmount: paid.toNumber(),
+        changeAmount: roundMoney(paid.sub(decimal(grandTotal))).toNumber(),
       };
     }
 
     return {
-      paidAmount,
+      paidAmount: paid.toNumber(),
       changeAmount: 0,
     };
-  }
-
-  private roundMoney(value: number) {
-    return Math.round(value + Number.EPSILON);
   }
 }

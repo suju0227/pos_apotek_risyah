@@ -12,15 +12,20 @@ async function bootstrap() {
     configService.get<string>('APP_URL'),
   ]
     .filter((origin): origin is string => Boolean(origin))
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/\/$/, ''))
     .filter(Boolean);
+  const vercelFrontendOrigin = /^https:\/\/pos-apotek-risyah-frontend(?:-[a-z0-9-]+)?\.vercel\.app$/;
 
   app.enableCors({
     origin: (
       origin: string | undefined,
       callback: (error: Error | null, allow?: boolean) => void,
     ) => {
-      if (!origin || corsOrigins.includes(origin)) {
+      if (
+        !origin ||
+        corsOrigins.includes(origin.replace(/\/$/, '')) ||
+        vercelFrontendOrigin.test(origin)
+      ) {
         callback(null, true);
         return;
       }

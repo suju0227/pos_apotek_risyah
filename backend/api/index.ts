@@ -11,14 +11,15 @@ async function createHandler() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   const corsOrigins = [
-    ...(configService.get<string>('CORS_ORIGIN') ?? '').split(','),
-    configService.get<string>('FRONTEND_URL'),
-    configService.get<string>('APP_URL'),
+    ...(process.env.CORS_ORIGIN ?? '').split(','),
+    process.env.FRONTEND_URL,
+    process.env.APP_URL,
   ]
     .filter((origin): origin is string => Boolean(origin))
     .map((origin) => origin.trim().replace(/\/$/, ''))
     .filter(Boolean);
-  const vercelFrontendOrigin = /^https:\/\/pos-apotek-risyah-frontend(?:-[a-z0-9-]+)?\.vercel\.app$/;
+  const vercelFrontendOrigin =
+    /^https:\/\/pos-apotek-risyah-frontend(?:-[a-z0-9-]+)?\.vercel\.app$/;
 
   app.enableCors({
     origin: (

@@ -1,6 +1,13 @@
 {
   "name": "pos-apotek-risyah",
   "private": true,
+  "pnpm": {
+    "overrides": {
+      "multer": ">=2.3.0",
+      "uuid": ">=13.0.1",
+      "deepmerge-ts": ">=8.0.0"
+    }
+  },
   "version": "0.1.0",
   "packageManager": "pnpm@10.34.3",
   "scripts": {

@@ -25,8 +25,10 @@ import { SalesReportPage } from '../features/reports/SalesReportPage';
 import { SalesHistoryPage } from '../features/sales-history/SalesHistoryPage';
 import { SalesReturnPage } from '../features/sales-returns/SalesReturnPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
+import { StockAdjustmentPage } from '../features/stock/StockAdjustmentPage';
 import { StockMutationsPage } from '../features/stock/StockMutationsPage';
 import { StockPage } from '../features/stock/StockPage';
+import { ServiceHistoryPage } from '../features/counseling/ServiceHistoryPage';
 import { UsersPage } from '../features/users/UsersPage';
 import type { RoleName } from '../features/auth/auth.types';
 
@@ -145,6 +147,14 @@ export function App() {
             }
           />
           <Route
+            path="/pelayanan/riwayat"
+            element={
+              <ProtectedRoute allowedRoles={pharmacistAndManager}>
+                <ServiceHistoryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/pembelian"
             element={
               <ProtectedRoute allowedRoles={managerOnly}>
@@ -173,6 +183,14 @@ export function App() {
             element={
               <ProtectedRoute allowedRoles={managerOnly}>
                 <StockMutationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/koreksi-stok"
+            element={
+              <ProtectedRoute allowedRoles={managerOnly}>
+                <StockAdjustmentPage />
               </ProtectedRoute>
             }
           />

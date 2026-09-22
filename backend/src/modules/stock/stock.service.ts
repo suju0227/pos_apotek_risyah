@@ -7,6 +7,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { IdempotencyService } from '../sales/idempotency.service';
+import { TimezoneUtil } from '../../common/utils/timezone.util';
 
 const productStockInclude = {
   category: true,
@@ -250,7 +251,6 @@ export class StockService {
   }
 
   private startOfToday() {
-    const now = new Date();
-    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    return TimezoneUtil.startOfOperationalDay(new Date());
   }
 }

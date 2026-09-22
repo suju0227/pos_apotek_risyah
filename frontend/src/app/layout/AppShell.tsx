@@ -1,6 +1,7 @@
 import {
   Archive,
   ArrowLeftRight,
+  ClipboardPenLine,
   Calendar,
   ChevronDown,
   ChevronLeft,
@@ -115,6 +116,7 @@ const navGroups: NavGroup[] = [
       { label: 'Batch', path: '/batch', icon: Calendar, roles: ['MANAGER'] },
       { label: 'Stok', path: '/stok', icon: Archive, roles: ['MANAGER'] },
       { label: 'Mutasi Stok', path: '/mutasi-stok', icon: ArrowLeftRight, roles: ['MANAGER'] },
+      { label: 'Koreksi Stok', path: '/koreksi-stok', icon: ClipboardPenLine, roles: ['MANAGER'] },
     ],
   },
   {

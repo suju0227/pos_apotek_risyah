@@ -34,8 +34,11 @@ export class DashboardController {
   }
 
   @Get('recent-transactions')
-  recentTransactions(@Query() query: DashboardLimitQueryDto) {
-    return this.dashboardService.recentTransactions(query.limit);
+  recentTransactions(
+    @Query() query: DashboardLimitQueryDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.dashboardService.recentTransactions(query.limit, user);
   }
 
   @Get('trends')
@@ -45,6 +48,7 @@ export class DashboardController {
   }
 
   @Get('revenue-trend')
+  @Roles('MANAGER', 'PEMILIK')
   revenueTrend(@Query() query: DashboardPeriodQueryDto) {
     return this.dashboardService.revenueTrend(query.period);
   }
@@ -56,8 +60,11 @@ export class DashboardController {
   }
 
   @Get('latest-sales')
-  latestSales(@Query() query: DashboardLimitQueryDto) {
-    return this.dashboardService.recentTransactions(query.limit);
+  latestSales(
+    @Query() query: DashboardLimitQueryDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.dashboardService.recentTransactions(query.limit, user);
   }
 
   @Get('expiring-batches')

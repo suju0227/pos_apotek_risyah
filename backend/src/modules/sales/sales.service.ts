@@ -7,6 +7,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { AuthUser } from '../../common/types/auth-user';
 import { isPrismaUniqueError } from '../../common/utils/prisma-error';
+import { decimal, roundInternal, roundMoney, roundQuantity, sumDecimals } from '../../common/utils/money.util';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateSaleFromPrescriptionDto } from '../prescriptions/dto/create-sale-from-prescription.dto';
 import { DiscountService } from './discount.service';
@@ -62,20 +63,20 @@ type PreparedAllocation = {
   batchNumber: string;
   expiredDate: Date;
   qtyBase: number;
-  hppBaseSnapshot: number;
-  sellingPrice: number;
-  subtotal: number;
-  discountAmount: number;
-  profitAmount: number;
+  hppBaseSnapshot: Prisma.Decimal;
+  sellingPrice: Prisma.Decimal;
+  subtotal: Prisma.Decimal;
+  discountAmount: Prisma.Decimal;
+  profitAmount: Prisma.Decimal;
   qtyBefore: number;
   qtyAfter: number;
 };
 
 type PreparedSaleItem = ResolvedSaleItem & {
-  sellingPrice: number;
-  subtotal: number;
-  discountAmount: number;
-  totalAfterDiscount: number;
+  sellingPrice: Prisma.Decimal;
+  subtotal: Prisma.Decimal;
+  discountAmount: Prisma.Decimal;
+  totalAfterDiscount: Prisma.Decimal;
   allocations: PreparedAllocation[];
 };
 
@@ -190,7 +191,10 @@ export class SalesService {
 
   async findAll(user: AuthUser) {
     const sales = await this.prisma.sale.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        ...(user.role === 'MANAGER' ? {} : { cashierId: user.id }),
+      },
       include: saleInclude,
       orderBy: { createdAt: 'desc' },
     });
@@ -200,7 +204,11 @@ export class SalesService {
 
   async findOne(id: string, user: AuthUser) {
     const sale = await this.prisma.sale.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(user.role === 'MANAGER' ? {} : { cashierId: user.id }),
+      },
       include: saleInclude,
     });
 
@@ -213,7 +221,11 @@ export class SalesService {
 
   async returnableItems(id: string, user: AuthUser) {
     const sale = await this.prisma.sale.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(user.role === 'MANAGER' ? {} : { cashierId: user.id }),
+      },
       include: saleInclude,
     });
 
@@ -380,15 +392,17 @@ export class SalesService {
         }
 
         const preparedItems = await this.prepareItems(tx, resolvedItems);
-        const subtotal = this.roundMoney(
-          preparedItems.reduce((sum, item) => sum + item.subtotal, 0),
+        const subtotal = roundMoney(
+          sumDecimals(preparedItems.map((item) => item.subtotal)),
         );
-        const discountTotal = this.discountService.calculateDiscount(
-          dto.discountType,
-          dto.discountValue,
-          subtotal,
+        const discountTotal = decimal(
+          this.discountService.calculateDiscount(
+            dto.discountType,
+            dto.discountValue,
+            subtotal,
+          ),
         );
-        const grandTotal = this.roundMoney(subtotal - discountTotal);
+        const grandTotal = roundMoney(subtotal.sub(discountTotal));
         const payment = this.paymentService.validatePayment(
           dto.paymentMethod,
           dto.paidAmount,
@@ -403,34 +417,28 @@ export class SalesService {
 
         let discountIndex = 0;
         for (const item of preparedItems) {
-          let itemDiscount = 0;
+          let itemDiscount = decimal(0);
           for (const allocation of item.allocations) {
-            allocation.discountAmount = allocationDiscounts[discountIndex++];
-            const hppAmount = allocation.qtyBase * allocation.hppBaseSnapshot;
-            allocation.profitAmount = this.roundInternal(
-              allocation.subtotal - allocation.discountAmount - hppAmount,
+            allocation.discountAmount = decimal(allocationDiscounts[discountIndex++]);
+            const hppAmount = decimal(allocation.qtyBase).mul(allocation.hppBaseSnapshot);
+            allocation.profitAmount = roundInternal(
+              allocation.subtotal.sub(allocation.discountAmount).sub(hppAmount),
             );
-            itemDiscount += allocation.discountAmount;
+            itemDiscount = itemDiscount.plus(allocation.discountAmount);
           }
-          item.discountAmount = this.roundMoney(itemDiscount);
-          item.totalAfterDiscount = this.roundMoney(
-            item.subtotal - item.discountAmount,
-          );
+          item.discountAmount = roundMoney(itemDiscount);
+          item.totalAfterDiscount = roundMoney(item.subtotal.sub(item.discountAmount));
         }
 
-        const totalHpp = this.roundInternal(
-          preparedItems
-            .flatMap((item) => item.allocations)
-            .reduce(
-              (sum, allocation) =>
-                sum + allocation.qtyBase * allocation.hppBaseSnapshot,
-              0,
-            ),
+        const totalHpp = roundInternal(
+          sumDecimals(
+            preparedItems
+              .flatMap((item) => item.allocations)
+              .map((allocation) => decimal(allocation.qtyBase).mul(allocation.hppBaseSnapshot)),
+          ),
         );
-        const totalProfit = this.roundInternal(
-          preparedItems
-            .flatMap((item) => item.allocations)
-            .reduce((sum, allocation) => sum + allocation.profitAmount, 0),
+        const totalProfit = roundInternal(
+          sumDecimals(preparedItems.flatMap((item) => item.allocations).map((allocation) => allocation.profitAmount)),
         );
 
         const createdSale = await tx.sale.create({
@@ -604,9 +612,9 @@ export class SalesService {
           throw new BadRequestException('Harga jual batch tidak valid');
         }
 
-        const sellingPrice = Number(price.sellingPrice);
-        const qtySalePart = qtyBase / item.conversionSnapshot;
-        const subtotal = this.roundMoney(qtySalePart * sellingPrice);
+        const sellingPrice = decimal(price.sellingPrice);
+        const qtySalePart = decimal(qtyBase).div(item.conversionSnapshot);
+        const subtotal = roundMoney(qtySalePart.mul(sellingPrice));
         const qtyAfter = this.roundQty(qtyBefore - qtyBase);
 
         if (qtyAfter < 0) {
@@ -618,11 +626,11 @@ export class SalesService {
           batchNumber: batch.batchNumber,
           expiredDate: batch.expiredDate,
           qtyBase,
-          hppBaseSnapshot: Number(batch.hppBase),
+          hppBaseSnapshot: decimal(batch.hppBase),
           sellingPrice,
           subtotal,
-          discountAmount: 0,
-          profitAmount: 0,
+          discountAmount: decimal(0),
+          profitAmount: decimal(0),
           qtyBefore,
           qtyAfter,
         });
@@ -634,15 +642,15 @@ export class SalesService {
         throw new BadRequestException('Stok produk tidak mencukupi');
       }
 
-      const subtotal = this.roundMoney(
-        allocations.reduce((sum, allocation) => sum + allocation.subtotal, 0),
+      const subtotal = roundMoney(
+        sumDecimals(allocations.map((allocation) => allocation.subtotal)),
       );
 
       preparedItems.push({
         ...item,
-        sellingPrice: allocations[0]?.sellingPrice ?? 0,
+        sellingPrice: allocations[0]?.sellingPrice ?? decimal(0),
         subtotal,
-        discountAmount: 0,
+        discountAmount: decimal(0),
         totalAfterDiscount: subtotal,
         allocations,
       });

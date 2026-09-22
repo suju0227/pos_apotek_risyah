@@ -4,6 +4,7 @@ import PDFDocument = require('pdfkit');
 import { ProfitReportQueryDto } from '../reports/dto/profit-report-query.dto';
 import { SalesReportQueryDto } from '../reports/dto/sales-report-query.dto';
 import { ReportsService } from '../reports/reports.service';
+import { TimezoneUtil } from '../../common/utils/timezone.util';
 
 type ExportFile = {
   filename: string;
@@ -186,7 +187,7 @@ export class ExportsService {
     filters: Record<string, unknown>,
   ) {
     sheet.addRow([title]);
-    sheet.addRow(['Diekspor Pada', new Date().toISOString()]);
+    sheet.addRow(['Diekspor Pada', TimezoneUtil.nowOperationalIso()]);
     sheet.addRow(['Periode Mulai', filters.startAt]);
     sheet.addRow(['Periode Selesai', filters.endAt]);
     sheet.addRow(['Filter', this.filterSummary(filters)]);
@@ -213,7 +214,7 @@ export class ExportsService {
 
       document.fontSize(16).text(title);
       document.moveDown(0.5);
-      document.fontSize(9).text(`Diekspor Pada: ${new Date().toISOString()}`);
+      document.fontSize(9).text(`Diekspor Pada: ${TimezoneUtil.nowOperationalIso()}`);
       document.text(`Periode Mulai: ${report.filters.startAt}`);
       document.text(`Periode Selesai: ${report.filters.endAt}`);
       document.text(`Filter: ${this.filterSummary(report.filters)}`);
@@ -244,7 +245,7 @@ export class ExportsService {
   }
 
   private filename(prefix: string, extension: 'xlsx' | 'pdf') {
-    const timestamp = new Date().toISOString().slice(0, 10);
+    const timestamp = TimezoneUtil.nowOperationalIso().slice(0, 10);
     return `${prefix}-${timestamp}.${extension}`;
   }
 

@@ -198,10 +198,14 @@ export class DashboardService {
     }));
   }
 
-  async recentTransactions(limit = 5) {
+  async recentTransactions(limit = 5, user?: AuthUser) {
     const normalizedLimit = this.normalizeLimit(limit, 50);
+    const canViewFinancials = this.canViewFinancials(user);
     const sales = await this.prisma.sale.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        ...(user?.role === 'KASIR' ? { cashierId: user.id } : {}),
+      },
       include: {
         cashier: {
           include: { role: true },
@@ -222,9 +226,6 @@ export class DashboardService {
         id: sale.id,
         saleNumber: sale.saleNumber,
         paymentMethod: sale.paymentMethod,
-        grandTotal: Number(sale.grandTotal),
-        returnTotal: totalReturn,
-        netTotal: Number(sale.grandTotal) - totalReturn,
         createdAt: sale.createdAt.toISOString(),
         cashier: {
           id: sale.cashier.id,
@@ -232,6 +233,13 @@ export class DashboardService {
           username: sale.cashier.username,
           role: sale.cashier.role.name,
         },
+        ...(canViewFinancials
+          ? {
+              grandTotal: Number(sale.grandTotal),
+              returnTotal: totalReturn,
+              netTotal: Number(sale.grandTotal) - totalReturn,
+            }
+          : {}),
       };
     });
   }

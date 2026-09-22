@@ -7,6 +7,7 @@ import {
 import { Prisma, ProductBatch, ProductUnit } from '@prisma/client';
 import { isPrismaUniqueError } from '../../common/utils/prisma-error';
 import { PrismaService } from '../../database/prisma.service';
+import { TimezoneUtil } from '../../common/utils/timezone.util';
 import { IdempotencyService } from '../sales/idempotency.service';
 import {
   CreatePurchaseDto,
@@ -90,7 +91,7 @@ export class PurchasesService {
     return {
       supplierId: purchaseOrder.supplierId,
       purchaseOrderId: purchaseOrder.id,
-      purchaseDate: new Date().toISOString().slice(0, 10),
+      purchaseDate: TimezoneUtil.nowOperationalDateString(),
       taxMode: 'NON_PPN',
       taxRatePercent: 0,
       items: purchaseOrder.items

@@ -190,7 +190,10 @@ export class SalesService {
 
   async findAll(user: AuthUser) {
     const sales = await this.prisma.sale.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        ...(user.role === 'MANAGER' ? {} : { cashierId: user.id }),
+      },
       include: saleInclude,
       orderBy: { createdAt: 'desc' },
     });
@@ -200,7 +203,11 @@ export class SalesService {
 
   async findOne(id: string, user: AuthUser) {
     const sale = await this.prisma.sale.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(user.role === 'MANAGER' ? {} : { cashierId: user.id }),
+      },
       include: saleInclude,
     });
 
@@ -213,7 +220,11 @@ export class SalesService {
 
   async returnableItems(id: string, user: AuthUser) {
     const sale = await this.prisma.sale.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(user.role === 'MANAGER' ? {} : { cashierId: user.id }),
+      },
       include: saleInclude,
     });
 

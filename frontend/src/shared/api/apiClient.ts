@@ -18,7 +18,20 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  const contentType = response.headers.get('content-type') ?? '';
+  let data: unknown = null;
+
+  if (text) {
+    if (contentType.includes('application/json')) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null;
+      }
+    } else {
+      data = { message: text.slice(0, 300) };
+    }
+  }
 
   if (!response.ok) {
     if (response.status === 401 && !skipAuth) {
@@ -28,11 +41,13 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       }
     }
 
+    const errorBody =
+      data && typeof data === 'object' ? (data as { message?: unknown }) : null;
     const message =
-      typeof data?.message === 'string'
-        ? data.message
-        : Array.isArray(data?.message)
-          ? data.message.join(', ')
+      typeof errorBody?.message === 'string'
+        ? errorBody.message
+        : Array.isArray(errorBody?.message)
+          ? errorBody.message.join(', ')
           : 'Request gagal';
     throw new Error(message);
   }

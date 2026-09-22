@@ -7,6 +7,3 @@ export const LOCAL_NETWORK_MODE =
 export const ENABLE_CONNECTION_STATUS =
   import.meta.env.VITE_ENABLE_CONNECTION_STATUS !== 'false';
 
-if (!API_BASE_URL) {
-  throw new Error('VITE_API_BASE_URL belum dikonfigurasi');
-}

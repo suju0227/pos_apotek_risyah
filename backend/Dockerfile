@@ -24,4 +24,4 @@ RUN npm prune --omit=dev
 COPY --from=build /app/dist ./dist
 
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run db:seed && npm run start:prod"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:prod"]

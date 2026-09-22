@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { ProfitReportQueryDto } from './dto/profit-report-query.dto';
 import { SalesReportQueryDto } from './dto/sales-report-query.dto';
+import { TimezoneUtil } from '../../common/utils/timezone.util';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -192,7 +193,7 @@ export class ReportsService {
     >();
 
     for (const sale of sales) {
-      const date = sale.createdAt.toISOString().slice(0, 10);
+      const date = TimezoneUtil.toOperationalDate(sale.createdAt).toISOString().slice(0, 10);
       const returnTotal = this.sum(sale.salesReturns, (salesReturn) =>
         Number(salesReturn.totalRefund),
       );
@@ -308,7 +309,7 @@ export class ReportsService {
 
     for (const allocation of allocations) {
       const metrics = this.profitChartMetrics(allocation);
-      const date = allocation.saleItem.sale.createdAt.toISOString().slice(0, 10);
+      const date = TimezoneUtil.toOperationalDate(allocation.saleItem.sale.createdAt).toISOString().slice(0, 10);
       const day = daily.get(date) ?? {
         date,
         grossRevenue: 0,
@@ -467,10 +468,10 @@ export class ReportsService {
   private dateFilter(startDate?: string, endDate?: string): Prisma.DateTimeFilter {
     const start = startDate
       ? this.parseDate(startDate, 'startDate')
-      : this.startOfUtcDay(new Date());
+      : TimezoneUtil.startOfOperationalDay(new Date());
     const end = endDate
       ? this.endExclusive(endDate)
-      : this.nextUtcDay(start);
+      : TimezoneUtil.nextOperationalDay(start);
 
     if (start >= end) {
       throw new BadRequestException('startDate harus sebelum endDate');
@@ -483,28 +484,17 @@ export class ReportsService {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       throw new BadRequestException(`${field} harus memakai format YYYY-MM-DD`);
     }
-    const date = new Date(`${value}T00:00:00.000Z`);
-    if (Number.isNaN(date.getTime())) {
+    try {
+      return TimezoneUtil.parseOperationalDate(value);
+    } catch {
       throw new BadRequestException(`${field} tidak valid`);
     }
-    return date;
   }
 
   private endExclusive(value: string) {
-    return this.nextUtcDay(this.parseDate(value, 'endDate'));
+    return TimezoneUtil.nextOperationalDay(this.parseDate(value, 'endDate'));
   }
 
-  private nextUtcDay(date: Date) {
-    const next = new Date(date);
-    next.setUTCDate(next.getUTCDate() + 1);
-    return next;
-  }
-
-  private startOfUtcDay(date: Date) {
-    return new Date(
-      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-    );
-  }
 
   private filtersResponse(
     query: SalesReportQueryDto | ProfitReportQueryDto,

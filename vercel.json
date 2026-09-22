@@ -2,5 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "npm install --prefix backend",
-  "buildCommand": "npm run build --prefix backend"
+  "buildCommand": "npm run build --prefix backend",
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "backend/dist/**"
+    }
+  }
 }
